@@ -819,10 +819,15 @@ class LearnerWorker:
                     indices = minibatches[batch_num]
                     mb = self._get_minibatch(gpu_buffer, indices)
                 with timing.add_time('forward_head'):
-                    ids_oth = mb.obs['ids_oth']
+                    ids_oth = mb.obs['ids_oth'].long()
                     ids = torch.arange(ids_oth.shape[0], device=ids_oth.device).unsqueeze(1)
-                    ids_oth = 8 * ids_oth + ids
-                    head_outputs= self.actor_critic.forward_head(mb.obs, ids_oth)
+                    ids_oth = recurrence * ids_oth + ids
+                    max_valid_idx = ids_oth.shape[0] - 1
+                    valid_ids = (ids_oth >= 0) & (ids_oth <= max_valid_idx)
+                    if 'attention_mask' in mb.obs:
+                        mb.obs['attention_mask'] = mb.obs['attention_mask'] * valid_ids.to(mb.obs['attention_mask'].dtype)
+                    ids_oth = ids_oth.clamp(0, max_valid_idx)
+                    head_outputs = self.actor_critic.forward_head(mb.obs, ids_oth)
 
                 with torch.no_grad():
                     final_clip_ratio = self.cfg.ppo_clip_ratio

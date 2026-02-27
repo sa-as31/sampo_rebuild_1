@@ -311,7 +311,8 @@ class RelativeEmbedding2D(nn.Module):
     def forward(self, x, q):
         q_shape = q.shape
         x = (x[:,:,0] + 5)*11 + x[:,:,1] + 5
-        x = self.embeddings(x.long())
+        x = x.long().clamp(0, self.embeddings.num_embeddings - 1)
+        x = self.embeddings(x)
         x = self.to_r(x)   
         x = x.view(q_shape[0], -1, q_shape[1], q_shape[3]).transpose(1,2) 
         bias = x * q
@@ -336,6 +337,12 @@ class Attention_cob(EncoderBase):
 
     def forward(self, x, ids, mask, relative_xy):
         batch_size = x.shape[0]
+        ids = ids.long()
+        max_valid_idx = x.shape[0] - 1
+        valid_ids = (ids >= 0) & (ids <= max_valid_idx)
+        if mask is not None:
+            mask = mask * valid_ids.to(mask.dtype)
+        ids = ids.clamp(0, max_valid_idx)
         oth_embedding = x[ids]
         self_embedding = x
 

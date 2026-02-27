@@ -103,7 +103,12 @@ class _ActorCriticSharedWeights(_ActorCriticBase):
     def forward(self, obs_dict, rnn_states, with_action_distribution=False):
         oth_ids = obs_dict['ids_oth']
         xx = torch.arange(oth_ids.shape[0], device=oth_ids.device).unsqueeze(1)
-        oth_ids = xx + oth_ids
+        oth_ids = xx + oth_ids.long()
+        max_valid_idx = oth_ids.shape[0] - 1
+        valid_ids = (oth_ids >= 0) & (oth_ids <= max_valid_idx)
+        if 'attention_mask' in obs_dict:
+            obs_dict['attention_mask'] = obs_dict['attention_mask'] * valid_ids.to(obs_dict['attention_mask'].dtype)
+        oth_ids = oth_ids.clamp(0, max_valid_idx)
         x = self.forward_head(obs_dict, oth_ids)   
         x, new_rnn_states = self.forward_core(x, rnn_states)  
         result = self.forward_tail(x, with_action_distribution=with_action_distribution) 
