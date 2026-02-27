@@ -634,10 +634,14 @@ class LearnerWorker:
 
     def _maybe_save(self):
         if time.time() - self.last_saved_time >= self.cfg.save_every_sec or self.should_save_model:
-            self._save()
+            self._save(prefix='checkpoint')
             self.model_saved_event.set()
             self.should_save_model = False
             self.last_saved_time = time.time()
+
+        if self.cfg.save_milestones_sec > 0 and time.time() - self.last_milestone_time >= self.cfg.save_milestones_sec:
+            self._save(prefix='milestone')
+            self.last_milestone_time = time.time()
 
     @staticmethod
     def checkpoint_dir(cfg, policy_id):
@@ -646,8 +650,15 @@ class LearnerWorker:
 
     @staticmethod
     def get_checkpoints(checkpoints_dir):
-        checkpoints = glob.glob(join(checkpoints_dir, 'checkpoint_*'))
+        checkpoints = glob.glob(join(checkpoints_dir, 'checkpoint_*.pth'))
         return sorted(checkpoints)
+
+    @staticmethod
+    def get_managed_checkpoints(checkpoints_dir):
+        regular = glob.glob(join(checkpoints_dir, 'checkpoint_*.pth'))
+        milestones = glob.glob(join(checkpoints_dir, 'milestone_*.pth'))
+        checkpoints = regular + milestones
+        return sorted(checkpoints, key=os.path.getmtime)
 
     def _get_checkpoint_dict(self):
         checkpoint = {
@@ -661,21 +672,21 @@ class LearnerWorker:
 
         return checkpoint
 
-    def _save(self):
+    def _save(self, prefix='checkpoint'):
         checkpoint = self._get_checkpoint_dict()
         assert checkpoint is not None
 
         checkpoint_dir = self.checkpoint_dir(self.cfg, self.policy_id)
         tmp_filepath = join(checkpoint_dir, 'temp_checkpoint')
-        checkpoint_name = f'checkpoint_{self.train_step:09d}_{self.env_steps}.pth'
+        checkpoint_name = f'{prefix}_{self.train_step:09d}_{self.env_steps}.pth'
         filepath = join(checkpoint_dir, checkpoint_name)
         log.info('Saving %s...', tmp_filepath)
         torch.save(checkpoint, tmp_filepath)
         log.info('Renaming %s to %s', tmp_filepath, filepath)
         os.rename(tmp_filepath, filepath)
 
-        while len(self.get_checkpoints(checkpoint_dir)) > self.cfg.keep_checkpoints:
-            oldest_checkpoint = self.get_checkpoints(checkpoint_dir)[0]
+        while len(self.get_managed_checkpoints(checkpoint_dir)) > self.cfg.keep_checkpoints:
+            oldest_checkpoint = self.get_managed_checkpoints(checkpoint_dir)[0]
             if os.path.isfile(oldest_checkpoint):
                 log.debug('Removing %s', oldest_checkpoint)
                 os.remove(oldest_checkpoint)

@@ -1,5 +1,5 @@
 numpy<2
-torch
+torch==2.3.1
 gym==0.23.1
 gymnasium
 pydantic<2

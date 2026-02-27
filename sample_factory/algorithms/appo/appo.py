@@ -15,6 +15,9 @@ import json
 import math
 import multiprocessing
 import os
+import glob
+import re
+import shutil
 import time
 from collections import deque
 from os.path import join
@@ -49,6 +52,8 @@ else:
 
 
 torch.multiprocessing.set_sharing_strategy('file_system')
+
+BEST_MODEL_PATTERN = re.compile(r'best_model_obj_([+-]?\d+(?:\.\d+)?)_step_(\d+)_(\d+)\.pth$')
 
 
 class APPO(ReinforcementLearningAlgorithm):
@@ -310,6 +315,11 @@ class APPO(ReinforcementLearningAlgorithm):
             self.writers[key] = SummaryWriter(summary_dir, flush_secs=20)
 
         self.pbt = PopulationBasedTraining(self.cfg, self.reward_shaping_scheme, self.writers)
+        self.best_objective = {p: -math.inf for p in range(self.cfg.num_policies)}
+        self.best_checkpoint_path = {p: None for p in range(self.cfg.num_policies)}
+        self.last_best_snapshot_time = {p: 0.0 for p in range(self.cfg.num_policies)}
+        self.save_best_every_sec = max(1, int(getattr(self.cfg, 'save_best_every_sec', 600)))
+        self.keep_best_checkpoints = max(1, int(getattr(self.cfg, 'keep_best_checkpoints', 10)))
 
     def _cfg_dict(self):
         if isinstance(self.cfg, dict):
@@ -580,6 +590,146 @@ class APPO(ReinforcementLearningAlgorithm):
                 if len(true_reward_stats) > 0:
                     policy_reward_stats.append((policy_id, f'{np.mean(reward_state):.3f}'))
             log.debug('Avg episode reward: %r', policy_reward_stats)
+
+        self._maybe_save_best_models()
+
+    def _objective_for_policy(self, policy_id):
+        target_key = getattr(self.cfg, 'pbt_target_objective', 'true_reward')
+        if target_key in self.policy_avg_stats and len(self.policy_avg_stats[target_key][policy_id]) > 0:
+            return float(np.mean(self.policy_avg_stats[target_key][policy_id]))
+        if 'true_reward' in self.policy_avg_stats and len(self.policy_avg_stats['true_reward'][policy_id]) > 0:
+            return float(np.mean(self.policy_avg_stats['true_reward'][policy_id]))
+        if 'reward' in self.policy_avg_stats and len(self.policy_avg_stats['reward'][policy_id]) > 0:
+            return float(np.mean(self.policy_avg_stats['reward'][policy_id]))
+        return None
+
+    def _latest_checkpoint_path(self, policy_id):
+        checkpoint_dir = LearnerWorker.checkpoint_dir(self.cfg, policy_id)
+        checkpoints = LearnerWorker.get_checkpoints(checkpoint_dir)
+        if not checkpoints:
+            return None
+        return checkpoints[-1]
+
+    def _policy_best_dir(self, policy_id):
+        checkpoint_dir = LearnerWorker.checkpoint_dir(self.cfg, policy_id)
+        return ensure_dir_exists(join(checkpoint_dir, 'best'))
+
+    def _parse_best_model_score(self, path):
+        match = BEST_MODEL_PATTERN.match(os.path.basename(path))
+        if not match:
+            return None
+        try:
+            return float(match.group(1))
+        except ValueError:
+            return None
+
+    def _list_best_model_candidates(self, policy_id):
+        best_dir = self._policy_best_dir(policy_id)
+        paths = glob.glob(join(best_dir, 'best_model_obj_*.pth'))
+        candidates = []
+        for path in paths:
+            score = self._parse_best_model_score(path)
+            if score is None:
+                continue
+            candidates.append((score, path))
+        return candidates
+
+    def _is_topk_candidate(self, policy_id, objective_value):
+        candidates = self._list_best_model_candidates(policy_id)
+        for score, _ in candidates:
+            if abs(score - objective_value) <= 1e-4:
+                return False
+        if len(candidates) < self.keep_best_checkpoints:
+            return True
+        worst_score = min(score for score, _ in candidates)
+        return objective_value > worst_score + 1e-6
+
+    def _cleanup_saved_models(self, policy_id):
+        checkpoint_dir = LearnerWorker.checkpoint_dir(self.cfg, policy_id)
+        best_dir = self._policy_best_dir(policy_id)
+
+        managed = []
+        managed.extend(glob.glob(join(checkpoint_dir, 'checkpoint_*.pth')))
+        managed.extend(glob.glob(join(checkpoint_dir, 'milestone_*.pth')))
+        managed.extend(glob.glob(join(best_dir, 'best_snapshot_*.pth')))
+        max_to_keep = max(1, int(self.cfg.keep_checkpoints))
+        if len(managed) <= max_to_keep:
+            return
+
+        newest_first = sorted(managed, key=os.path.getmtime, reverse=True)
+        keep = set(newest_first[:max_to_keep])
+
+        for path in managed:
+            if path not in keep and os.path.isfile(path):
+                log.debug('Removing %s', path)
+                os.remove(path)
+
+    def _cleanup_best_model_candidates(self, policy_id):
+        candidates = self._list_best_model_candidates(policy_id)
+        if not candidates:
+            self.best_objective[policy_id] = -math.inf
+            self.best_checkpoint_path[policy_id] = None
+            return
+
+        ranked = sorted(candidates, key=lambda item: (item[0], os.path.getmtime(item[1])), reverse=True)
+        keep = set(path for _, path in ranked[:self.keep_best_checkpoints])
+        for _, path in ranked[self.keep_best_checkpoints:]:
+            if os.path.isfile(path):
+                log.debug('Removing %s', path)
+                os.remove(path)
+
+        best_score, best_path = ranked[0]
+        self.best_objective[policy_id] = best_score
+        self.best_checkpoint_path[policy_id] = best_path
+
+    def _save_best_snapshot(self, policy_id):
+        best_path = self.best_checkpoint_path.get(policy_id)
+        if not best_path or not os.path.isfile(best_path):
+            return
+        best_dir = self._policy_best_dir(policy_id)
+        env_steps = int(self.env_steps.get(policy_id, 0))
+        snapshot_name = f'best_snapshot_{env_steps:09d}_{int(time.time())}.pth'
+        snapshot_path = join(best_dir, snapshot_name)
+        shutil.copy2(best_path, snapshot_path)
+        self.last_best_snapshot_time[policy_id] = time.time()
+        self._cleanup_saved_models(policy_id)
+
+    def _save_new_best_model(self, policy_id, objective_value):
+        learner = self.learner_workers[policy_id]
+        learner.save_model(timeout=5.0)
+        latest = self._latest_checkpoint_path(policy_id)
+        if latest is None:
+            return
+
+        best_dir = self._policy_best_dir(policy_id)
+        env_steps = int(self.env_steps.get(policy_id, 0))
+        timestamp = int(time.time())
+        score_tag = f'{objective_value:+015.6f}'
+        best_name = f'best_model_obj_{score_tag}_step_{env_steps:09d}_{timestamp}.pth'
+        best_path = join(best_dir, best_name)
+        shutil.copy2(latest, best_path)
+
+        self._cleanup_best_model_candidates(policy_id)
+        self._save_best_snapshot(policy_id)
+
+        log.debug(
+            'New best model for policy %d: objective=%.4f, source=%s',
+            policy_id, objective_value, latest,
+        )
+
+    def _maybe_save_best_models(self):
+        now = time.time()
+        for policy_id in range(self.cfg.num_policies):
+            objective_value = self._objective_for_policy(policy_id)
+            if objective_value is None:
+                continue
+
+            if self._is_topk_candidate(policy_id, objective_value):
+                self._save_new_best_model(policy_id, objective_value)
+                continue
+
+            if now - self.last_best_snapshot_time[policy_id] >= self.save_best_every_sec:
+                self._save_best_snapshot(policy_id)
 
     def report_train_summaries(self, stats, policy_id):
         for key, scalar in stats.items():
