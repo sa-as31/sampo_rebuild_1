@@ -2,7 +2,7 @@ import torch
 import time
 from torch import nn
 
-from sample_factory.algorithms.appo.model_utils import create_encoder, create_core, create_atten_layer,\
+from sample_factory.algorithms.appo.model_utils import create_encoder, create_core, \
     ActionParameterizationContinuousNonAdaptiveStddev, Attention_cob, \
     ActionParameterizationDefault, normalize_obs, nonlinearity
 from sample_factory.algorithms.utils.action_distributions import sample_actions_log_probs, is_continuous_action_space
@@ -102,7 +102,7 @@ class _ActorCriticSharedWeights(_ActorCriticBase):
 
     def forward(self, obs_dict, rnn_states, with_action_distribution=False):
         oth_ids = obs_dict['ids_oth']
-        xx = torch.arange(oth_ids.shape[0]).unsqueeze(1).cuda()
+        xx = torch.arange(oth_ids.shape[0], device=oth_ids.device).unsqueeze(1)
         oth_ids = xx + oth_ids
         x = self.forward_head(obs_dict, oth_ids)   
         x, new_rnn_states = self.forward_core(x, rnn_states)  

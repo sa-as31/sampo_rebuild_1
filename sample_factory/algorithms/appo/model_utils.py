@@ -324,7 +324,7 @@ class Attention_cob(EncoderBase):
         Layers = [nn.Linear(hidden_size, hidden_size), 
                   nonlinearity(cfg),
                   nn.Linear(hidden_size, hidden_size)]
-        self.num_heads = cfg.num_heads
+        self.num_heads = getattr(cfg, 'num_heads', 4)
         self.head_dim = hidden_size // self.num_heads
         self.re2D = RelativeEmbedding2D(hidden_size)
         self.Q = nn.Linear(hidden_size, hidden_size)

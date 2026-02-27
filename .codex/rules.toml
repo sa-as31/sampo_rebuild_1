@@ -1,0 +1,6 @@
+[[rules]]
+command = "docker"
+auto_approve = true
+[[rules]]
+command = "docker compose"
+auto_approve = true

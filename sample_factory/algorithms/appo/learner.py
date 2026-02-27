@@ -820,7 +820,7 @@ class LearnerWorker:
                     mb = self._get_minibatch(gpu_buffer, indices)
                 with timing.add_time('forward_head'):
                     ids_oth = mb.obs['ids_oth']
-                    ids = torch.arange(ids_oth.shape[0]).unsqueeze(1).cuda()
+                    ids = torch.arange(ids_oth.shape[0], device=ids_oth.device).unsqueeze(1)
                     ids_oth = 8 * ids_oth + ids
                     head_outputs= self.actor_critic.forward_head(mb.obs, ids_oth)
 
@@ -1125,13 +1125,16 @@ class LearnerWorker:
             # but seems to do better when we're running more than one experiment in parallel
             torch.set_num_threads(1)
 
-            if self.cfg.device == 'gpu':
+            if self.cfg.device == 'gpu' and torch.cuda.is_available():
                 torch.backends.cudnn.benchmark = True
 
                 # we should already see only one CUDA device, because of env vars
                 assert torch.cuda.device_count() == 1
                 self.device = torch.device('cuda', index=0)
             else:
+                if self.cfg.device == 'gpu':
+                    log.warning('CUDA is not available for learner, switching to CPU')
+                    self.cfg.device = 'cpu'
                 self.device = torch.device('cpu')
 
             self.init_model(timing)

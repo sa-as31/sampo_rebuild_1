@@ -1,0 +1,15 @@
+services:
+  smapo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: smapo:latest
+    container_name: smapo
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: python main.py
+    stdin_open: true
+    tty: true
+    # If you have NVIDIA Container Toolkit installed, uncomment:
+    # gpus: all

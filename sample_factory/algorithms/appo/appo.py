@@ -239,8 +239,10 @@ class APPO(ReinforcementLearningAlgorithm):
 
     def __init__(self, cfg):
         super().__init__(cfg)
-        
-        
+        if cfg.device == 'gpu' and not torch.cuda.is_available():
+            log.warning('CUDA is not available, falling back to CPU execution')
+            cfg.device = 'cpu'
+
         set_global_cuda_envvars(cfg)
        
         tmp_env = make_env_func(self.cfg, env_config=None)

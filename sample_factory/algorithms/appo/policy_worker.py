@@ -187,10 +187,13 @@ class PolicyWorker:
 
             torch.set_num_threads(1)    
 
-            if self.cfg.device == 'gpu':
+            if self.cfg.device == 'gpu' and torch.cuda.is_available():
                 assert torch.cuda.device_count() == 1
                 self.device = torch.device('cuda', index=0)
             else:
+                if self.cfg.device == 'gpu':
+                    log.warning('CUDA is not available for policy worker, switching to CPU')
+                    self.cfg.device = 'cpu'
                 self.device = torch.device('cpu')
 
             self.actor_critic = create_actor_critic(self.cfg, self.obs_space, self.action_space, timing) 
