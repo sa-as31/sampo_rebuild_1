@@ -38,6 +38,7 @@ from sample_factory.envs.env_utils import get_default_reward_shaping
 from sample_factory.utils.timing import Timing
 from sample_factory.utils.utils import summaries_dir, experiment_dir, log, str2bool, memory_consumption_mb, cfg_file, \
     ensure_dir_exists, list_child_processes, kill_processes, AttrDict, done_filename, save_git_diff, init_file_logger
+from sample_factory.utils.get_available_gpus import get_gpus_without_triggering_pytorch_cuda_initialization
 
 if os.name == 'nt':
     from sample_factory.utils import Queue as MpQueue
@@ -239,9 +240,14 @@ class APPO(ReinforcementLearningAlgorithm):
 
     def __init__(self, cfg):
         super().__init__(cfg)
-        if cfg.device == 'gpu' and not torch.cuda.is_available():
-            log.warning('CUDA is not available, falling back to CPU execution')
-            cfg.device = 'cpu'
+        if cfg.device == 'gpu':
+            # Important: do not call torch.cuda.is_available() in the parent process before forking.
+            # It initializes CUDA context and breaks child processes that also need CUDA.
+            available_gpus = get_gpus_without_triggering_pytorch_cuda_initialization(os.environ)
+            has_visible_gpu = any(token.strip() for token in available_gpus.split(','))
+            if not has_visible_gpu:
+                log.warning('CUDA is not available, falling back to CPU execution')
+                cfg.device = 'cpu'
 
         set_global_cuda_envvars(cfg)
        
