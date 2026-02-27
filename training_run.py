@@ -21,6 +21,8 @@ from sample_factory.run_algorithm import run_algorithm
 from utils.files import select_free_dir_name
 from utils.training_tools import validate_config, register_custom_components
 
+WANDB_API_KEY = "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"
+
 
 def get_summary_metrics(path_to_tensorboard):
     from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
@@ -61,6 +63,8 @@ def run(config=None):
     
     if exp.global_settings.use_wandb:
         import os
+        os.environ.setdefault("WANDB_API_KEY", WANDB_API_KEY)
+        wandb.login(key=WANDB_API_KEY, relogin=True)
         if params.wandb_thread_mode:
             os.environ["WANDB_START_METHOD"] = "thread"
         wandb.init(project=exp.environment.env, config=exp.dict(), save_code=False, sync_tensorboard=True,

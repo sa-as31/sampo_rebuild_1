@@ -3,6 +3,7 @@ import os
 from learning.learning_config import Experiment
 from training_run import run
 from utils.files import select_free_dir_name
+from utils.terminal_logging import setup_terminal_logging
 
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
 
@@ -32,6 +33,11 @@ experiment = Experiment()
 
 if experiment.global_settings.experiments_root is None:
     experiment.global_settings.experiments_root = select_free_dir_name(experiment.global_settings.train_dir)
+
+setup_terminal_logging(
+    experiment.global_settings.train_dir,
+    experiment.global_settings.experiments_root,
+)
 
 # Force GPU by default for this entrypoint.
 experiment.global_settings.device = "gpu"
