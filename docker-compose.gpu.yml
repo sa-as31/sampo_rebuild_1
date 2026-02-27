@@ -1,0 +1,27 @@
+services:
+  smapo-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    image: smapo:gpu
+    container_name: smapo-gpu
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - ./results:/app/results
+    environment:
+      - WANDB_MODE=disabled
+    gpus: all
+    ipc: host
+    command: >
+      bash -lc "python scripts/verify_gpu.py &&
+      python main_gpu.py
+      --train_for_seconds=300
+      --num_workers=2
+      --num_envs_per_worker=2
+      --worker_num_splits=1
+      --target_num_agents=256
+      --num_agents=128
+      --use_wandb=False"
+    stdin_open: true
+    tty: true

@@ -8,8 +8,8 @@ def get_gpus_without_triggering_pytorch_cuda_initialization(envvars=None):
 
     import subprocess
     out = subprocess.run([sys.executable, '-m', 'sample_factory.utils.get_available_gpus'], capture_output=True, env=envvars)
-    text_output = out.stdout.decode()
-    err_output = out.stderr.decode()
+    text_output = out.stdout.decode().strip()
+    err_output = out.stderr.decode().strip()
     returncode = out.returncode
 
     from sample_factory.utils.utils import log
