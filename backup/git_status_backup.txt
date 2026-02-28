@@ -1,0 +1,31 @@
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   sample_factory/algorithms/appo/appo.py
+	modified:   sample_factory/algorithms/appo/learner.py
+	modified:   sample_factory/algorithms/appo/model.py
+	modified:   sample_factory/algorithms/appo/model_utils.py
+	modified:   sample_factory/algorithms/appo/policy_worker.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	.DS_Store
+	.codex/
+	.dockerignore
+	Dockerfile
+	PROJECT_DOCUMENTATION.md
+	docker-compose.yml
+	env/__pycache__/
+	learning/__pycache__/
+	main_gpu.py
+	planner/.DS_Store
+	planning/
+	pogema/__pycache__/
+	requirements.txt
+	sample_factory/algorithms/__pycache__/__init__.cpython-313.pyc
+	sample_factory/algorithms/appo/__pycache__/
+	sample_factory/algorithms/utils/spaces/
+	"\345\244\232\346\231\272\350\203\275\344\275\223.pdf"

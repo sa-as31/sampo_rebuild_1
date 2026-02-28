@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>无人机动态路径规划系统 / 推理演示台</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Graduation Design Prototype</p>
+          <h1>无人机动态路径规划系统</h1>
+          <p class="hero-copy">
+            第一版 Web 原型聚焦于模型推理参数配置、轨迹回放动画和关键评估指标展示，对应你开题报告中的“仿真与评估模块”与“可视化界面”。
+          </p>
+        </div>
+        <div class="hero-badges">
+          <span>LB-A*</span>
+          <span>MARL</span>
+          <span>Web Animation</span>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel control-panel">
+          <div class="panel-head">
+            <h2>推理参数</h2>
+            <p>对应模型加载、场景配置和输出产物设置。</p>
+          </div>
+
+          <div class="preset-row">
+            <button type="button" class="ghost-btn" data-preset="maze">迷宫演示</button>
+            <button type="button" class="ghost-btn" data-preset="dense">高密度</button>
+            <button type="button" class="ghost-btn" data-preset="sample">示例动画</button>
+          </div>
+
+          <form id="inference-form" class="form-grid">
+            <label>
+              <span>cfg_dir</span>
+              <input name="cfg_dir" type="text" />
+            </label>
+            <label>
+              <span>checkpoint_path</span>
+              <input name="checkpoint_path" type="text" />
+            </label>
+            <label>
+              <span>device</span>
+              <select name="device">
+                <option value="cpu">cpu</option>
+                <option value="gpu">gpu</option>
+              </select>
+            </label>
+            <label>
+              <span>map_name</span>
+              <input name="map_name" type="text" list="map-options" />
+            </label>
+            <label>
+              <span>num_agents</span>
+              <input name="num_agents" type="number" min="1" step="1" />
+            </label>
+            <label>
+              <span>max_episode_steps</span>
+              <input name="max_episode_steps" type="number" min="1" step="1" />
+            </label>
+            <label>
+              <span>max_frames</span>
+              <input name="max_frames" type="number" min="1" step="1" />
+            </label>
+            <label>
+              <span>seed</span>
+              <input name="seed" type="number" step="1" />
+            </label>
+            <label>
+              <span>save_svg</span>
+              <input name="save_svg" type="text" />
+            </label>
+            <label class="toggle-field">
+              <span>render</span>
+              <input name="render" type="checkbox" />
+            </label>
+          </form>
+
+          <div class="action-row">
+            <button id="run-btn" class="primary-btn" type="button">运行推理</button>
+            <button id="sample-btn" class="secondary-btn" type="button">加载示例动画</button>
+          </div>
+
+          <div class="status-card">
+            <div class="status-label">运行状态</div>
+            <div id="status-text" class="status-text">等待参数提交</div>
+          </div>
+
+          <datalist id="map-options"></datalist>
+        </section>
+
+        <section class="panel stage-panel">
+          <div class="panel-head">
+            <h2>轨迹动画</h2>
+            <p>实心圆为无人机，空心圆为目标点，灰色方块为障碍物。</p>
+          </div>
+
+          <div class="stage-wrap">
+            <canvas id="grid-canvas" width="900" height="640"></canvas>
+            <div class="stage-overlay">
+              <span id="step-chip">Step 0</span>
+              <span id="device-chip">Device: cpu</span>
+              <span id="checkpoint-chip">Checkpoint: -</span>
+            </div>
+          </div>
+
+          <div class="timeline">
+            <button id="play-btn" class="ghost-btn" type="button">播放</button>
+            <input id="frame-slider" type="range" min="0" max="0" value="0" />
+          </div>
+
+          <div class="metrics-grid">
+            <article class="metric-card">
+              <span>平均奖励</span>
+              <strong id="metric-reward">-</strong>
+            </article>
+            <article class="metric-card">
+              <span>完成比例</span>
+              <strong id="metric-completion">-</strong>
+            </article>
+            <article class="metric-card">
+              <span>推理步数</span>
+              <strong id="metric-steps">-</strong>
+            </article>
+            <article class="metric-card">
+              <span>顶点冲突</span>
+              <strong id="metric-conflicts">-</strong>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel side-panel">
+          <div class="panel-head">
+            <h2>模块映射</h2>
+            <p>把开题报告里的模块规划映射到当前前端原型。</p>
+          </div>
+
+          <div class="module-stack">
+            <article>
+              <h3>环境与数据模块</h3>
+              <p>地图名称、随机种子、无人机数量等作为场景参数输入。</p>
+            </article>
+            <article>
+              <h3>协同规划引擎</h3>
+              <p>通过 checkpoint、cfg_dir 和 device 驱动真实推理链路。</p>
+            </article>
+            <article>
+              <h3>仿真与评估模块</h3>
+              <p>Canvas 回放动画、指标卡片、SVG 导出路径和运行状态反馈。</p>
+            </article>
+          </div>
+
+          <div class="log-card">
+            <h3>运行日志</h3>
+            <pre id="log-output">尚未执行推理。</pre>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

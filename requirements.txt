@@ -1,0 +1,17 @@
+numpy<2
+torch==2.3.1
+gym==0.23.1
+gymnasium
+pydantic<2
+typing_extensions
+PyYAML
+wandb
+psutil
+colorlog
+opencv-python
+filelock
+ray[tune]
+tensorboard
+tensorboardX
+faster-fifo
+threadpoolctl
