@@ -106,9 +106,11 @@ def build_rollout(payload):
     rnn_states = torch.zeros([env.num_agents, get_hidden_size(cfg)], dtype=torch.float32, device=device)
     episode_reward = np.zeros(env.num_agents, dtype=np.float32)
     frames = [_frame_from_env(env, 0, np.zeros(env.num_agents), np.zeros(env.num_agents, dtype=bool))]
+    tasks_completed = 0
 
     done = np.zeros(env.num_agents, dtype=bool)
     for step in range(1, normalized["max_frames"] + 1):
+        previous_targets = env.get_targets_xy(ignore_borders=True)
         with torch.no_grad():
             obs_torch = AttrDict(transform_dict_observations(obs))
             for key, value in obs_torch.items():
@@ -122,7 +124,9 @@ def build_rollout(payload):
         rewards_np = np.asarray(rewards, dtype=np.float32)
         done = np.asarray(done_list, dtype=bool)
         episode_reward += rewards_np
-        frames.append(_frame_from_env(env, step, rewards_np, done))
+        completed_this_step = _count_completed_tasks(env, previous_targets)
+        tasks_completed += completed_this_step
+        frames.append(_frame_from_env(env, step, rewards_np, done, completed_this_step, tasks_completed))
         if bool(done.all()):
             break
 
@@ -134,7 +138,7 @@ def build_rollout(payload):
 
     env.close()
 
-    metrics = _build_metrics(frames, episode_reward)
+    metrics = _build_metrics(frames, episode_reward, tasks_completed)
     return {
         "meta": {
             "actual_device": device.type,
@@ -156,7 +160,7 @@ def build_rollout(payload):
     }
 
 
-def _frame_from_env(env, step, rewards, done):
+def _frame_from_env(env, step, rewards, done, completed_this_step=0, tasks_completed=0):
     positions = env.get_agents_xy(ignore_borders=True)
     targets = env.get_targets_xy(ignore_borders=True)
     agents = []
@@ -180,27 +184,39 @@ def _frame_from_env(env, step, rewards, done):
     return {
         "step": step,
         "vertex_conflicts": vertex_conflicts,
+        "completed_this_step": int(completed_this_step),
+        "tasks_completed": int(tasks_completed),
         "agents": agents,
     }
 
 
-def _build_metrics(frames, episode_reward):
-    final_agents = frames[-1]["agents"]
-    completed = sum(1 for agent in final_agents if agent["x"] == agent["target_x"] and agent["y"] == agent["target_y"])
+def _build_metrics(frames, episode_reward, tasks_completed):
     total_conflicts = sum(frame["vertex_conflicts"] for frame in frames)
     movement_steps = 0
     for left, right in zip(frames, frames[1:]):
         for before, after in zip(left["agents"], right["agents"]):
             movement_steps += int(before["x"] != after["x"] or before["y"] != after["y"])
 
+    total_steps = len(frames) - 1
+    throughput = float(tasks_completed / total_steps) if total_steps > 0 else 0.0
+
     return {
         "mean_reward": round(float(np.mean(episode_reward)), 4),
-        "completed_agents": completed,
-        "completion_ratio": round(float(completed / len(final_agents)), 4) if final_agents else 0.0,
-        "total_steps": len(frames) - 1,
+        "tasks_completed": int(tasks_completed),
+        "throughput": round(throughput, 4),
+        "total_steps": total_steps,
         "vertex_conflicts": int(total_conflicts),
         "movement_steps": int(movement_steps),
     }
+
+
+def _count_completed_tasks(env, previous_targets):
+    current_positions = env.get_agents_xy(ignore_borders=True)
+    completed = 0
+    for position, target in zip(current_positions, previous_targets):
+        if tuple(position) == tuple(target):
+            completed += 1
+    return completed
 
 
 def _resolve_repo_path(value):

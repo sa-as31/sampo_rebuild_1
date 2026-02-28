@@ -10,8 +10,8 @@ const stepChip = document.getElementById("step-chip");
 const deviceChip = document.getElementById("device-chip");
 const checkpointChip = document.getElementById("checkpoint-chip");
 const metricReward = document.getElementById("metric-reward");
-const metricCompletion = document.getElementById("metric-completion");
-const metricSteps = document.getElementById("metric-steps");
+const metricTasks = document.getElementById("metric-tasks");
+const metricThroughput = document.getElementById("metric-throughput");
 const metricConflicts = document.getElementById("metric-conflicts");
 const canvas = document.getElementById("grid-canvas");
 const ctx = canvas.getContext("2d");
@@ -188,8 +188,8 @@ function setPlaybackData(payload, status) {
 function updateMetrics() {
   const metrics = playback.metrics || {};
   metricReward.textContent = fmt(metrics.mean_reward);
-  metricCompletion.textContent = metrics.completion_ratio != null ? `${(metrics.completion_ratio * 100).toFixed(1)}%` : "-";
-  metricSteps.textContent = fmt(metrics.total_steps);
+  metricTasks.textContent = fmt(metrics.tasks_completed);
+  metricThroughput.textContent = fmt(metrics.throughput);
   metricConflicts.textContent = fmt(metrics.vertex_conflicts);
 }
 
@@ -316,7 +316,9 @@ function buildLog(payload) {
     `svg: ${meta.save_svg || "未输出"}`,
     "",
     `mean_reward: ${fmt(metrics.mean_reward)}`,
-    `completion_ratio: ${fmt(metrics.completion_ratio)}`,
+    `tasks_completed: ${fmt(metrics.tasks_completed)}`,
+    `throughput: ${fmt(metrics.throughput)}`,
+    `total_steps: ${fmt(metrics.total_steps)}`,
     `vertex_conflicts: ${fmt(metrics.vertex_conflicts)}`,
     "",
     `warnings:\n- ${warnings}`,
@@ -372,8 +374,8 @@ function buildSampleRun() {
     frames,
     metrics: {
       mean_reward: 1,
-      completed_agents: 4,
-      completion_ratio: 1,
+      tasks_completed: 4,
+      throughput: 0.2222,
       total_steps: maxFrames,
       vertex_conflicts: 0,
       movement_steps: 68,
