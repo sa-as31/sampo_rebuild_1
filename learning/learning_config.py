@@ -133,6 +133,9 @@ class ExperimentSettings(BaseModel, extra=Extra.forbid):
 
     lr_schedule: str = 'kl_adaptive_minibatch'
     lr_schedule_kl_threshold: float = 0.008
+    dt_enabled: bool = True
+    dt_include_reflections: bool = True
+    dt_num_transforms_per_batch: int = 8
 
 
 class GlobalSettings(BaseModel, extra=Extra.forbid):
