@@ -70,24 +70,25 @@
 
 ### 2.3 PeCC：感知拥堵成本
 
-结论：**已实现，但存在一处代码路径仍保留旧默认值**
+结论：**已实现**
 
 对应代码：
 
 - `planner/LB_A/planner.h`
 - `env/planning.py`
+- `env/replan.py`
 - `planning/replan_algo.py`
 
 说明：
 
 - 训练主链路里的 C++ planner 已支持 PeCC 的历史衰减更新。
 - `env/planning.py` 中若未显式传入 `pecc_gamma`，会按地图尺寸自动解析。
-- 但 `planning/replan_algo.py` 这条轻量 Python 重规划路径里，默认 `gamma` 仍是 `0.8`，没有同步成论文公式。
+- 轻量 Python replanner 现在也会优先按论文公式解析 `gamma`，不再保留孤立的 `0.8` 硬编码默认值。
 
-这意味着：
+需要注意的一点：
 
-- 训练主链路更接近论文
-- 但仓库中仍存在一个非主训练路径，默认参数与论文不完全一致
+- 如果轻量 replanner 在运行时拿不到全图尺寸，会退回到观测窗口尺寸估计 `gamma`
+- 这仍比固定 `0.8` 更接近论文口径，但精确性不如显式提供地图宽高
 
 ### 2.4 DR 阶段：基于 MARL 的决策精炼
 
@@ -226,10 +227,9 @@
 
 当前仓库与论文已经高度接近，但仍不是逐项完全无差异复刻，主要残留差异如下：
 
-1. `planning/replan_algo.py` 的默认 `gamma` 仍是旧值 `0.8`
-2. SA 模块里存在未实际参与主前向路径的 `coordinates_mlp`
-3. DT 采用的是 learner 端在线增强，而不是单独的 dual buffer 结构
-4. 论文里的若干消融变体（如移除 IP、移除 RVE、移除 TA）没有做成独立开关化配置
+1. SA 模块里存在未实际参与主前向路径的 `coordinates_mlp`
+2. DT 采用的是 learner 端在线增强，而不是单独的 dual buffer 结构
+3. 论文里的若干消融变体（如移除 IP、移除 RVE、移除 TA）没有做成独立开关化配置
 
 ## 4. 当前结论
 
@@ -237,7 +237,7 @@
 
 - PP：已实现
 - PlCC：已实现
-- PeCC：已实现，但存在一条旧默认参数路径
+- PeCC：已实现
 - DR：已实现
 - SA：已实现
 - IP：已实现

@@ -2,6 +2,7 @@ import heapq
 import math
 import random
 from collections import defaultdict
+from typing import Optional
 
 import numpy as np
 
@@ -29,24 +30,28 @@ class RePlanBase:
         seed=0,
         ignore_other_agents=1.0,
         cost_penalty_coefficient=0.4,
-        gamma=0.8,
+        gamma: Optional[float] = None,
         delta_t=2,
         alpha=2.0,
         beta=0.5,
         lambda_=0.8,
         max_depth=64,
+        map_width: Optional[int] = None,
+        map_height: Optional[int] = None,
     ):
         self._rng = random.Random(seed)
         self.ignore_other_agents = float(np.clip(ignore_other_agents, 0.0, 1.0))
         self.cost_penalty_coefficient = float(cost_penalty_coefficient)
 
-        # Paper-consistent defaults for PeCC / PlCC.
-        self.gamma = float(gamma)
+        # Prefer the paper-style gamma resolution instead of a hard-coded fallback.
+        self.gamma = None if gamma is None else float(gamma)
         self.delta_t = int(delta_t)
         self.alpha = float(alpha)
         self.beta = float(beta)
         self.lambda_ = float(lambda_)
         self.max_depth = int(max_depth)
+        self.map_width = None if map_width is None else int(map_width)
+        self.map_height = None if map_height is None else int(map_height)
 
         self._pecc = {}
         self._paths = []
@@ -56,6 +61,7 @@ class RePlanBase:
 
     def act(self, observations, skip_agents=None):
         skip_set = set(skip_agents or [])
+        self._ensure_gamma(observations)
 
         self._decay_pecc()
         for obs in observations:
@@ -214,6 +220,8 @@ class RePlanBase:
         return self._pecc.get(pos, 0.0)
 
     def _decay_pecc(self):
+        if self.gamma is None:
+            return
         if not self._pecc:
             return
         to_drop = []
@@ -254,6 +262,24 @@ class RePlanBase:
     @staticmethod
     def _manhattan(a, b):
         return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+    def _ensure_gamma(self, observations):
+        if self.gamma is not None:
+            return
+
+        map_w = self.map_width
+        map_h = self.map_height
+
+        # Fallback for lightweight inference paths that do not attach the full env.
+        if (map_w is None or map_h is None) and observations:
+            obstacles = np.asarray(observations[0].get("obstacles"))
+            if obstacles.ndim == 2:
+                map_h = int(obstacles.shape[0])
+                map_w = int(obstacles.shape[1])
+
+        map_w = max(int(map_w or 1), 1)
+        map_h = max(int(map_h or 1), 1)
+        self.gamma = 0.5 / float(map_w + map_h)
 
 
 class NoPathSoRandomOrStayWrapper:
