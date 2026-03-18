@@ -1,5 +1,35 @@
 const palette = ["#6ad5ff", "#59f0c2", "#ffd36c", "#ff7d7d", "#8ec5ff", "#df8cff", "#72d5c8", "#f5abff"];
 
+const TEMPLATE_CONFIGS = {
+  warehouse: {
+    mapName: "warehouse-grid-v1",
+    starts: [
+      [1, 1, 10, 10],
+      [10, 1, 2, 10],
+      [1, 10, 10, 2],
+      [10, 10, 2, 2],
+    ],
+  },
+  campus: {
+    mapName: "campus-road-v1",
+    starts: [
+      [1, 2, 10, 9],
+      [10, 2, 2, 9],
+      [2, 10, 9, 2],
+      [9, 10, 2, 2],
+    ],
+  },
+  emergency: {
+    mapName: "emergency-block-v1",
+    starts: [
+      [1, 1, 10, 10],
+      [10, 1, 1, 10],
+      [1, 10, 10, 1],
+      [10, 10, 1, 1],
+    ],
+  },
+};
+
 export function createRenderer() {
   const icon = new Image();
   icon.src = "/uav-icon-local-384.png";
@@ -93,19 +123,14 @@ export function createRenderer() {
   return { draw };
 }
 
-export function buildSampleRun() {
+export function buildSampleRun(template = "warehouse") {
+  const config = TEMPLATE_CONFIGS[template] || TEMPLATE_CONFIGS.warehouse;
   const environment = {
     width: 12,
     height: 12,
-    obstacles: buildSampleObstacles(12, 12),
+    obstacles: buildTemplateObstacles(template, 12, 12),
   };
-
-  const starts = [
-    [1, 1, 9, 9],
-    [10, 1, 2, 9],
-    [1, 10, 10, 3],
-    [10, 10, 2, 2],
-  ];
+  const starts = config.starts;
 
   const plans = starts.map(([sx, sy, tx, ty]) => {
     const path = findPathAStar(environment.obstacles, [sx, sy], [tx, ty]);
@@ -148,10 +173,10 @@ export function buildSampleRun() {
       checkpoint_path: "sample/demo",
       cfg_dir: "sample",
       frames: frames.length,
-      map_name: "sample-city-grid",
+      map_name: config.mapName,
       num_agents: 4,
       save_svg: null,
-      warnings: ["frontend sample mode"],
+      warnings: [`frontend sample mode: ${template}`],
     },
     environment,
     frames,
@@ -165,13 +190,64 @@ export function buildSampleRun() {
   };
 }
 
-function buildSampleObstacles(height, width) {
+function buildTemplateObstacles(template, height, width) {
+  if (template === "campus") return buildCampusObstacles(height, width);
+  if (template === "emergency") return buildEmergencyObstacles(height, width);
+  return buildWarehouseObstacles(height, width);
+}
+
+function buildWarehouseObstacles(height, width) {
   const obstacles = Array.from({ length: height }, () => Array(width).fill(0));
-  for (let row = 3; row < 9; row += 1) obstacles[row][5] = 1;
-  for (let col = 2; col < 10; col += 1) obstacles[6][col] = 1;
-  obstacles[6][5] = 0;
-  obstacles[2][8] = 1;
-  obstacles[9][3] = 1;
+  for (let col = 2; col < width - 2; col += 1) {
+    if (col !== 5 && col !== 8) obstacles[3][col] = 1;
+    if (col !== 3 && col !== 9) obstacles[6][col] = 1;
+    if (col !== 4 && col !== 7) obstacles[9][col] = 1;
+  }
+  for (let row = 1; row < height - 1; row += 1) {
+    if (row !== 4 && row !== 8) obstacles[row][5] = 1;
+    if (row !== 2 && row !== 7) obstacles[row][8] = 1;
+  }
+  return obstacles;
+}
+
+function buildCampusObstacles(height, width) {
+  const obstacles = Array.from({ length: height }, () => Array(width).fill(0));
+  for (let row = 2; row < height - 2; row += 1) {
+    for (let col = 2; col < width - 2; col += 1) {
+      const inCentralBlock = row >= 4 && row <= 7 && col >= 4 && col <= 7;
+      if (inCentralBlock) obstacles[row][col] = 1;
+    }
+  }
+  for (let row = 1; row < height - 1; row += 1) {
+    if (row !== 5) obstacles[row][2] = obstacles[row][9] = 1;
+  }
+  for (let col = 1; col < width - 1; col += 1) {
+    if (col !== 6) obstacles[2][col] = obstacles[9][col] = 1;
+  }
+  // Keep main roads open.
+  for (let col = 0; col < width; col += 1) obstacles[5][col] = 0;
+  for (let row = 0; row < height; row += 1) obstacles[row][6] = 0;
+  return obstacles;
+}
+
+function buildEmergencyObstacles(height, width) {
+  const obstacles = Array.from({ length: height }, () => Array(width).fill(0));
+  for (let row = 2; row < height - 2; row += 1) {
+    obstacles[row][Math.floor(width / 2)] = 1;
+  }
+  for (let col = 2; col < width - 2; col += 1) {
+    obstacles[Math.floor(height / 2)][col] = 1;
+  }
+  for (let i = 2; i < height - 2; i += 1) {
+    if (i !== 4 && i !== 7) obstacles[i][i] = 1;
+    const mirrorCol = width - 1 - i;
+    if (i !== 4 && i !== 7) obstacles[i][mirrorCol] = 1;
+  }
+  // Open emergency corridors.
+  obstacles[4][Math.floor(width / 2)] = 0;
+  obstacles[7][Math.floor(width / 2)] = 0;
+  obstacles[Math.floor(height / 2)][4] = 0;
+  obstacles[Math.floor(height / 2)][7] = 0;
   return obstacles;
 }
 

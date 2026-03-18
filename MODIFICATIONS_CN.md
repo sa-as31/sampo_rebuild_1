@@ -149,3 +149,24 @@
 - 文件：`解疑.md`
 - 主要修改：
   - 将“穿墙现象”问答更新为“原因 + 已修复状态”，避免文档与当前代码不一致。
+
+## 12. 运营模板地图绑定（仓储/园区/应急）
+
+- 文件：`web_frontend/src/modules/shared/renderer.js`
+- 主要修改：
+  - 为运营模式新增模板配置 `TEMPLATE_CONFIGS`，定义模板对应 `map_name` 与起终点集合；
+  - 新增模板障碍生成函数，三类模板使用不同地图布局：
+    - `warehouse` -> 货架/通道风格；
+    - `campus` -> 园区道路/建筑块风格；
+    - `emergency` -> 封锁区/应急通道风格；
+  - `buildSampleRun(template)` 支持按模板生成环境与 A* 轨迹，`meta.map_name` 与 `warnings` 同步模板信息。
+
+- 文件：`web_frontend/src/modules/operations/OperationsModeView.vue`
+- 主要修改：
+  - 切换模板时调用 `buildSampleRun(selectedTemplate)` 重建播放数据；
+  - 切换后自动重置帧索引与选中无人机，并重绘画布；
+  - 状态文案显示中文模板名，便于运营端识别当前场景。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“三个任务模板是否有各自对应地图”问答，记录当前模板映射与切换行为。

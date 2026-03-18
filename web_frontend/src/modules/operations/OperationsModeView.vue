@@ -86,7 +86,7 @@ const running = ref(false);
 const frameIndex = ref(0);
 let timer = null;
 
-const playback = ref(buildSampleRun());
+const playback = ref(buildSampleRun(selectedTemplate.value));
 
 const statusCards = computed(() => {
   const frame = playback.value.frames[frameIndex.value] || { agents: [], vertex_conflicts: 0 };
@@ -111,7 +111,12 @@ const fleetRows = computed(() => {
 });
 
 function applyTemplate() {
-  opsStatus.value = `已切换模板：${selectedTemplate.value}`;
+  stopTimer();
+  playback.value = buildSampleRun(selectedTemplate.value);
+  frameIndex.value = 0;
+  selectedDroneId.value = 0;
+  drawOps();
+  opsStatus.value = `已切换模板：${templateLabel(selectedTemplate.value)}`;
 }
 
 function startOpsRun() {
@@ -221,6 +226,12 @@ function onOpsCanvasClick(event) {
 function drawOps() {
   const frame = playback.value.frames[frameIndex.value];
   renderer.draw(opsCanvasRef.value, playback.value.environment, frame);
+}
+
+function templateLabel(templateKey) {
+  if (templateKey === "campus") return "园区配送";
+  if (templateKey === "emergency") return "应急调度";
+  return "仓储巡检";
 }
 
 onMounted(() => drawOps());
