@@ -116,13 +116,16 @@ function applyTemplate() {
 
 function startOpsRun() {
   stopTimer();
+  const max = playback.value.frames.length - 1;
+  frameIndex.value = 0;
+  drawOps();
+  if (max <= 0) {
+    opsStatus.value = max === 0 ? "任务已完成" : "暂无可播放轨迹";
+    return;
+  }
   running.value = true;
   opsStatus.value = `任务启动：${missionName.value}`;
-  timer = window.setInterval(() => {
-    const max = playback.value.frames.length - 1;
-    frameIndex.value = frameIndex.value >= max ? 0 : frameIndex.value + 1;
-    drawOps();
-  }, 320);
+  timer = window.setInterval(tickOpsFrame, 320);
 }
 
 function pauseOpsRun() {
@@ -135,13 +138,20 @@ function pauseOpsRun() {
 
 function resumeOpsRun() {
   if (running.value) return;
+  const max = playback.value.frames.length - 1;
+  if (max < 0) {
+    opsStatus.value = "暂无可播放轨迹";
+    return;
+  }
+  if (frameIndex.value >= max) {
+    frameIndex.value = max;
+    drawOps();
+    opsStatus.value = "任务已完成";
+    return;
+  }
   running.value = true;
   opsStatus.value = "任务继续执行";
-  timer = window.setInterval(() => {
-    const max = playback.value.frames.length - 1;
-    frameIndex.value = frameIndex.value >= max ? 0 : frameIndex.value + 1;
-    drawOps();
-  }, 320);
+  timer = window.setInterval(tickOpsFrame, 320);
 }
 
 function stopOpsRun() {
@@ -155,6 +165,24 @@ function stopTimer() {
   running.value = false;
   if (timer) window.clearInterval(timer);
   timer = null;
+}
+
+function tickOpsFrame() {
+  const max = playback.value.frames.length - 1;
+  if (max < 0) {
+    stopTimer();
+    opsStatus.value = "暂无可播放轨迹";
+    return;
+  }
+  if (frameIndex.value >= max) {
+    frameIndex.value = max;
+    drawOps();
+    stopTimer();
+    opsStatus.value = "任务已完成";
+    return;
+  }
+  frameIndex.value += 1;
+  drawOps();
 }
 
 // For ops mode we keep target assignment fully visual.
@@ -198,4 +226,3 @@ function drawOps() {
 onMounted(() => drawOps());
 onUnmounted(() => stopTimer());
 </script>
-
