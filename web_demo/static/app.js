@@ -46,7 +46,7 @@ agentIcon.image.addEventListener("error", () => {
   agentIcon.failed = true;
 });
 
-agentIcon.image.src = "/uav-icon.png";
+agentIcon.image.src = "/uav-icon-384.png?v=20260318c";
 
 let playback = {
   frames: [],
