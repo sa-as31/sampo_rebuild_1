@@ -3,7 +3,18 @@
 
 PYBIND11_MODULE(planner, m) {
     py::class_<planner>(m, "planner")
-            .def(py::init<std::vector<std::vector<int>>, bool, bool, bool>())
+            .def(
+                py::init<std::vector<std::vector<int>>, bool, bool, bool, double, double, double, double, int>(),
+                py::arg("grid") = std::vector<std::vector<int>>{},
+                py::arg("use_static_cost") = true,
+                py::arg("use_dynamic_cost") = true,
+                py::arg("reset_dynamic_cost") = false,
+                py::arg("plcc_alpha") = 2.0,
+                py::arg("plcc_beta") = 0.5,
+                py::arg("plcc_lambda") = 0.8,
+                py::arg("pecc_gamma") = 0.8,
+                py::arg("plcc_delta_t") = 2
+            )
             .def("set_abs_start", &planner::set_abs_start)
             .def("update_path", &planner::update_path)
             .def("get_path", &planner::get_path)

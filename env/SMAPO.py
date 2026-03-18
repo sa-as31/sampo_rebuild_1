@@ -12,7 +12,7 @@ from copy import deepcopy
 class PreprocessorConfig(PlannerConfig):
     network_input_radius: int = 5
     intrinsic_target_reward: float = 0.01
-    add_r = False    
+    add_r: bool = False
     # when training: False
 
 def SMAPO_preprocessor(env, algo_config, auto_reset):
@@ -72,15 +72,18 @@ class SMAPOWrapper(ObservationWrapper):
         # Observations in DR phase:
         for k, path in enumerate(paths):
             obs = observations[k]
-            
-            if path is None:
-                new_goals.append(obs['target_xy'])  
-                path = []
+
+            subgoal_achieved = (
+                self.prev_goals is not None
+                and tuple(obs['xy']) == tuple(self.prev_goals[k])
+            )
+            intrinsic_rewards.append(self._cfg.intrinsic_target_reward if subgoal_achieved else 0.0)
+
+            path = list(path) if path is not None else []
+            if len(path) > 1:
+                new_goals.append(tuple(path[1]))
             else:
-                subgoal_achieved = self.prev_goals and obs['xy'] == self.prev_goals[k]
-                # Assign an intrinsic reward if conditions are met, otherwise set it to 0.
-                intrinsic_rewards.append(self._cfg.intrinsic_target_reward if subgoal_achieved else 0.0)
-                new_goals.append(path[1])
+                new_goals.append(tuple(obs['target_xy']))
             obs['obstacles'][obs['obstacles'] > 0] *= -1
 
             r = obs['obstacles'].shape[0] // 2

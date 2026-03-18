@@ -72,7 +72,11 @@ class planner
     bool use_static_cost;
     bool use_dynamic_cost;
     bool reset_dynamic_cost;
-    double gamma;
+    double plcc_alpha;
+    double plcc_beta;
+    double plcc_lambda;
+    double pecc_gamma;
+    int plcc_delta_t;
     inline float h(std::pair<int, int> n)
     {
         return h_values[n.first][n.second];
@@ -80,9 +84,8 @@ class planner
 
     inline double t_penalty(double delta, double base)
     {
-        double oral_pen = base / 2;
-        if(delta == 0)   return base * base * 2;
-        return  oral_pen * pow(gamma, delta);
+        if(delta == 0)   return plcc_alpha * base * base;
+        return  plcc_beta * base * pow(plcc_lambda, delta);
     }
     
     inline void update_dict(std::tuple<int,int,int>& tep_t, py::dict& cur_map)
@@ -116,9 +119,8 @@ class planner
     {
         double tot_pen = 0.0;
         int cur_t = std::get<2>(cur);
-        int delta_t = 2;
-        int t_min = std::max(cur_t - delta_t, 1);
-        int t_max = cur_t + delta_t;
+        int t_min = std::max(cur_t - plcc_delta_t, 1);
+        int t_max = cur_t + plcc_delta_t + 1;
         std::tuple<int,int,int> tep_t = cur;
         for(int t_ = t_min; t_ < t_max; ++t_)
         {
@@ -127,6 +129,19 @@ class planner
         }
         return tot_pen;
     }    
+
+    void decay_dynamic_costs()
+    {
+        if(pecc_gamma == 1.0)
+            return;
+        for(size_t i = 0; i < num_occupations.size(); ++i)
+            for(size_t j = 0; j < num_occupations[i].size(); ++j)
+            {
+                num_occupations[i][j] *= pecc_gamma;
+                if(num_occupations[i][j] < 1e-8)
+                    num_occupations[i][j] = 0.0;
+            }
+    }
 
     void compute_shortest_path(py::dict& cur_map)
     {
@@ -218,8 +233,26 @@ class planner
     }
 
 public:
-    planner(std::vector<std::vector<int>> _grid={}, float _use_static_cost=1.0, float _use_dynamic_cost=1.0, bool _reset_dynamic_cost=true, double _gamma = 0.8):
-    grid(_grid), use_static_cost(_use_static_cost), use_dynamic_cost(_use_dynamic_cost), reset_dynamic_cost(_reset_dynamic_cost), gamma(_gamma)
+    planner(
+        std::vector<std::vector<int>> _grid={},
+        bool _use_static_cost=true,
+        bool _use_dynamic_cost=true,
+        bool _reset_dynamic_cost=false,
+        double _plcc_alpha = 2.0,
+        double _plcc_beta = 0.5,
+        double _plcc_lambda = 0.8,
+        double _pecc_gamma = 0.8,
+        int _plcc_delta_t = 2
+    ):
+    grid(_grid),
+    use_static_cost(_use_static_cost),
+    use_dynamic_cost(_use_dynamic_cost),
+    reset_dynamic_cost(_reset_dynamic_cost),
+    plcc_alpha(_plcc_alpha),
+    plcc_beta(_plcc_beta),
+    plcc_lambda(_plcc_lambda),
+    pecc_gamma(_pecc_gamma),
+    plcc_delta_t(_plcc_delta_t)
     {
         abs_offset = {0, 0};
         goal = {0,0};
@@ -286,6 +319,7 @@ public:
         if(reset_dynamic_cost)
             if(goal.first != cur_goal.first || goal.second != cur_goal.second)
                 num_occupations = std::vector<std::vector<float>>(grid.size(), std::vector<float>(grid.front().size(), 0));
+        decay_dynamic_costs();
         for(auto o:_occupied_cells)
             num_occupations[o.first][o.second] += 1.0;
     }
@@ -296,6 +330,7 @@ public:
         if(reset_dynamic_cost)
             if(goal.first != cur_goal.first || goal.second != cur_goal.second)
                 num_occupations = std::vector<std::vector<float>>(grid.size(), std::vector<float>(grid.front().size(), 0)); 
+        decay_dynamic_costs();
         py::buffer_info buf = array.request();
         std::list<std::pair<int, int>> occupied_cells;
         double *ptr = (double *) buf.ptr;

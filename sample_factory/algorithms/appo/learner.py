@@ -10,7 +10,6 @@ from os.path import join
 from queue import Empty, Queue, Full
 from threading import Thread
 
-import random
 import numpy as np
 import psutil
 import torch
@@ -306,6 +305,8 @@ class LearnerWorker:
 
         self.evaluation_save_splits = [x * self.cfg.train_for_env_steps // self.cfg.evaluation_saves_per_run for x in
                                        range(1, self.cfg.evaluation_saves_per_run + 1)]
+        self.dt_rng = np.random.default_rng(None if self.cfg.seed is None else self.cfg.seed + worker_idx)
+        self._all_dt_specs = self._build_all_dt_specs()
 
     def start_process(self):
         self.process.start()
@@ -381,16 +382,6 @@ class LearnerWorker:
         This is leftover the from previous version of the algorithm.
         Perhaps should be re-implemented in PyTorch tensors, similar to V-trace for uniformity.
         """
-        # here we extend the actions (on cpu, it is easier)
-        action_map_90 = {0:0, 1:3, 2:4, 3:2, 4:1}
-        action_map_180 =  {0:0, 1:2, 2:1, 3:4, 4:3}
-        action_map_270 =  {0:0, 1:4, 2:3, 3:1, 4:2}
-        id = random.choice([1, 2,3])
-        buffer.rot_id = np.ones((128,1))
-        buffer.rot_id[:,0] = id
-        def f_map(x, a_map):
-            return a_map[x]
-        
         rewards = np.stack(buffer.rewards).squeeze()  # [E, T]
         dones = np.stack(buffer.dones).squeeze()  # [E, T]
         values_arr = np.stack(buffer.values).squeeze()  # [E, T]
@@ -407,10 +398,6 @@ class LearnerWorker:
         values = np.asarray(values).transpose((1, 0))  # [E, T+1] -> [T+1, E]
 
         advantages, returns = calculate_gae(rewards, dones, values, self.cfg.gamma, self.cfg.gae_lambda)
-        rot_actions = np.array(buffer.actions)
-        buffer.rot_actions_1 = np.vectorize(f_map)(rot_actions, action_map_90)
-        buffer.rot_actions_2 = np.vectorize(f_map)(rot_actions, action_map_180)
-        buffer.rot_actions_3 = np.vectorize(f_map)(rot_actions, action_map_270)
         buffer.advantages = advantages.transpose((1, 0))  # [T, E] -> [E, T]
         buffer.returns = returns.transpose((1, 0))  # [T, E] -> [E, T]
         buffer.returns = buffer.returns[:, :, np.newaxis]  # [E, T] -> [E, T, 1]
@@ -572,53 +559,123 @@ class LearnerWorker:
                 mb[item] = x[indices]
 
         return mb
-    
-    @staticmethod 
-    def _extend_obs(obs):
-        for key in obs.keys():
-            if key == 'obs':
-                x = obs[key]
-                x_ = torch.cat([torch.rot90(x, dims=(-2,-1), k=1), torch.rot90(x, dims=(-2,-1), k=2), torch.rot90(x, dims=(-2,-1), k=3)])
-                x = torch.cat([x, x_], dim=0)
-                obs[key] = x
-            elif key == 'attention_mask' or key == 'ids_oth' or key == 'id_':
-                x = obs[key]
-                obs[key] = torch.cat([x,x,x,x], dim = 0)
-            else:
-                x = obs[key]
-                swapped_x_1 = x[..., [1,0]]
-                swapped_x_1[..., 0] = -swapped_x_1[..., 0]
-                x = obs[key]
-                swapped_x_2 = -x
-                obs[key] = torch.cat([x,swapped_x_2], dim = 0)
-                swapped_x_3 = x[..., [1,0]]
-                swapped_x_3[..., 1] = -swapped_x_3[..., 1]
-                obs[key] = torch.cat([x,swapped_x_1, swapped_x_2, swapped_x_3], dim = 0)
-        return obs
 
-    def _extend_mbs(self, mb):
-        rot_ls = [(0,3,4,2,1), (0,2,1,4,3), (0,4,3,1,2)]
-        for key in mb.keys():
-            if key == 'obs':
-                mb[key] = self._extend_obs(mb[key])
-            elif key == 'action_logits':
-                x = mb[key]
-                x_ = torch.cat([x[:, rot_ls[0]], x[:, rot_ls[1]], x[:, rot_ls[2]]], dim = 0)
-                mb[key] = torch.cat([x , x_], dim = 0)
-            elif key == 'rot_actions_1' or key == 'rot_id' or key == 'rot_actions_2' or key == 'rot_actions_3':
-                continue
-            elif key == 'actions':
-                x_1 = mb['rot_actions_1'].squeeze(-1)
-                x_2 = mb['rot_actions_2'].squeeze(-1)
-                x_3 = mb['rot_actions_3'].squeeze(-1)
-                x_ = mb[key]
-                x = torch.cat([x_,x_1, x_2, x_3], dim = 0)
-                mb[key] = x
+    @staticmethod
+    def _transform_delta(delta, flip_lr, rot_k):
+        dx, dy = delta
+        if flip_lr:
+            dy = -dy
+        rot_k = rot_k % 4
+        if rot_k == 1:
+            dx, dy = -dy, dx
+        elif rot_k == 2:
+            dx, dy = -dx, -dy
+        elif rot_k == 3:
+            dx, dy = dy, -dx
+        return dx, dy
+
+    def _build_all_dt_specs(self):
+        action_deltas = {
+            0: (0, 0),
+            1: (-1, 0),
+            2: (1, 0),
+            3: (0, -1),
+            4: (0, 1),
+        }
+        delta_to_action = {delta: action for action, delta in action_deltas.items()}
+        specs = []
+
+        for rot_k in range(4):
+            perm = [delta_to_action[self._transform_delta(action_deltas[action], False, rot_k)] for action in range(5)]
+            specs.append(dict(name=f'rot{rot_k * 90}', flip_lr=False, rot_k=rot_k, action_perm=perm))
+
+        if self.cfg.dt_include_reflections:
+            for rot_k in range(4):
+                perm = [delta_to_action[self._transform_delta(action_deltas[action], True, rot_k)] for action in range(5)]
+                specs.append(dict(name=f'flip_lr_rot{rot_k * 90}', flip_lr=True, rot_k=rot_k, action_perm=perm))
+
+        return specs
+
+    def _select_dt_specs(self):
+        if not getattr(self.cfg, 'dt_enabled', False):
+            return [self._all_dt_specs[0]]
+
+        if not hasattr(self.action_space, 'n') or self.action_space.n != 5:
+            return [self._all_dt_specs[0]]
+
+        max_transforms = max(1, int(getattr(self.cfg, 'dt_num_transforms_per_batch', 1)))
+        if max_transforms >= len(self._all_dt_specs):
+            return self._all_dt_specs
+
+        selected = [self._all_dt_specs[0]]
+        if max_transforms == 1:
+            return selected
+
+        remaining = self._all_dt_specs[1:]
+        sampled_indices = self.dt_rng.choice(len(remaining), size=max_transforms - 1, replace=False)
+        for idx in np.atleast_1d(sampled_indices):
+            selected.append(remaining[int(idx)])
+        return selected
+
+    @staticmethod
+    def _transform_grid_tensor(x, spec):
+        if spec['flip_lr']:
+            x = torch.flip(x, dims=(-1,))
+        if spec['rot_k']:
+            x = torch.rot90(x, k=spec['rot_k'], dims=(-2, -1))
+        return x
+
+    @classmethod
+    def _transform_coordinate_tensor(cls, x, spec):
+        y = x.clone()
+        if spec['flip_lr']:
+            y[..., 1] = -y[..., 1]
+
+        rot_k = spec['rot_k'] % 4
+        if rot_k == 1:
+            y = y[..., [1, 0]]
+            y[..., 0] = -y[..., 0]
+        elif rot_k == 2:
+            y = -y
+        elif rot_k == 3:
+            y = y[..., [1, 0]]
+            y[..., 1] = -y[..., 1]
+        return y
+
+    def _transform_obs_tensor(self, key, x, spec):
+        if key == 'obs':
+            return self._transform_grid_tensor(x, spec)
+        if key in ('relative_xy', 'xy', 'target_xy'):
+            return self._transform_coordinate_tensor(x, spec)
+        return x
+
+    def _transform_batch_tensor(self, key, x, spec):
+        if key == 'actions':
+            action_perm = torch.as_tensor(spec['action_perm'], device=x.device, dtype=torch.long)
+            return action_perm[x.long()]
+        if key == 'action_logits':
+            action_perm = torch.as_tensor(spec['action_perm'], device=x.device, dtype=torch.long)
+            return x.index_select(-1, action_perm)
+        return x
+
+    def _augment_minibatch_with_dual_transforms(self, mb):
+        specs = self._select_dt_specs()
+        if len(specs) == 1:
+            return mb
+
+        augmented = AttrDict()
+        for key, x in mb.items():
+            if isinstance(x, (dict, OrderedDict, AttrDict)):
+                augmented[key] = AttrDict()
+                for obs_key, obs_value in x.items():
+                    augmented[key][obs_key] = torch.cat(
+                        [self._transform_obs_tensor(obs_key, obs_value, spec) for spec in specs], dim=0
+                    )
             else:
-                x = mb[key]
-                x = torch.cat([x,x,x,x], dim = 0)
-                mb[key] = x
-        return 
+                augmented[key] = torch.cat(
+                    [self._transform_batch_tensor(key, x, spec) for spec in specs], dim=0
+                )
+        return augmented
 
     def _should_save_summaries(self):
         summaries_every_seconds = self.summary_rate_decay_seconds.at(self.train_step)
@@ -829,6 +886,7 @@ class LearnerWorker:
                 with timing.add_time('minibatch_init'):
                     indices = minibatches[batch_num]
                     mb = self._get_minibatch(gpu_buffer, indices)
+                    mb = self._augment_minibatch_with_dual_transforms(mb)
                 with timing.add_time('forward_head'):
                     ids_oth = mb.obs['ids_oth'].long()
                     ids = torch.arange(ids_oth.shape[0], device=ids_oth.device).unsqueeze(1)
