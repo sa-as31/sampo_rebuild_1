@@ -27,6 +27,27 @@ const palette = [
   "#f5abff",
 ];
 
+const agentIcon = {
+  image: new Image(),
+  loaded: false,
+  failed: false,
+  spriteCache: new Map(),
+};
+
+agentIcon.image.addEventListener("load", () => {
+  agentIcon.loaded = true;
+  agentIcon.failed = false;
+  agentIcon.spriteCache.clear();
+  if (playback.frames.length) renderFrame();
+});
+
+agentIcon.image.addEventListener("error", () => {
+  agentIcon.loaded = false;
+  agentIcon.failed = true;
+});
+
+agentIcon.image.src = "/uav-icon.png";
+
 let playback = {
   frames: [],
   environment: null,
@@ -254,20 +275,67 @@ function drawScene(environment, frame) {
     const color = palette[agent.id % palette.length];
     const agentX = left + agent.y * cell + cell / 2;
     const agentY = top + agent.x * cell + cell / 2;
+    const iconSize = Math.max(16, Math.floor(cell * 0.62));
 
-    ctx.fillStyle = color;
+    ctx.lineWidth = Math.max(1.5, cell * 0.05);
+    ctx.strokeStyle = color;
     ctx.beginPath();
-    ctx.arc(agentX, agentY, cell * 0.22, 0, Math.PI * 2);
+    ctx.arc(agentX, agentY, iconSize * 0.58, 0, Math.PI * 2);
+    ctx.stroke();
+
+    const sprite = getAgentSprite(iconSize);
+    if (sprite) {
+      ctx.drawImage(sprite, agentX - iconSize / 2, agentY - iconSize / 2, iconSize, iconSize);
+    } else {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(agentX, agentY, cell * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const badgeRadius = Math.max(8, cell * 0.13);
+    const badgeX = agentX + iconSize * 0.27;
+    const badgeY = agentY + iconSize * 0.27;
+    ctx.fillStyle = "rgba(2, 16, 29, 0.86)";
+    ctx.beginPath();
+    ctx.arc(badgeX, badgeY, badgeRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = "#02101d";
-    ctx.font = `${Math.max(10, cell * 0.2)}px "SFMono-Regular", monospace`;
+    ctx.fillStyle = "#f1f5ff";
+    ctx.font = `${Math.max(9, cell * 0.17)}px "SFMono-Regular", monospace`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(String(agent.id + 1), agentX, agentY);
+    ctx.fillText(String(agent.id + 1), badgeX, badgeY);
   });
 
   ctx.restore();
+}
+
+function getAgentSprite(size) {
+  if (!agentIcon.loaded || !agentIcon.image.naturalWidth || !agentIcon.image.naturalHeight) return null;
+
+  const key = Math.round(size);
+  const cached = agentIcon.spriteCache.get(key);
+  if (cached) return cached;
+
+  const sprite = document.createElement("canvas");
+  sprite.width = key;
+  sprite.height = key;
+  const spriteCtx = sprite.getContext("2d");
+  if (!spriteCtx) return null;
+
+  const fit = key * 0.86;
+  const imgW = agentIcon.image.naturalWidth;
+  const imgH = agentIcon.image.naturalHeight;
+  const scale = Math.min(fit / imgW, fit / imgH);
+  const drawW = imgW * scale;
+  const drawH = imgH * scale;
+  const dx = (key - drawW) / 2;
+  const dy = (key - drawH) / 2;
+  spriteCtx.drawImage(agentIcon.image, dx, dy, drawW, drawH);
+
+  agentIcon.spriteCache.set(key, sprite);
+  return sprite;
 }
 
 function togglePlayback() {

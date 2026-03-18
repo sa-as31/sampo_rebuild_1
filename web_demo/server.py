@@ -1,5 +1,6 @@
 import argparse
 import json
+import mimetypes
 import sys
 import traceback
 from http import HTTPStatus
@@ -24,6 +25,14 @@ class DemoHandler(SimpleHTTPRequestHandler):
             from web_demo.inference import defaults_response
 
             self._send_json(HTTPStatus.OK, defaults_response())
+            return
+
+        if self.path == "/uav-icon.png":
+            icon_path = REPO_ROOT / "无人机.png"
+            if not icon_path.exists():
+                self.send_error(HTTPStatus.NOT_FOUND, "UAV icon not found")
+                return
+            self._send_file(icon_path)
             return
 
         if self.path in ("/", "/index.html"):
@@ -64,6 +73,15 @@ class DemoHandler(SimpleHTTPRequestHandler):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _send_file(self, file_path: Path):
+        body = file_path.read_bytes()
+        content_type, _ = mimetypes.guess_type(file_path.name)
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type or "application/octet-stream")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
