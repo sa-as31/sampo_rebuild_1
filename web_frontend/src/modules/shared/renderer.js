@@ -107,23 +107,40 @@ export function buildSampleRun() {
     [10, 10, 2, 2],
   ];
 
+  const plans = starts.map(([sx, sy, tx, ty]) => {
+    const path = findPathAStar(environment.obstacles, [sx, sy], [tx, ty]);
+    return {
+      start_x: sx,
+      start_y: sy,
+      target_x: tx,
+      target_y: ty,
+      path: path || [[sx, sy]],
+      reachable: Boolean(path),
+    };
+  });
+
   const frames = [];
-  const maxFrames = 18;
+  const maxFrames = Math.max(...plans.map((p) => p.path.length - 1), 0);
   for (let step = 0; step <= maxFrames; step += 1) {
-    const agents = starts.map(([sx, sy, tx, ty], idx) => {
-      const t = Math.min(step / maxFrames, 1);
+    const agents = plans.map((plan, idx) => {
+      const last = plan.path.length - 1;
+      const cursor = Math.min(step, last);
+      const [x, y] = plan.path[cursor];
       return {
         id: idx,
-        x: Math.round(sx + (tx - sx) * t),
-        y: Math.round(sy + (ty - sy) * t),
-        target_x: tx,
-        target_y: ty,
-        reward: step === maxFrames ? 1 : 0,
-        done: step === maxFrames,
+        x,
+        y,
+        target_x: plan.target_x,
+        target_y: plan.target_y,
+        reward: plan.reachable && cursor === last ? 1 : 0,
+        done: plan.reachable && cursor === last,
       };
     });
-    frames.push({ step, vertex_conflicts: 0, agents });
+    frames.push({ step, vertex_conflicts: countVertexConflicts(agents), agents });
   }
+
+  const tasksCompleted = plans.filter((p) => p.reachable).length;
+  const totalSteps = Math.max(maxFrames, 1);
 
   return {
     meta: {
@@ -139,11 +156,11 @@ export function buildSampleRun() {
     environment,
     frames,
     metrics: {
-      mean_reward: 1,
-      tasks_completed: 4,
-      throughput: 0.2222,
+      mean_reward: tasksCompleted ? 1 : 0,
+      tasks_completed: tasksCompleted,
+      throughput: Number((tasksCompleted / totalSteps).toFixed(4)),
       total_steps: maxFrames,
-      vertex_conflicts: 0,
+      vertex_conflicts: Math.max(...frames.map((f) => f.vertex_conflicts), 0),
     },
   };
 }
@@ -156,4 +173,93 @@ function buildSampleObstacles(height, width) {
   obstacles[2][8] = 1;
   obstacles[9][3] = 1;
   return obstacles;
+}
+
+function findPathAStar(obstacles, start, goal) {
+  const [sx, sy] = start;
+  const [gx, gy] = goal;
+  if (!isWalkable(obstacles, sx, sy) || !isWalkable(obstacles, gx, gy)) return null;
+  if (sx === gx && sy === gy) return [[sx, sy]];
+
+  const open = [{ x: sx, y: sy, g: 0, f: manhattan(sx, sy, gx, gy) }];
+  const parents = new Map();
+  const gScore = new Map([[toKey(sx, sy), 0]]);
+  const closed = new Set();
+
+  while (open.length) {
+    open.sort((a, b) => a.f - b.f || a.g - b.g);
+    const current = open.shift();
+    const cKey = toKey(current.x, current.y);
+    if (closed.has(cKey)) continue;
+    if (current.x === gx && current.y === gy) return rebuildPath(parents, cKey);
+    closed.add(cKey);
+
+    for (const [dx, dy] of [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ]) {
+      const nx = current.x + dx;
+      const ny = current.y + dy;
+      if (!isWalkable(obstacles, nx, ny)) continue;
+      const nKey = toKey(nx, ny);
+      if (closed.has(nKey)) continue;
+
+      const tentativeG = current.g + 1;
+      if (tentativeG >= (gScore.get(nKey) ?? Number.POSITIVE_INFINITY)) continue;
+      gScore.set(nKey, tentativeG);
+      parents.set(nKey, cKey);
+      open.push({
+        x: nx,
+        y: ny,
+        g: tentativeG,
+        f: tentativeG + manhattan(nx, ny, gx, gy),
+      });
+    }
+  }
+
+  return null;
+}
+
+function rebuildPath(parents, endKey) {
+  const chain = [];
+  let cursor = endKey;
+  while (cursor) {
+    const [x, y] = fromKey(cursor);
+    chain.push([x, y]);
+    cursor = parents.get(cursor);
+  }
+  chain.reverse();
+  return chain;
+}
+
+function countVertexConflicts(agents) {
+  const occupied = new Map();
+  for (const agent of agents) {
+    const key = toKey(agent.x, agent.y);
+    occupied.set(key, (occupied.get(key) || 0) + 1);
+  }
+  let conflicts = 0;
+  occupied.forEach((count) => {
+    if (count > 1) conflicts += count - 1;
+  });
+  return conflicts;
+}
+
+function isWalkable(obstacles, x, y) {
+  if (x < 0 || y < 0 || x >= obstacles.length || y >= obstacles[0].length) return false;
+  return obstacles[x][y] === 0;
+}
+
+function manhattan(x1, y1, x2, y2) {
+  return Math.abs(x1 - x2) + Math.abs(y1 - y2);
+}
+
+function toKey(x, y) {
+  return `${x},${y}`;
+}
+
+function fromKey(key) {
+  return key.split(",").map((v) => Number(v));
 }
