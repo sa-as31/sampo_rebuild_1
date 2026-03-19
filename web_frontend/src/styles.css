@@ -291,6 +291,49 @@ h1 {
   font-size: 13px;
 }
 
+.sim3d-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(560px, 1.5fr) minmax(280px, 0.9fr);
+  gap: 16px;
+}
+
+.sim3d-canvas-wrap {
+  min-height: 460px;
+}
+
+.sim3d-canvas-wrap canvas {
+  width: 100%;
+  height: 460px;
+  display: block;
+}
+
+.sim3d-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.sim3d-card {
+  border: 1px solid rgba(123, 172, 236, 0.2);
+  border-radius: 12px;
+  background: rgba(9, 27, 49, 0.8);
+  padding: 10px;
+}
+
+.sim3d-card h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.sim3d-card p {
+  margin: 7px 0 0;
+  font-size: 13px;
+}
+
+.sim3d-card.recommend {
+  border-color: rgba(90, 225, 194, 0.45);
+  background: linear-gradient(135deg, rgba(13, 43, 62, 0.9), rgba(9, 31, 52, 0.9));
+}
+
 @media (max-width: 1280px) {
   .layout-grid {
     grid-template-columns: 1fr;
@@ -299,5 +342,8 @@ h1 {
   .ops-grid {
     grid-template-columns: 1fr;
   }
-}
 
+  .sim3d-grid {
+    grid-template-columns: 1fr;
+  }
+}
