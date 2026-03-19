@@ -85,7 +85,7 @@ const previewCanvasRef = ref(null);
 const scenario = ref("warehouse");
 const cameraMode = ref("orbit");
 const speed = ref(1.0);
-const orbitSpeed = ref(0.08);
+const orbitSpeed = ref(0.12);
 const statusText = ref("3D预览待命");
 const runtimeSec = ref(0);
 const fps = ref(0);
@@ -322,7 +322,8 @@ function lookAtCamera(position, target) {
   const dx = target.x - position.x;
   const dy = target.y - position.y;
   const dz = target.z - position.z;
-  const yaw = Math.atan2(dx, dz);
+  // Keep orbit camera always facing the map center with our projection convention.
+  const yaw = -Math.atan2(dx, dz);
   const distXZ = Math.hypot(dx, dz);
   const pitch = -Math.atan2(dy, distXZ);
   return { x: position.x, y: position.y, z: position.z, yaw, pitch };
