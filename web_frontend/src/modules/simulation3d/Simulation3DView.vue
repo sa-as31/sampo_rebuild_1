@@ -22,6 +22,9 @@
         <label>仿真速度 x{{ speed.toFixed(1) }}
           <input v-model.number="speed" max="2.5" min="0.2" step="0.1" type="range" />
         </label>
+        <label v-if="cameraMode === 'orbit'">环绕速度 {{ orbitSpeed.toFixed(2) }} rad/s
+          <input v-model.number="orbitSpeed" max="0.35" min="0.02" step="0.01" type="range" />
+        </label>
       </div>
 
       <div class="btn-row" style="margin-top: 10px">
@@ -36,6 +39,7 @@
         <div class="metric"><span>运行时长(秒)</span><strong>{{ runtimeSec.toFixed(1) }}</strong></div>
         <div class="metric"><span>帧率估计</span><strong>{{ fps }}</strong></div>
         <div class="metric"><span>引擎状态</span><strong style="font-size: 18px">{{ engineTag }}</strong></div>
+        <div class="metric"><span>环绕周期(秒)</span><strong>{{ orbitPeriodText }}</strong></div>
       </div>
     </article>
 
@@ -49,6 +53,7 @@
         <span class="chip">Scenario: {{ scenarioLabel }}</span>
         <span class="chip">Camera: {{ cameraLabel }}</span>
         <span class="chip">Speed: x{{ speed.toFixed(1) }}</span>
+        <span v-if="cameraMode === 'orbit'" class="chip">Orbit: {{ orbitSpeed.toFixed(2) }} rad/s</span>
       </div>
     </article>
 
@@ -80,10 +85,12 @@ const previewCanvasRef = ref(null);
 const scenario = ref("warehouse");
 const cameraMode = ref("orbit");
 const speed = ref(1.0);
+const orbitSpeed = ref(0.08);
 const statusText = ref("3D预览待命");
 const runtimeSec = ref(0);
 const fps = ref(0);
 const running = ref(false);
+const orbitAngle = ref(0);
 
 let rafId = null;
 let lastTs = 0;
@@ -109,6 +116,7 @@ const droneCount = computed(() => {
 });
 
 const engineTag = computed(() => "Prototype");
+const orbitPeriodText = computed(() => (cameraMode.value === "orbit" ? (Math.PI * 2 / orbitSpeed.value).toFixed(1) : "--"));
 
 function startPreview() {
   if (running.value) return;
@@ -129,6 +137,7 @@ function pausePreview() {
 
 function resetPreview() {
   runtimeSec.value = 0;
+  orbitAngle.value = 0;
   drawFrame();
   statusText.value = "3D预览已重置";
 }
@@ -141,6 +150,7 @@ function tick(ts) {
   const dt = Math.max((ts - lastTs) / 1000, 0);
   lastTs = ts;
   runtimeSec.value += dt * speed.value;
+  if (cameraMode.value === "orbit") orbitAngle.value += dt * orbitSpeed.value;
   drawFrame();
 
   frameCounter += 1;
@@ -166,7 +176,7 @@ function drawFrame() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const lead = getDronePosition(0, runtimeSec.value, scenario.value);
-  const camera = buildCamera(cameraMode.value, runtimeSec.value, lead);
+  const camera = buildCamera(cameraMode.value, lead, orbitAngle.value);
   drawGrid(ctx, canvas, camera);
   drawObstacles(ctx, canvas, camera, getObstacleBlocks(scenario.value));
   drawDrones(ctx, canvas, camera);
@@ -292,7 +302,7 @@ function projectPoint(canvas, camera, x, y, z) {
   };
 }
 
-function buildCamera(mode, t, lead) {
+function buildCamera(mode, lead, angle) {
   if (mode === "follow") {
     return lookAtCamera(
       { x: lead.x - 3.2, y: 4.5, z: lead.z + 4.4 },
@@ -302,7 +312,6 @@ function buildCamera(mode, t, lead) {
   if (mode === "overview") {
     return lookAtCamera({ x: 0, y: 15.5, z: 10.5 }, { x: 0, y: 0, z: 0 });
   }
-  const angle = t * 0.26;
   return lookAtCamera(
     { x: Math.cos(angle) * 17, y: 8.6, z: Math.sin(angle) * 17 },
     { x: 0, y: 0.5, z: 0 }
