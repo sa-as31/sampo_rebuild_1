@@ -160,6 +160,8 @@ let lastDragY = 0;
 let viewYawOffset = 0;
 let viewPitchOffset = 0;
 let dragging = false;
+let droneForward = { x: 1, z: 0 };
+let droneCameraPos = null;
 
 const frameCount = computed(() => playback.value?.frames?.length || 0);
 const currentStep = computed(() => playback.value?.frames?.[frameIndex.value]?.step ?? 0);
@@ -190,6 +192,8 @@ function resetPlaybackCursor() {
   orbitHeightFactor = 0.48;
   viewYawOffset = 0;
   viewPitchOffset = 0;
+  droneForward = { x: 1, z: 0 };
+  droneCameraPos = null;
   drawFrame();
 }
 
@@ -555,35 +559,50 @@ function buildCamera(mode, lead, angle, radius, heightFactor, yawOffset, pitchOf
     const current = gridToWorld(focusAgent.x, focusAgent.y, env);
     const prev = prevFocusAgent ? gridToWorld(prevFocusAgent.x, prevFocusAgent.y, env) : null;
     const target = gridToWorld(focusAgent.target_x, focusAgent.target_y, env);
-    let dirX = current.x - (prev?.x ?? current.x);
-    let dirZ = current.z - (prev?.z ?? current.z);
-    if (Math.hypot(dirX, dirZ) < 0.001) {
-      dirX = target.x - current.x;
-      dirZ = target.z - current.z;
+    const dir = resolveAgentDirection(current, prev, target);
+    droneForward = dir;
+
+    const viewDir = rotate2D(dir, yawOffset);
+    const followDistance = CELL_SIZE * 2.6;
+    const desiredPos = {
+      x: current.x - viewDir.x * followDistance,
+      y: 1.25 + pitchOffset * 1.2,
+      z: current.z - viewDir.z * followDistance,
+    };
+
+    if (!droneCameraPos) {
+      droneCameraPos = desiredPos;
+    } else {
+      const smoothing = running.value ? 0.18 : 0.35;
+      droneCameraPos = {
+        x: lerp(droneCameraPos.x, desiredPos.x, smoothing),
+        y: lerp(droneCameraPos.y, desiredPos.y, smoothing),
+        z: lerp(droneCameraPos.z, desiredPos.z, smoothing),
+      };
     }
-    if (Math.hypot(dirX, dirZ) < 0.001) {
-      dirX = 1;
-      dirZ = 0;
-    }
-    const len = Math.hypot(dirX, dirZ);
-    const ux = dirX / len;
-    const uz = dirZ / len;
-    baseCamera = lookAtCamera(
-      { x: current.x - ux * 0.18, y: 0.98, z: current.z - uz * 0.18 },
-      { x: current.x + ux * 3.2, y: 0.9, z: current.z + uz * 3.2 }
-    );
+
+    const lookTarget = {
+      x: current.x + viewDir.x * 3.0,
+      y: 0.82 + pitchOffset * 0.35,
+      z: current.z + viewDir.z * 3.0,
+    };
+    baseCamera = lookAtCamera(droneCameraPos, lookTarget);
   } else {
     baseCamera = lookAtCamera(
       { x: Math.cos(angle) * radius, y: radius * heightFactor, z: Math.sin(angle) * radius },
       { x: 0, y: 0.4, z: 0 }
     );
   }
+  if (mode === "drone") {
+    return {
+      ...baseCamera,
+      pitch: clamp(baseCamera.pitch, -1.0, 0.65),
+    };
+  }
   return {
     ...baseCamera,
     yaw: baseCamera.yaw + yawOffset,
-    pitch: mode === "drone"
-      ? clamp(baseCamera.pitch + pitchOffset, -1.2, 0.7)
-      : clamp(baseCamera.pitch + pitchOffset, -1.2, 1.2),
+    pitch: clamp(baseCamera.pitch + pitchOffset, -1.2, 1.2),
   };
 }
 
@@ -619,9 +638,9 @@ function onCanvasPointerMove(event) {
     orbitAngle += dx * 0.01;
     orbitHeightFactor = clamp(orbitHeightFactor - dy * 0.0025, 0.2, 0.92);
   } else {
-    viewYawOffset += dx * 0.006;
+    viewYawOffset = normalizeAngle(viewYawOffset + dx * 0.006);
     if (cameraMode.value === "drone") {
-      viewPitchOffset = clamp(viewPitchOffset + dy * 0.003, -0.28, 0.34);
+      viewPitchOffset = clamp(viewPitchOffset + dy * 0.003, -0.35, 0.65);
     } else {
       viewPitchOffset = clamp(viewPitchOffset + dy * 0.003, -0.5, 0.5);
     }
@@ -639,6 +658,41 @@ function onCanvasPointerUp(event) {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function resolveAgentDirection(current, prev, target) {
+  let dx = current.x - (prev?.x ?? current.x);
+  let dz = current.z - (prev?.z ?? current.z);
+  if (Math.hypot(dx, dz) < 0.001) {
+    dx = target.x - current.x;
+    dz = target.z - current.z;
+  }
+  if (Math.hypot(dx, dz) < 0.001) {
+    dx = droneForward.x;
+    dz = droneForward.z;
+  }
+  const len = Math.hypot(dx, dz) || 1;
+  return { x: dx / len, z: dz / len };
+}
+
+function rotate2D(vector, radians) {
+  const c = Math.cos(radians);
+  const s = Math.sin(radians);
+  return {
+    x: vector.x * c - vector.z * s,
+    z: vector.x * s + vector.z * c,
+  };
+}
+
+function normalizeAngle(value) {
+  let angle = value;
+  while (angle > Math.PI) angle -= Math.PI * 2;
+  while (angle < -Math.PI) angle += Math.PI * 2;
+  return angle;
 }
 
 function drawEmptyHint(ctx, canvas, text) {
@@ -662,7 +716,13 @@ watch(scenario, () => {
   if (dataSource.value === "sample") loadSamplePlayback();
 });
 
-watch(cameraMode, () => drawFrame());
+watch(cameraMode, () => {
+  if (cameraMode.value === "drone") {
+    droneCameraPos = null;
+    droneForward = { x: 1, z: 0 };
+  }
+  drawFrame();
+});
 watch(zoomScale, () => drawFrame());
 watch(activeAgents, (agents) => {
   if (!agents.length) return;
