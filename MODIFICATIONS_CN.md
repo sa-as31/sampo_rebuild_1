@@ -789,3 +789,13 @@
   - `docker run --rm smapo:pyoctomap-test python scripts/smoke_2p5d_training_paths.py` 通过；
   - `docker run --rm smapo:pyoctomap-test sh -lc "python main.py --env=Pogema-v0 ... --target_num_agents=64 --use_maps=False --height_levels=4 --native_3d_obstacles=True --obstacle_backend=pyoctomap"` 通过；
   - `docker run --rm smapo:pyoctomap-test sh -lc "python main.py --env=PogemaMazes-v0 ... --target_num_agents=128 --height_levels=4 --native_3d_obstacles=True --obstacle_backend=pyoctomap"` 通过。
+
+## 39. 文档补充：解释“use_maps=True 仍不是原生 3D 地图集”
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“`use_maps=True` 仍然不是原生 3D 地图集”含义解释；
+  - 明确区分：
+    - 现状：二维地图资源 + 分层高度训练逻辑；
+    - 真正原生 3D：每个高度层都有独立障碍定义的三维地图资产；
+  - 说明当前 `mazes/random/street` 地图已经可用于 2.5D 训练，但还不是独立层结构的 3D 地图文件。
