@@ -16,6 +16,12 @@
             <option value="orbit">环绕观察</option>
             <option value="follow">跟随 1 号机</option>
             <option value="overview">全局俯视</option>
+            <option value="drone">无人机视角</option>
+          </select>
+        </label>
+        <label v-if="cameraMode === 'drone'">视角无人机
+          <select v-model.number="selectedDroneId">
+            <option v-for="agent in activeAgents" :key="agent.id" :value="agent.id">无人机 {{ agent.id + 1 }}</option>
           </select>
         </label>
         <label>回放速度 x{{ speed.toFixed(1) }}
@@ -57,6 +63,7 @@
         <div class="metric"><span>总帧数</span><strong>{{ frameCount }}</strong></div>
         <div class="metric"><span>帧率估计</span><strong>{{ fps }}</strong></div>
         <div class="metric"><span>放大倍率</span><strong>{{ zoomScale.toFixed(2) }}x</strong></div>
+        <div class="metric"><span>视角无人机</span><strong>{{ selectedDroneText }}</strong></div>
         <div class="metric"><span>环绕周期(秒)</span><strong>{{ orbitPeriodText }}</strong></div>
       </div>
     </article>
@@ -83,6 +90,7 @@
         <span class="chip">Speed: x{{ speed.toFixed(1) }}</span>
         <span class="chip">Zoom: x{{ zoomScale.toFixed(2) }}</span>
         <span class="chip">拖拽: 左键旋转视角</span>
+        <span v-if="cameraMode === 'drone'" class="chip">局部视野: 11 x 11</span>
       </div>
     </article>
 
@@ -108,6 +116,7 @@ import { fetchDefaults, runInference } from "../../services/api";
 import { buildSampleRun } from "../shared/renderer";
 
 const CELL_SIZE = 1.2;
+const LOCAL_VIEW_RADIUS = 5;
 const DRONE_COLORS = ["#7ec8ff", "#68f2ca", "#ffd774", "#ff9191", "#8da9ff", "#d99eff"];
 
 const previewCanvasRef = ref(null);
@@ -123,6 +132,7 @@ const running = ref(false);
 const dataSource = ref("sample");
 const frameIndex = ref(0);
 const playback = ref(buildSampleRun("warehouse"));
+const selectedDroneId = ref(0);
 
 const form = reactive({
   cfg_dir: "results/train_dir/0001/exp",
@@ -153,11 +163,17 @@ let dragging = false;
 
 const frameCount = computed(() => playback.value?.frames?.length || 0);
 const currentStep = computed(() => playback.value?.frames?.[frameIndex.value]?.step ?? 0);
+const activeAgents = computed(() => playback.value?.frames?.[frameIndex.value]?.agents || []);
 const sourceLabel = computed(() => (dataSource.value === "model" ? "模型推理" : "前端示例"));
 const cameraLabel = computed(() => {
   if (cameraMode.value === "follow") return "跟随 1 号机";
   if (cameraMode.value === "overview") return "全局俯视";
+  if (cameraMode.value === "drone") return "无人机视角";
   return "环绕观察";
+});
+const selectedDroneText = computed(() => {
+  const focused = activeAgents.value.find((a) => a.id === selectedDroneId.value);
+  return focused ? String(focused.id + 1) : "-";
 });
 const mapSizeText = computed(() => {
   const env = playback.value?.environment;
@@ -276,31 +292,48 @@ function drawFrame() {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const lead = frame.agents?.[0] ? gridToWorld(frame.agents[0].x, frame.agents[0].y, env) : { x: 0, z: 0 };
+  const focusAgent = cameraMode.value === "drone" ? resolveFocusedAgent(frame) : null;
+  const prevFocusAgent = cameraMode.value === "drone" ? resolveFocusedAgent(playback.value?.frames?.[Math.max(frameIndex.value - 1, 0)]) : null;
+  const leadSource = focusAgent || frame.agents?.[0];
+  const lead = leadSource ? gridToWorld(leadSource.x, leadSource.y, env) : { x: 0, z: 0 };
   const sceneRadius = Math.max((env.height - 1) * CELL_SIZE, (env.width - 1) * CELL_SIZE) * 0.95 + 6;
-  const camera = buildCamera(cameraMode.value, lead, orbitAngle, sceneRadius, orbitHeightFactor, viewYawOffset, viewPitchOffset);
+  const camera = buildCamera(
+    cameraMode.value,
+    lead,
+    orbitAngle,
+    sceneRadius,
+    orbitHeightFactor,
+    viewYawOffset,
+    viewPitchOffset,
+    focusAgent,
+    prevFocusAgent,
+    env
+  );
 
-  drawGrid(ctx, canvas, camera, env);
-  drawObstacles(ctx, canvas, camera, env);
-  drawAgents(ctx, canvas, camera, env, frame);
+  drawGrid(ctx, canvas, camera, env, focusAgent);
+  drawObstacles(ctx, canvas, camera, env, focusAgent);
+  drawAgents(ctx, canvas, camera, env, frame, focusAgent);
 }
 
-function drawGrid(ctx, canvas, camera, env) {
+function drawGrid(ctx, canvas, camera, env, focusAgent) {
   const halfX = ((env.height - 1) * CELL_SIZE) / 2;
   const halfZ = ((env.width - 1) * CELL_SIZE) / 2;
   for (let row = 0; row < env.height; row += 1) {
+    if (focusAgent && !isInsideLocalWindow(row, focusAgent.y, focusAgent, LOCAL_VIEW_RADIUS)) continue;
     const x = row * CELL_SIZE - halfX;
     drawLine3D(ctx, canvas, camera, { x, y: 0, z: -halfZ }, { x, y: 0, z: halfZ }, "rgba(145,180,230,0.16)", 1);
   }
   for (let col = 0; col < env.width; col += 1) {
+    if (focusAgent && !isInsideLocalWindow(focusAgent.x, col, focusAgent, LOCAL_VIEW_RADIUS)) continue;
     const z = col * CELL_SIZE - halfZ;
     drawLine3D(ctx, canvas, camera, { x: -halfX, y: 0, z }, { x: halfX, y: 0, z }, "rgba(145,180,230,0.16)", 1);
   }
 }
 
-function drawObstacles(ctx, canvas, camera, env) {
+function drawObstacles(ctx, canvas, camera, env, focusAgent) {
   for (let row = 0; row < env.height; row += 1) {
     for (let col = 0; col < env.width; col += 1) {
+      if (focusAgent && !isInsideLocalWindow(row, col, focusAgent, LOCAL_VIEW_RADIUS)) continue;
       if (env.obstacles?.[row]?.[col] !== 1) continue;
       const p = gridToWorld(row, col, env);
       drawBoxWire(
@@ -314,8 +347,9 @@ function drawObstacles(ctx, canvas, camera, env) {
   }
 }
 
-function drawAgents(ctx, canvas, camera, env, frame) {
+function drawAgents(ctx, canvas, camera, env, frame, focusAgent) {
   frame.agents?.forEach((agent) => {
+    if (focusAgent && !isInsideLocalWindow(agent.x, agent.y, focusAgent, LOCAL_VIEW_RADIUS)) return;
     const c = DRONE_COLORS[agent.id % DRONE_COLORS.length];
     const bodyPos = gridToWorld(agent.x, agent.y, env);
     const targetPos = gridToWorld(agent.target_x, agent.target_y, env);
@@ -344,6 +378,14 @@ function drawAgents(ctx, canvas, camera, env, frame) {
     ctx.beginPath();
     ctx.arc(body.x, body.y, Math.max(3.2, body.scale * 4.6), 0, Math.PI * 2);
     ctx.fill();
+
+    if (focusAgent && agent.id === focusAgent.id) {
+      ctx.strokeStyle = "rgba(255,255,255,0.92)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(body.x, body.y, Math.max(5.5, body.scale * 6.8), 0, Math.PI * 2);
+      ctx.stroke();
+    }
   });
 }
 
@@ -439,7 +481,7 @@ function projectPoint(canvas, camera, x, y, z) {
   };
 }
 
-function buildCamera(mode, lead, angle, radius, heightFactor, yawOffset, pitchOffset) {
+function buildCamera(mode, lead, angle, radius, heightFactor, yawOffset, pitchOffset, focusAgent, prevFocusAgent, env) {
   let baseCamera = null;
   if (mode === "follow") {
     baseCamera = lookAtCamera(
@@ -448,6 +490,27 @@ function buildCamera(mode, lead, angle, radius, heightFactor, yawOffset, pitchOf
     );
   } else if (mode === "overview") {
     baseCamera = lookAtCamera({ x: 0, y: radius * 0.9, z: radius * 0.52 }, { x: 0, y: 0, z: 0 });
+  } else if (mode === "drone" && focusAgent && env) {
+    const current = gridToWorld(focusAgent.x, focusAgent.y, env);
+    const prev = prevFocusAgent ? gridToWorld(prevFocusAgent.x, prevFocusAgent.y, env) : null;
+    const target = gridToWorld(focusAgent.target_x, focusAgent.target_y, env);
+    let dirX = current.x - (prev?.x ?? current.x);
+    let dirZ = current.z - (prev?.z ?? current.z);
+    if (Math.hypot(dirX, dirZ) < 0.001) {
+      dirX = target.x - current.x;
+      dirZ = target.z - current.z;
+    }
+    if (Math.hypot(dirX, dirZ) < 0.001) {
+      dirX = 1;
+      dirZ = 0;
+    }
+    const len = Math.hypot(dirX, dirZ);
+    const ux = dirX / len;
+    const uz = dirZ / len;
+    baseCamera = lookAtCamera(
+      { x: current.x - ux * 0.18, y: 0.98, z: current.z - uz * 0.18 },
+      { x: current.x + ux * 3.2, y: 0.9, z: current.z + uz * 3.2 }
+    );
   } else {
     baseCamera = lookAtCamera(
       { x: Math.cos(angle) * radius, y: radius * heightFactor, z: Math.sin(angle) * radius },
@@ -457,7 +520,9 @@ function buildCamera(mode, lead, angle, radius, heightFactor, yawOffset, pitchOf
   return {
     ...baseCamera,
     yaw: baseCamera.yaw + yawOffset,
-    pitch: clamp(baseCamera.pitch + pitchOffset, -1.35, -0.08),
+    pitch: mode === "drone"
+      ? clamp(baseCamera.pitch + pitchOffset, -1.2, 0.55)
+      : clamp(baseCamera.pitch + pitchOffset, -1.35, -0.08),
   };
 }
 
@@ -511,12 +576,30 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+function resolveFocusedAgent(frame) {
+  const agents = frame?.agents || [];
+  if (!agents.length) return null;
+  return agents.find((agent) => agent.id === selectedDroneId.value) || agents[0];
+}
+
+function isInsideLocalWindow(row, col, focusAgent, radius) {
+  return Math.abs(row - focusAgent.x) <= radius && Math.abs(col - focusAgent.y) <= radius;
+}
+
 watch(scenario, () => {
   if (dataSource.value === "sample") loadSamplePlayback();
 });
 
 watch(cameraMode, () => drawFrame());
 watch(zoomScale, () => drawFrame());
+watch(activeAgents, (agents) => {
+  if (!agents.length) return;
+  if (!agents.some((agent) => agent.id === selectedDroneId.value)) {
+    selectedDroneId.value = agents[0].id;
+  }
+  drawFrame();
+});
+watch(selectedDroneId, () => drawFrame());
 
 onMounted(async () => {
   try {
