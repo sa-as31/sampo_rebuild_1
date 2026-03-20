@@ -42,6 +42,7 @@
             <th>任务ID</th>
             <th>任务名</th>
             <th>模板</th>
+            <th>执行者</th>
             <th>状态</th>
             <th>吞吐量</th>
             <th>更新时间</th>
@@ -57,6 +58,7 @@
             <td>{{ task.task_id }}</td>
             <td>{{ task.mission_name }}</td>
             <td>{{ templateLabel(task.template) }}</td>
+            <td>{{ assigneeLabel(task) }}</td>
             <td>{{ task.status }}</td>
             <td>{{ fmtNumber(task.metrics?.throughput, 4) }}</td>
             <td>{{ fmtTime(task.updated_at) }}</td>
@@ -108,76 +110,100 @@
     </article>
 
     <article class="panel">
-      <h2>参数模板库</h2>
-      <div class="field-grid">
-        <label>模板名称 <input v-model="templateForm.name" placeholder="如：仓储夜班-16机" /></label>
-        <label>模板场景
-          <select v-model="templateForm.template">
-            <option value="warehouse">仓储巡检</option>
-            <option value="campus">园区配送</option>
-            <option value="emergency">应急调度</option>
-          </select>
-        </label>
-        <label>数据源
-          <select v-model="templateForm.source">
-            <option value="sample">sample</option>
-            <option value="model">model</option>
-          </select>
-        </label>
-        <label>默认任务名 <input v-model="templateForm.mission_name" /></label>
-        <label>无人机数量 <input v-model.number="templateForm.num_agents" min="1" type="number" /></label>
-        <label>最大帧数 <input v-model.number="templateForm.max_frames" min="4" type="number" /></label>
-        <label>节拍(ms) <input v-model.number="templateForm.tick_ms" min="120" step="20" type="number" /></label>
-      </div>
-      <div class="btn-row" style="margin-top: 10px">
-        <button class="btn" @click="saveTemplate">保存模板</button>
-        <button class="btn secondary" @click="fillTemplateFromTask">从当前任务填充</button>
-      </div>
+      <h2>{{ isAdmin ? "任务分配与地图导入" : "执行者工作台" }}</h2>
+      <template v-if="isAdmin">
+        <div class="field-grid">
+          <label>任务名称 <input v-model="assignForm.mission_name" placeholder="如：night_shift_assign_01" /></label>
+          <label>任务模板
+            <select v-model="assignForm.template">
+              <option value="warehouse">仓储巡检</option>
+              <option value="campus">园区配送</option>
+              <option value="emergency">应急调度</option>
+            </select>
+          </label>
+          <label>执行数据源
+            <select v-model="assignForm.source">
+              <option value="sample">sample</option>
+              <option value="model">model</option>
+            </select>
+          </label>
+          <label>分配执行者
+            <select v-model="assignForm.assignee_user_id" @change="syncAssigneeDisplayName">
+              <option v-for="user in assignees" :key="user.user_id" :value="user.user_id">{{ user.display_name }} ({{ user.username }})</option>
+            </select>
+          </label>
+          <label>地图名称 <input v-model="assignForm.map_name" placeholder="如：warehouse-grid-v1" /></label>
+          <label>无人机数量 <input v-model.number="assignForm.num_agents" min="1" type="number" /></label>
+          <label>最大帧数 <input v-model.number="assignForm.max_frames" min="4" type="number" /></label>
+          <label>节拍(ms) <input v-model.number="assignForm.tick_ms" min="120" step="20" type="number" /></label>
+        </div>
+        <div class="btn-row" style="margin-top: 10px">
+          <button class="btn" @click="createAndAssignTask">创建并分配任务</button>
+        </div>
+        <div class="status-chip">{{ assignStatus }}</div>
 
-      <table class="fleet-table" style="margin-top: 8px">
-        <thead>
-          <tr>
-            <th>模板名</th>
-            <th>场景</th>
-            <th>源</th>
-            <th>参数</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in templates" :key="item.id">
-            <td>{{ item.name }}</td>
-            <td>{{ templateLabel(item.template) }}</td>
-            <td>{{ item.source }}</td>
-            <td>{{ item.num_agents }}机 / {{ item.max_frames }}帧 / {{ item.tick_ms }}ms</td>
-            <td>
-              <div class="btn-row">
-                <button class="btn secondary" @click="applyTemplate(item)">应用到运营中心</button>
-                <button class="btn secondary" @click="removeTemplate(item.id)">删除</button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+        <div class="field-grid" style="margin-top: 12px">
+          <label>导入地图(JSON)
+            <input accept=".json,application/json" type="file" @change="onImportMapFile" />
+          </label>
+        </div>
+
+        <table class="fleet-table" style="margin-top: 8px">
+          <thead>
+            <tr>
+              <th>地图名</th>
+              <th>来源文件</th>
+              <th>导入时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in importedMaps" :key="item.id">
+              <td>{{ item.map_name }}</td>
+              <td>{{ item.file_name }}</td>
+              <td>{{ fmtTime(item.ts) }}</td>
+              <td>
+                <button class="btn secondary" @click="applyImportedMap(item)">设为任务地图</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
+      <template v-else>
+        <p class="legend">执行者仅可执行管理员分配的任务，不能创建任务或导入地图。</p>
+        <div class="status-chip">当前账号：{{ currentUser?.display_name || "-" }}</div>
+      </template>
     </article>
   </section>
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
-import { fetchOpsTasks, fetchOpsAlerts, getOpsTask, fetchTaskReplay } from "../../services/api";
+import { createOpsTask, fetchAuthOptions, fetchOpsTasks, fetchOpsAlerts, getOpsTask, fetchTaskReplay } from "../../services/api";
 import { createRenderer } from "../shared/renderer";
-import { deleteOpsTemplate, loadOpsTemplates, upsertOpsTemplate } from "../shared/templateStore";
+
+const props = defineProps({
+  role: {
+    type: String,
+    default: "executor",
+  },
+  currentUser: {
+    type: Object,
+    default: null,
+  },
+});
 
 const renderer = createRenderer();
 const canvasRef = ref(null);
 const status = ref("任务中心初始化中...");
+const assignStatus = ref("管理员可创建任务并分配给执行者。");
 const tasks = ref([]);
 const selectedTaskId = ref("");
 const selectedTask = ref(null);
 const selectedSnapshot = ref(null);
 const selectedAlerts = ref([]);
-const templates = ref(loadOpsTemplates());
+const assignees = ref([]);
+const importedMaps = ref(loadImportedMaps());
 const replayTimer = ref(null);
 let pollTimer = null;
 
@@ -187,16 +213,21 @@ const filters = reactive({
   keyword: "",
 });
 
-const templateForm = reactive({
-  id: "",
-  name: "",
+const assignForm = reactive({
+  mission_name: "dispatch_batch_001",
   template: "warehouse",
   source: "sample",
-  mission_name: "enterprise_batch_demo",
+  assignee_user_id: "",
+  assignee_display_name: "",
+  map_name: "warehouse-grid-v1",
   num_agents: 16,
   max_frames: 64,
   tick_ms: 320,
 });
+
+const isAdmin = computed(() => props.role === "admin");
+const currentUserId = computed(() => props.currentUser?.user_id || "");
+const currentUser = computed(() => props.currentUser);
 
 const replay = reactive({
   available: false,
@@ -210,6 +241,10 @@ const replay = reactive({
 const filteredTasks = computed(() => {
   const keyword = filters.keyword.trim().toLowerCase();
   return tasks.value.filter((task) => {
+    if (!isAdmin.value) {
+      const assignee = String(task?.params?.assignee_user_id || "");
+      if (!assignee || assignee !== currentUserId.value) return false;
+    }
     if (filters.status !== "ALL" && task.status !== filters.status) return false;
     if (filters.template !== "ALL" && task.template !== filters.template) return false;
     if (!keyword) return true;
@@ -234,17 +269,52 @@ function templateLabel(key) {
   return "仓储巡检";
 }
 
+function assigneeLabel(task) {
+  const params = task?.params || {};
+  return params.assignee_display_name || params.assignee_user_id || "-";
+}
+
+function loadImportedMaps() {
+  try {
+    const raw = window.localStorage.getItem("OPS_IMPORTED_MAPS");
+    const parsed = JSON.parse(raw || "[]");
+    if (Array.isArray(parsed)) return parsed;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+function saveImportedMaps() {
+  window.localStorage.setItem("OPS_IMPORTED_MAPS", JSON.stringify(importedMaps.value.slice(-20)));
+}
+
+async function refreshAssignees() {
+  if (!isAdmin.value) return;
+  try {
+    const payload = await fetchAuthOptions();
+    assignees.value = (payload?.accounts || []).filter((item) => item.role === "executor");
+    if (!assignForm.assignee_user_id && assignees.value.length) {
+      assignForm.assignee_user_id = assignees.value[0].user_id;
+      assignForm.assignee_display_name = assignees.value[0].display_name;
+    }
+  } catch (error) {
+    assignStatus.value = `执行者列表加载失败：${error.message}`;
+  }
+}
+
 async function refreshTasks() {
   try {
     const data = await fetchOpsTasks(100);
     tasks.value = data.tasks || [];
-    if (!selectedTaskId.value && tasks.value.length) {
-      selectedTaskId.value = tasks.value[0].task_id;
+    const visibleList = filteredTasks.value;
+    if ((!selectedTaskId.value || !visibleList.some((task) => task.task_id === selectedTaskId.value)) && visibleList.length) {
+      selectedTaskId.value = visibleList[0].task_id;
     }
     if (selectedTaskId.value) {
       await loadTaskDetail(selectedTaskId.value, false);
     }
-    status.value = `任务列表已更新，共 ${tasks.value.length} 条`;
+    status.value = `任务列表已更新，可见 ${visibleList.length} 条（总 ${tasks.value.length} 条）`;
   } catch (error) {
     status.value = `刷新失败：${error.message}`;
   }
@@ -389,53 +459,70 @@ function exportReport() {
   status.value = `已导出报告：task-report-${task.task_id}.md`;
 }
 
-function fillTemplateFromTask() {
-  if (!selectedTask.value) {
-    status.value = "请先选择任务，再填充模板";
+function syncAssigneeDisplayName() {
+  const target = assignees.value.find((item) => item.user_id === assignForm.assignee_user_id);
+  assignForm.assignee_display_name = target?.display_name || "";
+}
+
+async function createAndAssignTask() {
+  if (!isAdmin.value) {
+    assignStatus.value = "仅管理员可创建和分配任务";
     return;
   }
-  const task = selectedTask.value;
-  const params = task.params || {};
-  templateForm.template = task.template || "warehouse";
-  templateForm.source = task.source || "sample";
-  templateForm.mission_name = task.mission_name || "enterprise_batch_demo";
-  templateForm.num_agents = Number(params.num_agents || 16);
-  templateForm.max_frames = Number(params.max_frames || 64);
-  templateForm.tick_ms = Number(task.tick_ms || 320);
-  if (!templateForm.name) templateForm.name = `${templateLabel(templateForm.template)}-${templateForm.num_agents}机`;
-  status.value = "已从当前任务填充模板参数";
-}
-
-function saveTemplate() {
-  if (!templateForm.name.trim()) {
-    status.value = "请先填写模板名称";
+  if (!assignForm.assignee_user_id) {
+    assignStatus.value = "请先选择执行者";
     return;
   }
-  const saved = upsertOpsTemplate({
-    id: templateForm.id || undefined,
-    name: templateForm.name.trim(),
-    template: templateForm.template,
-    source: templateForm.source,
-    mission_name: templateForm.mission_name,
-    num_agents: templateForm.num_agents,
-    max_frames: templateForm.max_frames,
-    tick_ms: templateForm.tick_ms,
-  });
-  templateForm.id = saved.id;
-  templates.value = loadOpsTemplates();
-  status.value = `模板已保存：${saved.name}`;
+  syncAssigneeDisplayName();
+  try {
+    const created = await createOpsTask({
+      mission_name: assignForm.mission_name,
+      template: assignForm.template,
+      source: assignForm.source,
+      map_name: assignForm.map_name,
+      num_agents: assignForm.num_agents,
+      max_frames: assignForm.max_frames,
+      tick_ms: assignForm.tick_ms,
+      assignee_user_id: assignForm.assignee_user_id,
+      assignee_display_name: assignForm.assignee_display_name,
+    });
+    selectedTaskId.value = created?.task?.task_id || "";
+    await refreshTasks();
+    assignStatus.value = `任务已创建并分配给 ${assignForm.assignee_display_name}`;
+  } catch (error) {
+    assignStatus.value = `任务创建失败：${error.message}`;
+  }
 }
 
-function removeTemplate(templateId) {
-  deleteOpsTemplate(templateId);
-  templates.value = loadOpsTemplates();
-  status.value = "模板已删除";
+function onImportMapFile(event) {
+  if (!isAdmin.value) return;
+  const file = event?.target?.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(String(reader.result || "{}"));
+      const mapName = String(parsed.map_name || file.name.replace(/\.[^.]+$/, "") || "imported-map");
+      const item = {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+        map_name: mapName,
+        file_name: file.name,
+        ts: Date.now() / 1000,
+      };
+      importedMaps.value = [item, ...importedMaps.value.filter((m) => m.map_name !== mapName)].slice(0, 20);
+      saveImportedMaps();
+      assignForm.map_name = mapName;
+      assignStatus.value = `地图已导入：${mapName}`;
+    } catch (error) {
+      assignStatus.value = `地图导入失败：${error.message}`;
+    }
+  };
+  reader.readAsText(file, "utf-8");
 }
 
-function applyTemplate(item) {
-  window.localStorage.setItem("OPS_TEMPLATE_PREFILL", JSON.stringify(item));
-  window.dispatchEvent(new CustomEvent("app-switch-mode", { detail: { mode: "ops" } }));
-  status.value = `已将模板“${item.name}”应用到运营中心`;
+function applyImportedMap(item) {
+  assignForm.map_name = item.map_name;
+  assignStatus.value = `已选择地图：${item.map_name}`;
 }
 
 function openOpsWithSelected() {
@@ -443,16 +530,20 @@ function openOpsWithSelected() {
     status.value = "请先选择任务";
     return;
   }
+  if (!isAdmin.value) {
+    const task = tasks.value.find((item) => item.task_id === selectedTaskId.value);
+    const assignee = String(task?.params?.assignee_user_id || "");
+    if (assignee !== currentUserId.value) {
+      status.value = "该任务未分配给当前执行者";
+      return;
+    }
+  }
   window.localStorage.setItem("OPS_FOCUS_TASK_ID", selectedTaskId.value);
   window.dispatchEvent(new CustomEvent("app-switch-mode", { detail: { mode: "ops" } }));
 }
 
-function handleTemplateUpdate() {
-  templates.value = loadOpsTemplates();
-}
-
 onMounted(async () => {
-  window.addEventListener("ops-template-updated", handleTemplateUpdate);
+  await refreshAssignees();
   await refreshTasks();
   pollTimer = window.setInterval(() => refreshTasks(), 3200);
 });
@@ -460,6 +551,5 @@ onMounted(async () => {
 onUnmounted(() => {
   stopReplayTimer();
   if (pollTimer) window.clearInterval(pollTimer);
-  window.removeEventListener("ops-template-updated", handleTemplateUpdate);
 });
 </script>

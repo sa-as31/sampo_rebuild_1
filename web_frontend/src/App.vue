@@ -75,10 +75,9 @@
       </nav>
 
       <main>
-        <ResearchModeView v-if="activeMode === 'research'" />
-        <TaskCenterView v-else-if="activeMode === 'taskCenter'" />
+        <TaskCenterView v-if="activeMode === 'taskCenter'" :current-user="currentUser" :role="currentRole" />
         <OpsDashboardView v-else-if="activeMode === 'dashboard'" />
-        <OperationsModeView v-else />
+        <OperationsModeView v-else :current-user="currentUser" :role="currentRole" />
       </main>
     </template>
   </div>
@@ -86,17 +85,13 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import ResearchModeView from "./modules/research/ResearchModeView.vue";
 import OperationsModeView from "./modules/operations/OperationsModeView.vue";
 import TaskCenterView from "./modules/taskcenter/TaskCenterView.vue";
 import OpsDashboardView from "./modules/dashboard/OpsDashboardView.vue";
 import { fetchAuthOptions, fetchAuthState, fetchIdentity, loginWithPassword, logoutCurrentUser } from "./services/api";
 
 const adminTabs = [
-  { key: "ops", label: "联合运行" },
-  { key: "taskCenter", label: "任务中心" },
-  { key: "dashboard", label: "运营大屏" },
-  { key: "research", label: "研究模式" },
+  { key: "taskCenter", label: "任务分配" },
 ];
 const executorTabs = [
   { key: "ops", label: "联合运行" },

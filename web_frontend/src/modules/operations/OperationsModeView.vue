@@ -8,28 +8,28 @@
 
       <div v-if="!sidebarCollapsed" class="field-grid">
         <label>参数模板
-          <select v-model="selectedTemplateId" @change="applySavedTemplate">
+          <select v-model="selectedTemplateId" :disabled="!isAdmin" @change="applySavedTemplate">
             <option value="">未选择（手动配置）</option>
             <option v-for="item in savedTemplates" :key="item.id" :value="item.id">{{ item.name }}</option>
           </select>
         </label>
         <label>任务模板
-          <select v-model="selectedTemplate" @change="applyTemplate">
+          <select v-model="selectedTemplate" :disabled="!isAdmin" @change="applyTemplate">
             <option value="warehouse">仓储巡检</option>
             <option value="campus">园区配送</option>
             <option value="emergency">应急调度</option>
           </select>
         </label>
         <label>执行数据源
-          <select v-model="executionSource">
+          <select v-model="executionSource" :disabled="!isAdmin">
             <option value="sample">后端样例仿真</option>
             <option value="model">模型推理回放</option>
           </select>
         </label>
-        <label>任务批次名称 <input v-model="missionName" placeholder="如：night_shift_batch_03" /></label>
-        <label>无人机数量 <input v-model.number="taskConfig.num_agents" min="1" type="number" /></label>
-        <label>最大帧数 <input v-model.number="taskConfig.max_frames" min="4" type="number" /></label>
-        <label>节拍(ms) <input v-model.number="taskConfig.tick_ms" min="120" step="20" type="number" /></label>
+        <label>任务批次名称 <input v-model="missionName" :disabled="!isAdmin" placeholder="如：night_shift_batch_03" /></label>
+        <label>无人机数量 <input v-model.number="taskConfig.num_agents" :disabled="!isAdmin" min="1" type="number" /></label>
+        <label>最大帧数 <input v-model.number="taskConfig.max_frames" :disabled="!isAdmin" min="4" type="number" /></label>
+        <label>节拍(ms) <input v-model.number="taskConfig.tick_ms" :disabled="!isAdmin" min="120" step="20" type="number" /></label>
 
         <label>3D镜头
           <select v-model="cameraMode">
@@ -50,9 +50,10 @@
           <button class="btn secondary" @click="pauseOpsRun">暂停</button>
           <button class="btn secondary" @click="resumeOpsRun">继续</button>
           <button class="btn secondary" @click="stopOpsRun">停止</button>
-          <button class="btn secondary" @click="saveCurrentAsTemplate">保存为模板</button>
-          <button class="btn secondary" @click="deleteCurrentTemplate">删除当前模板</button>
+          <button v-if="isAdmin" class="btn secondary" @click="saveCurrentAsTemplate">保存为模板</button>
+          <button v-if="isAdmin" class="btn secondary" @click="deleteCurrentTemplate">删除当前模板</button>
         </div>
+        <div v-if="!isAdmin" class="status-chip">执行者权限：仅可运行已分配任务，任务创建与参数配置由管理员负责。</div>
       </div>
     </aside>
 
@@ -139,6 +140,17 @@ import { buildSampleRun, createRenderer } from "../shared/renderer";
 import { connectOpsTaskEvents, controlOpsTask, createOpsTask, getOpsTask } from "../../services/api";
 import { deleteOpsTemplate, loadOpsTemplates, upsertOpsTemplate } from "../shared/templateStore";
 
+const props = defineProps({
+  role: {
+    type: String,
+    default: "executor",
+  },
+  currentUser: {
+    type: Object,
+    default: null,
+  },
+});
+
 const CELL_SIZE = 1.2;
 const DRONE_COLORS = ["#7ec8ff", "#68f2ca", "#ffd774", "#ff9191", "#8da9ff", "#d99eff"];
 
@@ -201,6 +213,7 @@ const cameraModeLabel = computed(() => {
   if (cameraMode.value === "follow") return "跟随选中无人机";
   return "环绕观察";
 });
+const isAdmin = computed(() => props.role === "admin");
 
 const statusCards = computed(() => {
   const frame = activeFrame.value;
@@ -285,6 +298,10 @@ function refreshSavedTemplates() {
 
 async function startOpsRun() {
   try {
+    if (!isAdmin.value && (!currentTaskId.value || isTerminalStatus(runtime.task?.status))) {
+      opsStatus.value = "执行者不能新建任务，请在任务中心选择管理员分配的任务后再启动。";
+      return;
+    }
     if (!currentTaskId.value || isTerminalStatus(runtime.task?.status)) {
       const created = await createOpsTask({
         mission_name: missionName.value,
