@@ -1076,3 +1076,37 @@
     - 3D 地图资产数量仍有限；
     - OctoMap 当前是离线重采样接入；
     - 长时训练效果还未完成系统评测。
+
+## 45. 文档补充：统计当前可直接训练的 3D 地图资产数量
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“目前可直接用于 3D 训练的地图资产有多少”问答；
+  - 明确给出当前数量：
+    - 手工 3D 切片样例 2 个；
+    - 官方 OctoMap 资产 1 个；
+    - 总计 3 个；
+  - 同时区分“已可训练的 3D 地图资产样例”和“尚未规模化的大型 3D 地图集”。
+
+## 45. 联合运行页全屏修复：侧栏收起异常 + 运行图居中
+
+- 文件：`web_frontend/src/modules/operations/OperationsModeView.vue`
+- 主要修改：
+  - 联合运行页根容器增加 `sidebar-collapsed` 条件类，配合收起状态切换布局；
+  - 2D 画布点击坐标改为按 `getBoundingClientRect()` 比例映射到 Canvas 像素坐标，修复高分屏/缩放下点击偏移；
+  - `draw3D()` 补齐画布显示尺寸同步（与 2D 一致），避免全屏或窗口尺寸变化后渲染比例错位；
+  - 新增窗口 `resize` 监听 + 防抖重绘，保证收起/展开和分辨率变化后画面稳定。
+
+- 文件：`web_frontend/src/styles.css`
+- 主要修改：
+  - 新增 `.ops-integrated-layout.sidebar-collapsed` 网格规则，收起后固定窄侧栏宽度；
+  - 优化 `.ops-sidebar-panel.collapsed` 和头部布局，避免按钮与标题在窄宽度下错位；
+  - 统一 `.ops-view-card .canvas-wrap canvas` 为 `width: 100%` + 固定可视高度，确保运行图在卡片内居中展示；
+  - 移动端补充 `.ops-integrated-layout.sidebar-collapsed` 的单列回退规则。
+
+- 验证结果：
+  - `npm --prefix web_frontend run build` 通过；
+  - Playwright 复测通过（`1920x1080`、`2560x1440`）：
+    - 侧栏收起/展开按钮状态正常；
+    - 收起后侧栏宽度固定；
+    - 2D/3D 运行图在各自卡片中保持居中且缓冲尺寸与显示尺寸一致。

@@ -1,5 +1,5 @@
 <template>
-  <section class="ops-integrated-layout">
+  <section class="ops-integrated-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
     <aside class="panel ops-sidebar-panel" :class="{ collapsed: sidebarCollapsed }">
       <div class="ops-sidebar-head">
         <h2>任务参数</h2>
@@ -191,6 +191,7 @@ const runtime = reactive({
 let rafId = null;
 let lastTs = 0;
 let orbitAngle = 0;
+let resizeTimer = null;
 
 const activeEnvironment = computed(() => runtime.environment || samplePlayback.value.environment);
 const activeFrame = computed(() => runtime.frame || samplePlayback.value.frames[0] || { agents: [], vertex_conflicts: 0, step: 0 });
@@ -461,8 +462,8 @@ function onOpsCanvasClick(event) {
   if (!canvas || !env || !frame) return;
 
   const rect = canvas.getBoundingClientRect();
-  const px = event.clientX - rect.left;
-  const py = event.clientY - rect.top;
+  const px = ((event.clientX - rect.left) * canvas.width) / Math.max(rect.width, 1);
+  const py = ((event.clientY - rect.top) * canvas.height) / Math.max(rect.height, 1);
   const padding = 34;
   const cell = Math.min((canvas.width - padding * 2) / env.width, (canvas.height - padding * 2) / env.height);
   const gridWidth = cell * env.width;
@@ -492,7 +493,9 @@ function drawAll() {
 }
 
 function draw2D() {
-  renderer.draw(opsCanvasRef.value, activeEnvironment.value, activeFrame.value);
+  const canvas = opsCanvasRef.value;
+  resizeCanvasToDisplaySize(canvas);
+  renderer.draw(canvas, activeEnvironment.value, activeFrame.value);
 }
 
 function draw3D() {
@@ -500,6 +503,7 @@ function draw3D() {
   const env = activeEnvironment.value;
   const frame = activeFrame.value;
   if (!canvas || !env || !frame) return;
+  resizeCanvasToDisplaySize(canvas);
 
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -697,9 +701,21 @@ function projectPoint(canvas, camera, x, y, z) {
   const scale = focal / z2;
   return {
     x: canvas.width * 0.5 + x1 * scale,
-    y: canvas.height * 0.58 - y2 * scale,
+    y: canvas.height * 0.52 - y2 * scale,
     scale: Math.max(0.3, Math.min(2.2, scale / 120)),
   };
+}
+
+function resizeCanvasToDisplaySize(canvas) {
+  if (!canvas) return false;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const targetWidth = Math.max(1, Math.round(rect.width * dpr));
+  const targetHeight = Math.max(1, Math.round(rect.height * dpr));
+  if (canvas.width === targetWidth && canvas.height === targetHeight) return false;
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  return true;
 }
 
 function lookAtCamera(position, target) {
@@ -758,6 +774,7 @@ watch(selectedDroneId, () => drawAll());
 onMounted(async () => {
   refreshSavedTemplates();
   window.addEventListener("ops-template-updated", handleTemplateUpdate);
+  window.addEventListener("resize", handleWindowResize);
   drawAll();
   start3DLoop();
   await restorePrefillAndFocus();
@@ -767,5 +784,12 @@ onUnmounted(() => {
   disconnectEvents();
   stop3DLoop();
   window.removeEventListener("ops-template-updated", handleTemplateUpdate);
+  window.removeEventListener("resize", handleWindowResize);
+  if (resizeTimer) window.clearTimeout(resizeTimer);
 });
+
+function handleWindowResize() {
+  if (resizeTimer) window.clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(() => drawAll(), 80);
+}
 </script>
