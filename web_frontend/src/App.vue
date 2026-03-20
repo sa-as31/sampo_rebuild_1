@@ -14,18 +14,7 @@
           <button class="role-toggle" :class="{ active: loginRole === 'executor' }" @click="setLoginRole('executor')">执行者</button>
           <button class="role-toggle" :class="{ active: loginRole === 'admin' }" @click="setLoginRole('admin')">管理员</button>
         </div>
-
-        <div class="login-account-list">
-          <button
-            v-for="account in visibleAccounts"
-            :key="account.user_id"
-            class="login-account-item"
-            @click="fillFromAccount(account)"
-          >
-            <strong>{{ account.display_name }}</strong>
-            <span>{{ account.username }} · {{ account.department }}</span>
-          </button>
-        </div>
+        <p class="login-sub" style="margin-top: 8px">{{ roleHintText }}</p>
 
         <label class="login-label">
           账号
@@ -117,7 +106,10 @@ const roleLabel = computed(() => (currentRole.value === "admin" ? "管理员" : 
 const currentUserName = computed(() => currentUser.value?.display_name || "未登录账户");
 const currentUserDept = computed(() => currentUser.value?.department || "未分配部门");
 const currentUserInitial = computed(() => userInitial(currentUser.value));
-const visibleAccounts = computed(() => authAccounts.value.filter((item) => item.role === loginRole.value));
+const roleHintText = computed(() => {
+  if (loginRole.value === "admin") return "管理员账号示例：admin（可手动输入其他管理员账号）";
+  return "执行者账号示例：executor01（可手动输入其他执行者账号）";
+});
 
 function normalizeUser(raw) {
   if (!raw || typeof raw !== "object") return null;
@@ -176,12 +168,6 @@ function setLoginRole(role) {
 function prefillByRole(role) {
   const first = authAccounts.value.find((item) => item.role === role);
   if (first) loginUsername.value = first.username;
-}
-
-function fillFromAccount(account) {
-  if (!account) return;
-  loginRole.value = account.role === "admin" ? "admin" : "executor";
-  loginUsername.value = account.username;
 }
 
 async function submitLogin() {
