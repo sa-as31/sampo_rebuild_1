@@ -109,10 +109,15 @@ class LayeredPlanner:
     def add_grid_obstacles(self, obstacles, starts):
         self.obstacles = obstacles
         self.starts = starts
+        if hasattr(obstacles, 'shape') and len(obstacles.shape) == 3:
+            self.height_levels = int(obstacles.shape[0])
         if starts and len(starts[0]) >= 3:
-            self.height_levels = max(int(pos[2]) for pos in starts) + 1
+            self.height_levels = max(self.height_levels, max(int(pos[2]) for pos in starts) + 1)
 
     def _in_bounds(self, x, y, z):
+        if hasattr(self.obstacles, 'shape') and len(self.obstacles.shape) == 3:
+            _, height, width = self.obstacles.shape
+            return 0 <= x < height and 0 <= y < width and 0 <= z < self.height_levels
         return (
             0 <= x < len(self.obstacles)
             and 0 <= y < len(self.obstacles[0])
@@ -122,7 +127,10 @@ class LayeredPlanner:
     def _is_free(self, x, y, z, blocked):
         if not self._in_bounds(x, y, z):
             return False
-        if self.obstacles[x][y] != 0:
+        if hasattr(self.obstacles, 'shape') and len(self.obstacles.shape) == 3:
+            if self.obstacles[z][x][y] != 0:
+                return False
+        elif self.obstacles[x][y] != 0:
             return False
         return (x, y, z) not in blocked
 

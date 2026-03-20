@@ -79,7 +79,7 @@ class RePlan:
         if hasattr(self.env, 'get_obstacles'):
             obstacles = self.env.get_obstacles(ignore_borders=True)
             if hasattr(obstacles, 'shape') and len(obstacles.shape) >= 2:
-                return int(obstacles.shape[1])
+                return int(obstacles.shape[2] if len(obstacles.shape) == 3 else obstacles.shape[1])
         return None
 
     def _resolve_map_height(self):
@@ -95,7 +95,7 @@ class RePlan:
         if hasattr(self.env, 'get_obstacles'):
             obstacles = self.env.get_obstacles(ignore_borders=True)
             if hasattr(obstacles, 'shape') and len(obstacles.shape) >= 2:
-                return int(obstacles.shape[0])
+                return int(obstacles.shape[1] if len(obstacles.shape) == 3 else obstacles.shape[0])
         return None
 
     def _resolve_pecc_gamma(self):

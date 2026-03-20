@@ -1,18 +1,164 @@
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
 
 import numpy as np
 
 from pogema import GridConfig
 
+try:
+    import pyoctomap
+except ImportError:  # pragma: no cover - optional dependency
+    pyoctomap = None
+
+
+def _is_3d_grid(grid):
+    return len(grid.shape) == 3
+
+
+def _iter_free_cells(grid):
+    if _is_3d_grid(grid):
+        levels, height, width = grid.shape
+        for z in range(levels):
+            for x in range(height):
+                for y in range(width):
+                    yield x, y, z
+        return
+    height, width = grid.shape
+    for x in range(height):
+        for y in range(width):
+            yield x, y
+
+
+def _grid_get(grid, position):
+    if _is_3d_grid(grid):
+        x, y, z = position
+        return grid[z, x, y]
+    x, y = position
+    return grid[x, y]
+
+
+def _grid_set(grid, position, value):
+    if _is_3d_grid(grid):
+        x, y, z = position
+        grid[z, x, y] = value
+        return
+    x, y = position
+    grid[x, y] = value
+
+
+def _grid_shape_xy(grid):
+    if _is_3d_grid(grid):
+        _, height, width = grid.shape
+        return height, width
+    return grid.shape
+
+
+def _grid_levels(grid):
+    return int(grid.shape[0]) if _is_3d_grid(grid) else 1
+
+
+def _in_bounds(grid, position):
+    height, width = _grid_shape_xy(grid)
+    if _is_3d_grid(grid):
+        x, y, z = position
+        return 0 <= z < _grid_levels(grid) and 0 <= x < height and 0 <= y < width
+    x, y = position
+    return 0 <= x < height and 0 <= y < width
+
+
+def _neighbor_positions(position, moves):
+    if len(position) == 3:
+        x, y, z = position
+        for dx, dy, dz in moves:
+            if dx == dy == dz == 0:
+                continue
+            yield x + dx, y + dy, z + dz
+        return
+    x, y = position
+    for dx, dy in moves:
+        if dx == dy == 0:
+            continue
+        yield x + dx, y + dy
+
+
+def _label_connected_components(grid, moves, start_id, free_cell):
+    q = deque()
+    current_id = start_id
+    components = [0 for _ in range(start_id)]
+
+    for position in _iter_free_cells(grid):
+        if _grid_get(grid, position) != free_cell:
+            continue
+        _grid_set(grid, position, current_id)
+        components.append(1)
+        q.append(position)
+
+        while q:
+            pos = q.popleft()
+            for nxt in _neighbor_positions(pos, moves):
+                if not _in_bounds(grid, nxt):
+                    continue
+                if _grid_get(grid, nxt) != free_cell:
+                    continue
+                _grid_set(grid, nxt, current_id)
+                components[current_id] += 1
+                q.append(nxt)
+
+        current_id += 1
+    return components
+
+
+def generate_obstacles_pyoctomap(grid_config: GridConfig, rnd=None):
+    if pyoctomap is None:
+        raise ImportError("pyoctomap is not installed. Install it or switch obstacle_backend back to 'numpy'.")
+
+    if rnd is None:
+        rnd = np.random.default_rng(grid_config.seed)
+
+    occupancy = rnd.binomial(
+        1,
+        grid_config.density,
+        (grid_config.height_levels, grid_config.size, grid_config.size),
+    ).astype(np.int32)
+
+    resolution = float(grid_config.octomap_resolution)
+    tree = pyoctomap.OcTree(resolution)
+    for z, x, y in np.argwhere(occupancy == grid_config.OBSTACLE):
+        point = [
+            (float(x) + 0.5) * resolution,
+            (float(y) + 0.5) * resolution,
+            (float(z) + 0.5) * resolution,
+        ]
+        tree.updateNode(point, True)
+
+    dense = np.zeros_like(occupancy, dtype=np.int32)
+    for z in range(grid_config.height_levels):
+        for x in range(grid_config.size):
+            for y in range(grid_config.size):
+                point = [
+                    (float(x) + 0.5) * resolution,
+                    (float(y) + 0.5) * resolution,
+                    (float(z) + 0.5) * resolution,
+                ]
+                node = tree.search(point)
+                if node is not None and tree.isNodeOccupied(node):
+                    dense[z, x, y] = grid_config.OBSTACLE
+    return dense
+
 
 def generate_obstacles(grid_config: GridConfig, rnd=None):
     if rnd is None:
         rnd = np.random.default_rng(grid_config.seed)
+    if grid_config.is_native_3d_obstacles():
+        if grid_config.obstacle_backend == 'pyoctomap':
+            return generate_obstacles_pyoctomap(grid_config, rnd)
+        return rnd.binomial(1, grid_config.density, (grid_config.height_levels, grid_config.size, grid_config.size))
     return rnd.binomial(1, grid_config.density, (grid_config.size, grid_config.size))
 
 
 def generate_positions_and_targets(obstacles, grid_config: GridConfig):
+    if _is_3d_grid(obstacles):
+        return generate_positions_and_targets_fast(obstacles, grid_config)
     c = grid_config
     grid = obstacles.copy()
     q = []
@@ -79,6 +225,8 @@ def generate_positions_and_targets(obstacles, grid_config: GridConfig):
 
 
 def bfs(grid, moves, size, start_id, free_cell):
+    if _is_3d_grid(grid):
+        return _label_connected_components(grid, moves, start_id, free_cell)
     q = []
     current_id = start_id
 
@@ -116,7 +264,7 @@ def placing_fast(order, components, grid, start_id, num_agents):
     size = len(order)
     for index in range(size):
         reversed_index = len(order) - index - 1
-        color = grid[order[reversed_index]]
+        color = _grid_get(grid, order[reversed_index])
         link_to_next[reversed_index] = colors[color]
         colors[color] = reversed_index
 
@@ -141,16 +289,20 @@ def placing(order, components, grid, start_id, num_agents):
     done_requests = 0
     positions_xy = []
     finishes_xy = [(-1, -1) for _ in range(num_agents)]
-    for x, y in order:
-        if grid[x, y] < start_id:
+    sample_pos = order[0] if order else None
+    if sample_pos is not None and len(sample_pos) == 3:
+        finishes_xy = [(-1, -1, -1) for _ in range(num_agents)]
+
+    for position in order:
+        if _grid_get(grid, position) < start_id:
             continue
 
-        id_ = grid[x, y]
-        grid[x, y] = 0
+        id_ = _grid_get(grid, position)
+        _grid_set(grid, position, 0)
 
         if requests[id_]:
             tt = requests[id_].pop()
-            finishes_xy[tt] = x, y
+            finishes_xy[tt] = position
             done_requests += 1
             continue
 
@@ -162,7 +314,7 @@ def placing(order, components, grid, start_id, num_agents):
         if components[id_] >= 2:
             components[id_] -= 2
             requests[id_].append(len(positions_xy))
-            positions_xy.append((x, y))
+            positions_xy.append(position)
 
     return positions_xy, finishes_xy
 
@@ -173,9 +325,15 @@ def generate_positions_and_targets_fast(obstacles, grid_config):
 
     start_id = max(c.FREE, c.OBSTACLE) + 1
 
-    components = bfs(grid, tuple(c.MOVES), c.size, start_id, free_cell=c.FREE)
-    height, width = obstacles.shape
-    order = [(x, y) for x in range(height) for y in range(width) if grid[x, y] >= start_id]
+    moves = tuple(tuple(move) for move in c.get_action_deltas())
+    components = bfs(grid, moves, c.size, start_id, free_cell=c.FREE)
+    if _is_3d_grid(obstacles):
+        levels, height, width = obstacles.shape
+        order = [(x, y, z) for z in range(levels) for x in range(height) for y in range(width)
+                 if grid[z, x, y] >= start_id]
+    else:
+        height, width = obstacles.shape
+        order = [(x, y) for x in range(height) for y in range(width) if grid[x, y] >= start_id]
     np.random.default_rng(c.seed).shuffle(order)
     return placing(order=order, components=components, grid=grid, start_id=start_id, num_agents=c.num_agents)
 
@@ -194,15 +352,24 @@ def get_components(grid_config, obstacles, positions_xy, target_xy):
     grid = obstacles.copy()
 
     start_id = max(c.FREE, c.OBSTACLE) + 1
-    components = bfs(grid, tuple(c.MOVES), c.size, start_id, free_cell=c.FREE)
-    height, width = obstacles.shape
+    moves = tuple(tuple(move) for move in c.get_action_deltas())
+    components = bfs(grid, moves, c.size, start_id, free_cell=c.FREE)
 
     comp_to_points = defaultdict(list)
     point_to_comp = {}
-    for x in range(height):
-        for y in range(width):
-            comp_to_points[grid[x, y]].append((x, y))
-            point_to_comp[(x, y)] = grid[x, y]
+    if _is_3d_grid(obstacles):
+        levels, height, width = obstacles.shape
+        for z in range(levels):
+            for x in range(height):
+                for y in range(width):
+                    comp_to_points[grid[z, x, y]].append((x, y, z))
+                    point_to_comp[(x, y, z)] = grid[z, x, y]
+    else:
+        height, width = obstacles.shape
+        for x in range(height):
+            for y in range(width):
+                comp_to_points[grid[x, y]].append((x, y))
+                point_to_comp[(x, y)] = grid[x, y]
     return comp_to_points, point_to_comp
 
 

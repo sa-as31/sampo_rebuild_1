@@ -316,13 +316,17 @@ class PogemaLifeLong(Pogema):
                 rewards.append(0.0)
 
             if self.grid.on_goal(agent_idx):
+                position_key = tuple(self.grid.positions_xy[agent_idx][:3]) if getattr(self.grid.obstacles, 'ndim', 2) == 3 \
+                    else tuple(self.grid.positions_xy[agent_idx][:2])
                 new_target_xy = generate_new_target(
                     self.random_generators[agent_idx],
                     self.grid.point_to_component,
                     self.grid.component_to_points,
-                    tuple(self.grid.positions_xy[agent_idx][:2]),
+                    position_key,
                 )
-                if self.grid_config.is_layered():
+                if getattr(self.grid.obstacles, 'ndim', 2) == 3:
+                    self.grid.finishes_xy[agent_idx] = new_target_xy
+                elif self.grid_config.is_layered():
                     z = int(self.random_generators[agent_idx].integers(self.grid_config.height_levels))
                     self.grid.finishes_xy[agent_idx] = (new_target_xy[0], new_target_xy[1], z)
                 else:

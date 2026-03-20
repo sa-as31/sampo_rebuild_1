@@ -15,3 +15,4 @@ tensorboard
 tensorboardX
 faster-fifo
 threadpoolctl
+pyoctomap

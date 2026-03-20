@@ -1,0 +1,13 @@
+.git
+.venv
+__pycache__/
+*.pyc
+results/
+wandb/
+web_frontend/node_modules/
+web_frontend/dist/
+backup/
+FILE_CLEANUP_20260318_CN.md
+*.pdf
+*.docx
+*.png

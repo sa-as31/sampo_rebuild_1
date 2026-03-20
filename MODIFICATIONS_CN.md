@@ -590,3 +590,148 @@
   - `python3 -m py_compile web_demo/task_runtime.py web_demo/server.py` 通过；
   - `npm --prefix web_frontend run build` 通过；
   - `TaskRuntime` 本地 smoke 脚本通过（任务可从 `READY` 运行到 `COMPLETED`）。
+
+## 29. 文档补充：SMAPO 训练是否需要训练数据
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“这个训练需不需要训练数据”问答；
+  - 明确说明当前项目主训练链路属于强化学习 APPO，不依赖传统标注数据集；
+  - 说明训练依赖的是环境在线生成的地图、障碍、起终点和交互轨迹，而不是离线样本文件。
+
+## 30. 文档补充：当前训练场景是否已经改为 2.5D
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“当前训练场景是否已经改成 2.5D”问答；
+  - 明确区分“代码已支持 2.5D 模式”和“默认配置仍是 2D”；
+  - 说明当前 2.5D 场景本质上是二维障碍地图复制到多层，并非每层独立障碍的完整 3D 体素地图。
+
+## 31. 文档补充：`100 x 100 x 4` 的含义
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“`100 x 100 x 4` 是不是地图大小”问答；
+  - 明确区分“全局地图大小”和“局部观测窗口大小”；
+  - 说明 `100 x 100 x 4` 表示分层地图空间大小，而 `11 x 11 x 4` 表示单个智能体的局部观测范围。
+
+## 32. 文档补充：是否可以改成原生 3D 地图生成
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“能不能把地图生成改成原生 3D，而不是每一层复制”问答；
+  - 说明当前代码仍在二维障碍语义上运行，分层模式只是多层扩展；
+  - 明确指出若要升级为原生 3D，需要同步修改地图生成、起终点采样、环境障碍存储、规划器和预处理逻辑。
+
+## 33. 文档补充：GitHub 可复用的 3D 地图生成/体素项目调研
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“GitHub 上有没有可以直接用的 3D 地图生成项目”问答；
+  - 汇总并分类记录可参考仓库：
+    - `PyOctoMap`
+    - `OctoMap`
+    - `UFOMap`
+    - `wavemap`
+    - `map_manager`
+    - `VoxCity`
+    - `voxelmap`
+    - `Mesh Vox`
+    - `BlenderProc`
+    - `scene_synthesizer`
+    - `monocular-slam-drone`
+  - 明确给出和当前 SMAPO Python 训练框架的适配建议，指出暂无“零改造直接替换”的现成仓库。
+
+## 34. 文档补充：PyOctoMap 的地图表示类型
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“PyOctoMap 是离散地图还是非离散地图”问答；
+  - 明确说明其本质是基于八叉树的离散占据地图，而非连续地图；
+  - 说明其接口可接收连续坐标，但底层仍会按分辨率量化到离散体素单元。
+
+## 35. 原生 3D 地图生成：接入 PyOctoMap 后端
+
+- 文件：`pogema/grid_config.py`
+- 主要修改：
+  - 新增 `native_3d_obstacles`、`obstacle_backend`、`octomap_resolution` 配置；
+  - 新增 `is_native_3d_obstacles()`；
+  - 扩展位置校验，支持 `(x, y, z)` 坐标输入。
+
+- 文件：`pogema/generator.py`
+- 主要修改：
+  - 新增可选依赖 `pyoctomap` 的导入与 `generate_obstacles_pyoctomap()`；
+  - 支持在 `height_levels > 1` 且显式启用时生成原生 `z,x,y` 三维占据障碍；
+  - 将起点/终点采样和连通域标记扩展为兼容 2D / 3D；
+  - `generate_positions_and_targets_fast()`、`get_components()` 支持 3D 连通空间。
+
+- 文件：`pogema/grid.py`
+- 主要修改：
+  - 新增 `native_3d_obstacles` 语义；
+  - 支持三维障碍存储、带边界填充的 3D 障碍裁剪；
+  - 局部障碍观测改为读取真实 3D 体素窗口，而非每层复制；
+  - 移动、强制放置、渲染投影和 lifelong 组件检查均兼容原生 3D 障碍。
+
+- 文件：`env/planning.py`
+- 主要修改：
+  - `LayeredPlanner` 改为可读取原生 3D 障碍；
+  - 真实按 `obstacles[z][x][y]` 判断可通行性；
+  - 自动从 3D 障碍张量解析高度层数。
+
+- 文件：`env/SMAPO.py`
+- 主要修改：
+  - 修复分层模式下 `relative_xy` 填充维度，支持三维相对坐标；
+  - `bfs_obs_3d()` 改为兼容真实 3D 障碍查询；
+  - 修复 `CutObservationWrapper` 在 3D 观测下错误使用层数计算半径的问题。
+
+- 文件：`pogema/envs.py`
+- 主要修改：
+  - lifelong 模式下新目标生成改为兼容 3D 连通域键值；
+  - 原生 3D 障碍场景下，目标可以直接落到三维可达体素。
+
+- 文件：`env/replan.py`
+- 主要修改：
+  - 修正三维障碍张量下地图宽高解析逻辑，避免把层数误当成地图高度。
+
+- 文件：`requirements.txt`
+- 主要修改：
+  - 新增 `pyoctomap` 依赖。
+
+- 文件：`scripts/smoke_pyoctomap_env.py`（新增）
+- 主要修改：
+  - 新增 Docker / 本地通用 smoke 脚本；
+  - 验证 `native_3d_obstacles=True + obstacle_backend=pyoctomap` 下：
+    - 全局障碍形状；
+    - 局部观测形状；
+    - 智能体三维坐标；
+    - 多层障碍差异。
+
+## 36. Docker 支持与验证：PyOctoMap 构建链路
+
+- 文件：`Dockerfile`
+- 主要修改：
+  - 新增 `liboctomap-dev` 与 `libdynamicedt3d-dev`，解决 `pyoctomap` 在 Docker 中源码构建缺少系统库的问题。
+
+- 文件：`Dockerfile.gpu`
+- 主要修改：
+  - 同步补充 `liboctomap-dev` 与 `libdynamicedt3d-dev`，保持 GPU 镜像能力一致。
+
+- 文件：`.dockerignore`（新增）
+- 主要修改：
+  - 排除 `.git`、`results/`、`wandb/`、`web_frontend/node_modules/` 等大目录；
+  - 大幅缩小 Docker 构建上下文，避免无关文件拖慢镜像构建。
+
+- 文件：`README.md`
+- 主要修改：
+  - 新增 PyOctoMap 原生 3D 地图后端的 Docker smoke 命令说明。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“PyOctoMap 是否已经接入当前地图生成系统”问答；
+  - 新增“PyOctoMap 接入后，Docker 中测试结果如何”问答。
+
+- 验证结果：
+  - `python3 -m py_compile pogema/grid_config.py pogema/generator.py pogema/grid.py pogema/envs.py env/planning.py env/SMAPO.py env/replan.py scripts/smoke_pyoctomap_env.py` 通过；
+  - `docker build -t smapo:pyoctomap-test .` 通过；
+  - `docker run --rm smapo:pyoctomap-test python scripts/smoke_pyoctomap_env.py` 通过；
+  - `docker run --rm smapo:pyoctomap-test sh -lc "python main.py ... --height_levels=4 --native_3d_obstacles=True --obstacle_backend=pyoctomap ..."` 已成功走通最小化训练启动与退出流程。

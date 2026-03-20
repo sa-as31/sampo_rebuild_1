@@ -104,6 +104,17 @@ docker run --rm smapo:local sh -lc "python main.py \
   --use_wandb=False"
 ```
 
+### 4.2.1 在 Docker 中验证 PyOctoMap 原生 3D 地图后端
+
+```bash
+docker build -t smapo:pyoctomap-test .
+docker run --rm smapo:pyoctomap-test python scripts/smoke_pyoctomap_env.py
+```
+
+说明：
+- 该 smoke 测试会启用 `height_levels=4`、`native_3d_obstacles=True`、`obstacle_backend=pyoctomap`；
+- 生成的全局障碍是原生 `4 x 16 x 16` 三维体素障碍图，不再是二维障碍按层复制。
+
 ### 4.3 手动构建 GPU 镜像
 
 ```bash

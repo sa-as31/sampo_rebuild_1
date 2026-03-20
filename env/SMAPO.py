@@ -115,7 +115,8 @@ class SMAPOWrapper(ObservationWrapper):
     
         for k, _ in enumerate(paths):
             ids_oth_k = np.array(self.Padding(ids_oth[k], 64)).astype(int)
-            relative_xy_k = np.array(self.Padding_shape(relative_xy[k], (64, 2))).astype(int)
+            rel_dims = 3 if len(observations[k]['xy']) >= 3 else 2
+            relative_xy_k = np.array(self.Padding_shape(relative_xy[k], (64, rel_dims))).astype(int)
             observations[k]['ids_oth'] = ids_oth_k
             observations[k]['relative_xy'] =  relative_xy_k
             observations[k]['attention_mask'] = self.create_mask(deepcopy(orginal_mask),len(ids_oth[k]))
@@ -206,7 +207,11 @@ class SMAPOWrapper(ObservationWrapper):
                         or tp_nx in posed
                         or nz < 0
                         or nz >= max_z
-                        or obstacle[nx_x, nx_y] == 1
+                        or (
+                            obstacle[nz, nx_x, nx_y] == 1
+                            if hasattr(obstacle, 'shape') and len(obstacle.shape) == 3
+                            else obstacle[nx_x, nx_y] == 1
+                        )
                     ):
                         continue
                     posed.add(tp_nx)
@@ -256,7 +261,7 @@ class CutObservationWrapper(ObservationWrapper):
     def __init__(self, env, target_observation_radius):
         super().__init__(env)
         self._target_obs_radius = target_observation_radius
-        self._initial_obs_radius = self.env.observation_space['obstacles'].shape[0] // 2
+        self._initial_obs_radius = self.env.observation_space['obstacles'].shape[-1] // 2
 
         for key, value in self.observation_space.items():
             d = self._initial_obs_radius * 2 + 1

@@ -20,6 +20,9 @@ class GridConfig(BaseModel, ):
     num_agents: int = 1
     obs_radius: int = 5
     height_levels: int = 1
+    native_3d_obstacles: bool = False
+    obstacle_backend: Literal['numpy', 'pyoctomap'] = 'numpy'
+    octomap_resolution: float = 1.0
     agents_xy: Optional[list] = None
     targets_xy: Optional[list] = None
     collision_system: Literal['block_both', 'priority'] = 'priority'
@@ -65,6 +68,11 @@ class GridConfig(BaseModel, ):
         assert 1 <= v <= 32, "height_levels must be in [1, 32]"
         return v
 
+    @validator('octomap_resolution')
+    def octomap_resolution_must_be_positive(cls, v):
+        assert float(v) > 0.0, "octomap_resolution must be positive"
+        return float(v)
+
     @validator('map', always=True)
     def map_validation(cls, v, values, ):
         if v is None:
@@ -90,23 +98,29 @@ class GridConfig(BaseModel, ):
     @validator('agents_xy')
     def agents_xy_validation(cls, v, values):
         if v is not None:
-            cls.check_positions(v, values['size'])
+            cls.check_positions(v, values['size'], values.get('height_levels', 1))
             values['num_agents'] = len(v)
         return v
 
     @validator('targets_xy')
     def targets_xy_validation(cls, v, values):
         if v is not None:
-            cls.check_positions(v, values['size'])
+            cls.check_positions(v, values['size'], values.get('height_levels', 1))
             values['num_agents'] = len(v)
         return v
 
     @staticmethod
-    def check_positions(v, size):
+    def check_positions(v, size, height_levels=1):
         for position in v:
-            x, y = position
+            if len(position) not in (2, 3):
+                raise IndexError("Position must contain either 2 or 3 coordinates!")
+            x, y = position[:2]
             if not (0 <= x < size and 0 <= y < size):
                 raise IndexError("Position is out of bounds!")
+            if len(position) == 3:
+                z = position[2]
+                if not (0 <= z < height_levels):
+                    raise IndexError("Layer index is out of bounds!")
 
     @staticmethod
     def str_map_to_list(str_map, free, obstacle):
@@ -145,6 +159,9 @@ class GridConfig(BaseModel, ):
 
     def is_layered(self):
         return int(self.height_levels) > 1
+
+    def is_native_3d_obstacles(self):
+        return self.is_layered() and bool(self.native_3d_obstacles)
 
     def get_action_deltas(self):
         if self.is_layered():
