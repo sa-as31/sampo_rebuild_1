@@ -34,6 +34,14 @@ class DemoHandler(SimpleHTTPRequestHandler):
             self._send_json(HTTPStatus.OK, defaults_response())
             return
 
+        if route == "/api/auth/state":
+            self._send_json(HTTPStatus.OK, TASK_RUNTIME.get_auth_state())
+            return
+
+        if route == "/api/auth/options":
+            self._send_json(HTTPStatus.OK, TASK_RUNTIME.get_auth_options())
+            return
+
         if route == "/api/tasks":
             limit = int((query.get("limit") or ["30"])[0])
             self._send_json(HTTPStatus.OK, TASK_RUNTIME.list_tasks(limit=limit))
@@ -99,6 +107,25 @@ class DemoHandler(SimpleHTTPRequestHandler):
 
         if route == "/api/tasks":
             result = TASK_RUNTIME.create_task(payload)
+            self._send_json(HTTPStatus.OK, result)
+            return
+
+        if route == "/api/auth/login":
+            role = str(payload.get("role") or "")
+            username = str(payload.get("username") or "")
+            password = str(payload.get("password") or "")
+            if not username or not password:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Missing username or password"})
+                return
+            result = TASK_RUNTIME.login(role=role, username=username, password=password)
+            if result is None:
+                self._send_json(HTTPStatus.UNAUTHORIZED, {"error": "Invalid credentials"})
+                return
+            self._send_json(HTTPStatus.OK, result)
+            return
+
+        if route == "/api/auth/logout":
+            result = TASK_RUNTIME.logout()
             self._send_json(HTTPStatus.OK, result)
             return
 

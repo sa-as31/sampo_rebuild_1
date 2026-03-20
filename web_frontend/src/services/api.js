@@ -11,6 +11,34 @@ export async function fetchDefaults() {
   return parseJsonOrThrow(response);
 }
 
+export async function fetchAuthState() {
+  const response = await fetch("/api/auth/state");
+  return parseJsonOrThrow(response);
+}
+
+export async function fetchAuthOptions() {
+  const response = await fetch("/api/auth/options");
+  return parseJsonOrThrow(response);
+}
+
+export async function loginWithPassword(payload) {
+  const response = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response);
+}
+
+export async function logoutCurrentUser() {
+  const response = await fetch("/api/auth/logout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  return parseJsonOrThrow(response);
+}
+
 export async function runInference(payload) {
   const response = await fetch("/api/run-demo", {
     method: "POST",

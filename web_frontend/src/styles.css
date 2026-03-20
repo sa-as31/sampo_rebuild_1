@@ -35,6 +35,99 @@ body {
   padding: 18px 20px 26px;
 }
 
+.login-shell {
+  min-height: calc(100vh - 56px);
+  display: grid;
+  place-items: center;
+}
+
+.login-card {
+  width: min(520px, calc(100vw - 32px));
+  border: 1px solid rgba(118, 177, 247, 0.34);
+  border-radius: 14px;
+  padding: 18px;
+  background: linear-gradient(162deg, rgba(6, 26, 49, 0.98), rgba(7, 20, 38, 0.99));
+}
+
+.login-card h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.login-sub {
+  margin: 8px 0 0;
+  color: #9eb3d4;
+  font-size: 13px;
+}
+
+.login-role-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 12px;
+}
+
+.role-toggle {
+  border: 1px solid rgba(133, 178, 242, 0.3);
+  border-radius: 10px;
+  background: rgba(8, 24, 46, 0.95);
+  color: #bbcdf2;
+  padding: 9px 10px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.role-toggle.active {
+  color: #f7fbff;
+  background: linear-gradient(120deg, rgba(45, 127, 232, 0.86), rgba(33, 168, 222, 0.8));
+  border-color: rgba(151, 205, 255, 0.72);
+}
+
+.login-account-list {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.login-account-item {
+  text-align: left;
+  border: 1px solid rgba(133, 178, 242, 0.22);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(10, 29, 53, 0.82);
+  cursor: pointer;
+}
+
+.login-account-item strong {
+  display: block;
+  color: #e9f1ff;
+  font-size: 15px;
+}
+
+.login-account-item span {
+  margin-top: 4px;
+  display: block;
+  color: #a4bbdf;
+  font-size: 12px;
+}
+
+.login-label {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #afc0df;
+}
+
+.login-label input {
+  border: 1px solid rgba(122, 170, 235, 0.24);
+  background: #051226;
+  color: #e8efff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 15px;
+}
+
 .topbar {
   display: flex;
   justify-content: space-between;

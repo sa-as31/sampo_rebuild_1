@@ -1,78 +1,121 @@
 <template>
   <div class="app-shell">
-    <header class="topbar">
-      <div class="brand">
-        <h1>无人机协同调度系统</h1>
-        <span>Control Console</span>
+    <section v-if="authBooting" class="login-shell">
+      <div class="login-card">
+        <h2>正在加载账户信息...</h2>
       </div>
-      <div class="role-entry">
-        <button class="account-chip" @click="openRoleDialog">
-          <span class="account-avatar">{{ currentUserInitial }}</span>
-          <span class="account-meta">
-            <strong>{{ currentUserName }}</strong>
-            <small>{{ roleLabel }} · {{ currentUserDept }}</small>
-          </span>
-        </button>
-        <button class="switch-trigger" :disabled="identityLoading" @click="openRoleDialog">
-          {{ identityLoading ? "同步中..." : "切换账户" }}
-        </button>
+    </section>
+
+    <section v-else-if="!loggedIn" class="login-shell">
+      <div class="login-card">
+        <h2>系统登录</h2>
+        <p class="login-sub">请选择身份并输入账号密码。</p>
+        <div class="login-role-row">
+          <button class="role-toggle" :class="{ active: loginRole === 'executor' }" @click="setLoginRole('executor')">执行者</button>
+          <button class="role-toggle" :class="{ active: loginRole === 'admin' }" @click="setLoginRole('admin')">管理员</button>
+        </div>
+
+        <div class="login-account-list">
+          <button
+            v-for="account in visibleAccounts"
+            :key="account.user_id"
+            class="login-account-item"
+            @click="fillFromAccount(account)"
+          >
+            <strong>{{ account.display_name }}</strong>
+            <span>{{ account.username }} · {{ account.department }}</span>
+          </button>
+        </div>
+
+        <label class="login-label">
+          账号
+          <input v-model="loginUsername" type="text" autocomplete="username" placeholder="请输入账号" />
+        </label>
+        <label class="login-label">
+          密码
+          <input v-model="loginPassword" type="password" autocomplete="current-password" placeholder="请输入密码" @keyup.enter="submitLogin" />
+        </label>
+        <p v-if="authError" class="role-error">{{ authError }}</p>
+        <div class="btn-row" style="margin-top: 12px">
+          <button class="btn" :disabled="authBusy" @click="submitLogin">{{ authBusy ? "登录中..." : "登录" }}</button>
+        </div>
       </div>
-    </header>
+    </section>
 
-    <nav class="mode-tabs">
-      <button
-        v-for="tab in tabs"
-        :key="tab.key"
-        class="tab-btn"
-        :class="{ active: activeMode === tab.key }"
-        @click="activeMode = tab.key"
-      >
-        {{ tab.label }}
-      </button>
-    </nav>
+    <template v-else>
+      <header class="topbar">
+        <div class="brand">
+          <h1>无人机协同调度系统</h1>
+          <span>Control Console</span>
+        </div>
+        <div class="role-entry">
+          <button class="account-chip" @click="openLoginDialog">
+            <span class="account-avatar">{{ currentUserInitial }}</span>
+            <span class="account-meta">
+              <strong>{{ currentUserName }}</strong>
+              <small>{{ roleLabel }} · {{ currentUserDept }}</small>
+            </span>
+          </button>
+          <button class="switch-trigger" :disabled="authBusy" @click="openLoginDialog">
+            {{ authBusy ? "处理中..." : "切换账户" }}
+          </button>
+        </div>
+      </header>
 
-    <main>
-      <ResearchModeView v-if="activeMode === 'research'" />
-      <TaskCenterView v-else-if="activeMode === 'taskCenter'" />
-      <OpsDashboardView v-else-if="activeMode === 'dashboard'" />
-      <OperationsModeView v-else />
-    </main>
+      <nav class="mode-tabs">
+        <button
+          v-for="tab in tabs"
+          :key="tab.key"
+          class="tab-btn"
+          :class="{ active: activeMode === tab.key }"
+          @click="activeMode = tab.key"
+        >
+          {{ tab.label }}
+        </button>
+      </nav>
 
-    <div v-if="showRoleDialog" class="role-modal-mask" @click.self="closeRoleDialog">
+      <main>
+        <ResearchModeView v-if="activeMode === 'research'" />
+        <TaskCenterView v-else-if="activeMode === 'taskCenter'" />
+        <OpsDashboardView v-else-if="activeMode === 'dashboard'" />
+        <OperationsModeView v-else />
+      </main>
+    </template>
+
+    <div v-if="showLoginDialog && loggedIn" class="role-modal-mask" @click.self="closeLoginDialog">
       <section class="role-modal role-modal-real">
         <div class="role-modal-head">
-          <h3>账户切换</h3>
+          <h3>切换账户</h3>
           <span class="role-pill">当前：{{ currentUserName }}</span>
         </div>
-        <p class="role-modal-sub">账号状态由后端数据库维护，切换后会同步角色权限。</p>
-        <p v-if="identityError" class="role-error">{{ identityError }}</p>
-        <div class="role-card-grid">
-          <button
-            v-for="user in identityUsers"
-            :key="user.user_id"
-            class="role-card role-user-card"
-            :class="{ active: selectedUserId === user.user_id }"
-            :disabled="switchingUserId !== ''"
-            @click="selectedUserId = user.user_id"
-          >
-            <span class="user-avatar">{{ userInitial(user) }}</span>
-            <span class="user-content">
-              <strong>{{ user.display_name }}</strong>
-              <span class="user-sub">{{ user.username }} · {{ roleText(user.role) }}</span>
-              <span class="user-sub">{{ user.department }} · {{ user.title || "未设置岗位" }}</span>
-            </span>
-            <span class="user-state">
-              <span class="role-pill role-badge" :class="user.role">{{ roleText(user.role) }}</span>
-              <small>最近登录：{{ formatTs(user.last_login_at) }}</small>
-            </span>
-          </button>
-          <div v-if="!identityUsers.length" class="role-empty">暂无可切换账户</div>
+        <p class="role-modal-sub">按登录流程重新验证身份。</p>
+        <div class="login-role-row" style="margin-top: 10px">
+          <button class="role-toggle" :class="{ active: loginRole === 'executor' }" @click="setLoginRole('executor')">执行者</button>
+          <button class="role-toggle" :class="{ active: loginRole === 'admin' }" @click="setLoginRole('admin')">管理员</button>
         </div>
-        <div class="btn-row" style="margin-top: 12px">
-          <button class="btn" :disabled="!selectedUserId || switchingUserId !== ''" @click="applyRoleSwitch">
-            {{ switchingUserId ? "切换中..." : "确认切换" }}
+        <div class="login-account-list">
+          <button
+            v-for="account in visibleAccounts"
+            :key="account.user_id"
+            class="login-account-item"
+            @click="fillFromAccount(account)"
+          >
+            <strong>{{ account.display_name }}</strong>
+            <span>{{ account.username }} · {{ account.department }}</span>
           </button>
-          <button class="btn secondary" @click="closeRoleDialog">取消</button>
+        </div>
+        <label class="login-label">
+          账号
+          <input v-model="loginUsername" type="text" autocomplete="username" />
+        </label>
+        <label class="login-label">
+          密码
+          <input v-model="loginPassword" type="password" autocomplete="current-password" @keyup.enter="submitLogin(true)" />
+        </label>
+        <p v-if="authError" class="role-error">{{ authError }}</p>
+        <div class="btn-row" style="margin-top: 12px">
+          <button class="btn" :disabled="authBusy" @click="submitLogin(true)">{{ authBusy ? "切换中..." : "确认切换" }}</button>
+          <button class="btn secondary" :disabled="authBusy" @click="closeLoginDialog">取消</button>
         </div>
       </section>
     </div>
@@ -85,7 +128,7 @@ import ResearchModeView from "./modules/research/ResearchModeView.vue";
 import OperationsModeView from "./modules/operations/OperationsModeView.vue";
 import TaskCenterView from "./modules/taskcenter/TaskCenterView.vue";
 import OpsDashboardView from "./modules/dashboard/OpsDashboardView.vue";
-import { fetchIdentity, switchIdentity } from "./services/api";
+import { fetchAuthOptions, fetchAuthState, fetchIdentity, loginWithPassword } from "./services/api";
 
 const adminTabs = [
   { key: "ops", label: "联合运行" },
@@ -99,14 +142,18 @@ const executorTabs = [
   { key: "dashboard", label: "运营大屏" },
 ];
 
+const authBooting = ref(true);
+const loggedIn = ref(false);
+const authBusy = ref(false);
+const authError = ref("");
+const showLoginDialog = ref(false);
+
 const currentUser = ref(null);
-const identityUsers = ref([]);
+const authAccounts = ref([]);
+const loginRole = ref("executor");
+const loginUsername = ref("");
+const loginPassword = ref("");
 const activeMode = ref("ops");
-const showRoleDialog = ref(false);
-const selectedUserId = ref("");
-const identityLoading = ref(false);
-const switchingUserId = ref("");
-const identityError = ref("");
 
 const currentRole = computed(() => (currentUser.value?.role === "admin" ? "admin" : "executor"));
 const tabs = computed(() => (currentRole.value === "admin" ? adminTabs : executorTabs));
@@ -114,94 +161,107 @@ const roleLabel = computed(() => (currentRole.value === "admin" ? "管理员" : 
 const currentUserName = computed(() => currentUser.value?.display_name || "未登录账户");
 const currentUserDept = computed(() => currentUser.value?.department || "未分配部门");
 const currentUserInitial = computed(() => userInitial(currentUser.value));
-
-function ensureActiveModeVisible() {
-  const visible = tabs.value.map((tab) => tab.key);
-  if (!visible.includes(activeMode.value)) activeMode.value = visible[0];
-}
+const visibleAccounts = computed(() => authAccounts.value.filter((item) => item.role === loginRole.value));
 
 function normalizeUser(raw) {
   if (!raw || typeof raw !== "object") return null;
-  const role = raw.role === "admin" ? "admin" : "executor";
   return {
     user_id: String(raw.user_id || ""),
     username: String(raw.username || ""),
     display_name: String(raw.display_name || "未命名用户"),
-    role,
+    role: raw.role === "admin" ? "admin" : "executor",
     department: String(raw.department || "未分配部门"),
     title: String(raw.title || ""),
     last_login_at: raw.last_login_at ?? null,
   };
 }
 
-function applyIdentityPayload(payload) {
-  const users = Array.isArray(payload?.users) ? payload.users.map(normalizeUser).filter(Boolean) : [];
-  identityUsers.value = users;
+function ensureActiveModeVisible() {
+  const visible = tabs.value.map((tab) => tab.key);
+  if (!visible.includes(activeMode.value)) activeMode.value = visible[0];
+}
 
-  const preferred = normalizeUser(payload?.current_user);
-  currentUser.value = preferred || users[0] || null;
-  selectedUserId.value = currentUser.value?.user_id || "";
+async function loadAuthOptions() {
+  const payload = await fetchAuthOptions();
+  authAccounts.value = Array.isArray(payload?.accounts) ? payload.accounts.map(normalizeUser).filter(Boolean) : [];
+}
+
+async function loadIdentity() {
+  const payload = await fetchIdentity();
+  currentUser.value = normalizeUser(payload?.current_user);
   ensureActiveModeVisible();
 }
 
-async function loadIdentity({ silent = false } = {}) {
-  if (!silent) identityError.value = "";
-  identityLoading.value = true;
+async function bootstrapAuth() {
+  authBooting.value = true;
+  authError.value = "";
   try {
-    const payload = await fetchIdentity();
-    applyIdentityPayload(payload);
-    identityError.value = "";
+    await loadAuthOptions();
+    const state = await fetchAuthState();
+    loggedIn.value = !!state?.logged_in;
+    currentUser.value = normalizeUser(state?.current_user);
+    if (loggedIn.value) await loadIdentity();
+    ensureActiveModeVisible();
+    prefillByRole(loginRole.value);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    identityError.value = `身份服务不可用：${message}`;
-    if (!currentUser.value) {
-      const fallback = {
-        user_id: "local_executor",
-        username: "local.executor",
-        display_name: "本地执行者",
-        role: "executor",
-        department: "本地模式",
-        title: "离线账户",
-        last_login_at: null,
-      };
-      currentUser.value = fallback;
-      identityUsers.value = [fallback];
-      selectedUserId.value = fallback.user_id;
-      ensureActiveModeVisible();
-    }
+    authError.value = `认证服务不可用：${message}`;
+    loggedIn.value = false;
   } finally {
-    identityLoading.value = false;
+    authBooting.value = false;
   }
 }
 
-async function openRoleDialog() {
-  selectedUserId.value = currentUser.value?.user_id || selectedUserId.value;
-  showRoleDialog.value = true;
-  await loadIdentity({ silent: true });
+function setLoginRole(role) {
+  loginRole.value = role === "admin" ? "admin" : "executor";
+  prefillByRole(loginRole.value);
 }
 
-function closeRoleDialog() {
-  showRoleDialog.value = false;
+function prefillByRole(role) {
+  const first = authAccounts.value.find((item) => item.role === role);
+  if (first) loginUsername.value = first.username;
 }
 
-async function applyRoleSwitch() {
-  if (!selectedUserId.value) return;
-  switchingUserId.value = selectedUserId.value;
-  identityError.value = "";
+function fillFromAccount(account) {
+  if (!account) return;
+  loginRole.value = account.role === "admin" ? "admin" : "executor";
+  loginUsername.value = account.username;
+}
+
+async function submitLogin(closeDialog = false) {
+  authBusy.value = true;
+  authError.value = "";
   try {
-    const payload = await switchIdentity(selectedUserId.value);
-    applyIdentityPayload(payload);
-    closeRoleDialog();
+    const payload = await loginWithPassword({
+      role: loginRole.value,
+      username: loginUsername.value,
+      password: loginPassword.value,
+    });
+    loggedIn.value = !!payload?.logged_in;
+    currentUser.value = normalizeUser(payload?.current_user);
+    loginPassword.value = "";
+    await loadIdentity();
+    ensureActiveModeVisible();
+    if (closeDialog) showLoginDialog.value = false;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    identityError.value = `切换失败：${message}`;
+    authError.value = `登录失败：${message}`;
   } finally {
-    switchingUserId.value = "";
+    authBusy.value = false;
   }
 }
 
-function roleText(role) {
-  return role === "admin" ? "管理员" : "执行者";
+function openLoginDialog() {
+  showLoginDialog.value = true;
+  authError.value = "";
+  loginRole.value = currentRole.value;
+  loginUsername.value = currentUser.value?.username || "";
+  loginPassword.value = "";
+}
+
+function closeLoginDialog() {
+  showLoginDialog.value = false;
+  authError.value = "";
 }
 
 function userInitial(user) {
@@ -209,25 +269,17 @@ function userInitial(user) {
   return source.slice(0, 1).toUpperCase();
 }
 
-function formatTs(ts) {
-  if (ts === null || ts === undefined) return "从未登录";
-  const parsed = Number(ts);
-  if (!Number.isFinite(parsed) || parsed <= 0) return "从未登录";
-  return new Date(parsed * 1000).toLocaleString("zh-CN", { hour12: false });
-}
-
 function handleModeSwitch(event) {
+  if (!loggedIn.value) return;
   const mode = event?.detail?.mode;
   if (!mode) return;
   const visible = tabs.value.map((tab) => tab.key);
-  if (visible.includes(mode)) {
-    activeMode.value = mode;
-  }
+  if (visible.includes(mode)) activeMode.value = mode;
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener("app-switch-mode", handleModeSwitch);
-  loadIdentity();
+  await bootstrapAuth();
 });
 
 onUnmounted(() => {

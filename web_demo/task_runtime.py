@@ -3,6 +3,8 @@ import sqlite3
 import threading
 import time
 import uuid
+import hashlib
+import hmac
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -46,27 +48,21 @@ TEMPLATE_CONFIGS = {
 DEFAULT_USER_ACCOUNTS = [
     {
         "user_id": "u_admin_001",
-        "username": "admin.ops",
+        "username": "admin",
         "display_name": "系统管理员",
         "role": "admin",
         "department": "调度中心",
         "title": "平台运维负责人",
+        "password": "admin123",
     },
     {
         "user_id": "u_exec_001",
-        "username": "executor.a1",
-        "display_name": "一线执行员A1",
+        "username": "executor",
+        "display_name": "执行操作员",
         "role": "executor",
         "department": "运营执行组",
         "title": "无人机调度执行",
-    },
-    {
-        "user_id": "u_exec_002",
-        "username": "executor.b2",
-        "display_name": "一线执行员B2",
-        "role": "executor",
-        "department": "运营执行组",
-        "title": "巡检任务操作员",
+        "password": "exec123",
     },
 ]
 DEFAULT_ACTIVE_USER_ID = "u_exec_001"
@@ -82,6 +78,14 @@ def clamp_int(value: Any, default: int, lower: int, upper: int) -> int:
     except (TypeError, ValueError):
         parsed = default
     return max(lower, min(upper, parsed))
+
+
+def normalize_username(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
+def hash_password(raw: str) -> str:
+    return hashlib.sha256(str(raw or "").encode("utf-8")).hexdigest()
 
 
 @dataclass
@@ -131,6 +135,18 @@ class TaskRuntime:
         self.db = TaskDB(db_path)
         self.tasks: Dict[str, LiveTask] = {}
         self.tasks_lock = threading.RLock()
+
+    def get_auth_state(self) -> Dict[str, Any]:
+        return self.db.get_auth_state()
+
+    def get_auth_options(self) -> Dict[str, Any]:
+        return self.db.get_auth_options()
+
+    def login(self, role: str, username: str, password: str) -> Optional[Dict[str, Any]]:
+        return self.db.login(role=role, username=username, password=password)
+
+    def logout(self) -> Dict[str, Any]:
+        return self.db.logout()
 
     def get_identity(self) -> Dict[str, Any]:
         return self.db.get_identity()
@@ -684,23 +700,40 @@ class TaskDB:
                     value TEXT NOT NULL,
                     updated_at REAL NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS auth_credentials (
+                    user_id TEXT PRIMARY KEY,
+                    password_hash TEXT NOT NULL,
+                    updated_at REAL NOT NULL
+                );
                 """
             )
             self._seed_default_users(conn)
 
     def _seed_default_users(self, conn: sqlite3.Connection):
         now = now_ts()
+        default_ids = set()
         for account in DEFAULT_USER_ACCOUNTS:
+            user_id = str(account["user_id"])
+            username = normalize_username(account["username"])
+            default_ids.add(user_id)
             conn.execute(
                 """
-                INSERT OR IGNORE INTO user_accounts(
+                INSERT INTO user_accounts(
                     user_id, username, display_name, role, department, title, status, last_login_at, created_at, updated_at
                 )
                 VALUES (?, ?, ?, ?, ?, ?, 'active', NULL, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    username = excluded.username,
+                    display_name = excluded.display_name,
+                    role = excluded.role,
+                    department = excluded.department,
+                    title = excluded.title,
+                    status = 'active',
+                    updated_at = excluded.updated_at
                 """,
                 (
-                    account["user_id"],
-                    account["username"],
+                    user_id,
+                    username,
                     account["display_name"],
                     account["role"],
                     account["department"],
@@ -709,6 +742,26 @@ class TaskDB:
                     now,
                 ),
             )
+            conn.execute(
+                """
+                INSERT INTO auth_credentials(user_id, password_hash, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    password_hash = excluded.password_hash,
+                    updated_at = excluded.updated_at
+                """,
+                (user_id, hash_password(str(account.get("password") or "")), now),
+            )
+
+        # Legacy demo account cleanup: keep only default active accounts.
+        if default_ids:
+            placeholders = ",".join("?" for _ in default_ids)
+            conn.execute(
+                f"UPDATE user_accounts SET status = 'inactive', updated_at = ? WHERE user_id NOT IN ({placeholders})",
+                (now, *sorted(default_ids)),
+            )
+
+        self._ensure_app_state(conn, "auth_logged_in", "0", now)
 
         active_row = conn.execute("SELECT value FROM app_state WHERE key = 'active_user_id'").fetchone()
         if active_row is None:
@@ -728,6 +781,93 @@ class TaskDB:
                 (candidate, now),
             )
         conn.commit()
+
+    def _ensure_app_state(self, conn: sqlite3.Connection, key: str, value: str, ts: float):
+        existing = conn.execute("SELECT key FROM app_state WHERE key = ?", (key,)).fetchone()
+        if existing is None:
+            conn.execute(
+                "INSERT OR REPLACE INTO app_state(key, value, updated_at) VALUES (?, ?, ?)",
+                (key, value, ts),
+            )
+
+    def get_auth_options(self) -> Dict[str, Any]:
+        with self._connect() as conn:
+            users = self._load_users(conn)
+        accounts = []
+        for user in users:
+            accounts.append(
+                {
+                    "user_id": user["user_id"],
+                    "username": user["username"],
+                    "display_name": user["display_name"],
+                    "role": user["role"],
+                    "department": user["department"],
+                    "title": user["title"],
+                }
+            )
+        return {"accounts": accounts}
+
+    def get_auth_state(self) -> Dict[str, Any]:
+        with self._connect() as conn:
+            users = self._load_users(conn)
+            active_user_id = self._load_active_user_id(conn)
+            logged_in = self._load_auth_logged_in(conn)
+        current = self._pick_current_user(users, active_user_id) if logged_in else None
+        return {"logged_in": bool(logged_in), "current_user": current}
+
+    def login(self, role: str, username: str, password: str) -> Optional[Dict[str, Any]]:
+        role = "admin" if str(role or "").lower() == "admin" else "executor"
+        username = normalize_username(username)
+        password_hash = hash_password(password)
+        now = now_ts()
+
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT u.user_id, u.role, c.password_hash
+                FROM user_accounts u
+                LEFT JOIN auth_credentials c ON c.user_id = u.user_id
+                WHERE u.status = 'active' AND lower(u.username) = ?
+                LIMIT 1
+                """,
+                (username,),
+            ).fetchone()
+            if row is None:
+                return None
+
+            actual_role = "admin" if str(row["role"]).lower() == "admin" else "executor"
+            stored_hash = str(row["password_hash"] or "")
+            if actual_role != role or not stored_hash or not hmac.compare_digest(stored_hash, password_hash):
+                return None
+
+            user_id = str(row["user_id"])
+            conn.execute(
+                "UPDATE user_accounts SET last_login_at = ?, updated_at = ? WHERE user_id = ?",
+                (now, now, user_id),
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO app_state(key, value, updated_at) VALUES ('active_user_id', ?, ?)",
+                (user_id, now),
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO app_state(key, value, updated_at) VALUES ('auth_logged_in', '1', ?)",
+                (now,),
+            )
+            conn.commit()
+
+            users = self._load_users(conn)
+            current = self._pick_current_user(users, user_id)
+            return {"logged_in": True, "current_user": current}
+
+    def logout(self) -> Dict[str, Any]:
+        now = now_ts()
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO app_state(key, value, updated_at) VALUES ('auth_logged_in', '0', ?)",
+                (now,),
+            )
+            conn.commit()
+        return {"logged_in": False, "current_user": None}
 
     def get_identity(self) -> Dict[str, Any]:
         with self._connect() as conn:
@@ -753,6 +893,13 @@ class TaskDB:
                 """,
                 (user_id, now),
             )
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO app_state(key, value, updated_at)
+                VALUES ('auth_logged_in', '1', ?)
+                """,
+                (now,),
+            )
             conn.commit()
             users = self._load_users(conn)
         current = self._pick_current_user(users, user_id)
@@ -774,6 +921,12 @@ class TaskDB:
         if row is None:
             return None
         return str(row["value"])
+
+    def _load_auth_logged_in(self, conn: sqlite3.Connection) -> bool:
+        row = conn.execute("SELECT value FROM app_state WHERE key = 'auth_logged_in'").fetchone()
+        if row is None:
+            return False
+        return str(row["value"]) == "1"
 
     def _pick_current_user(self, users: List[Dict[str, Any]], active_user_id: Optional[str]) -> Optional[Dict[str, Any]]:
         if not users:

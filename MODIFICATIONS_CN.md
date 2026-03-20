@@ -1280,3 +1280,70 @@
     - 切换到管理员后出现“研究模式”入口；
     - 切回执行者后“研究模式”入口隐藏；
     - `GET /api/identity` 返回值与当前界面一致。
+
+## 52. 账户系统升级为“登录页 + 双初始账号”（管理员/执行者）
+
+- 文件：`web_demo/task_runtime.py`
+- 主要修改：
+  - 引入登录认证辅助逻辑（用户名规范化、密码哈希）；
+  - 默认账号改为 2 个：
+    - `admin / admin123`
+    - `executor / exec123`
+  - 新增认证表：
+    - `auth_credentials`（保存密码哈希）
+  - 扩展 `app_state` 登录态：
+    - `auth_logged_in`
+  - 新增认证方法：
+    - `get_auth_options()`
+    - `get_auth_state()`
+    - `login(role, username, password)`
+    - `logout()`
+  - 启动时会同步默认账号并将非默认旧账号标记为 `inactive`。
+
+- 文件：`web_demo/server.py`
+- 主要修改：
+  - 新增认证接口：
+    - `GET /api/auth/options`
+    - `GET /api/auth/state`
+    - `POST /api/auth/login`
+    - `POST /api/auth/logout`
+  - 登录失败返回 `401`，参数缺失返回 `400`。
+
+- 文件：`web_frontend/src/services/api.js`
+- 主要修改：
+  - 新增认证 API 封装：
+    - `fetchAuthOptions()`
+    - `fetchAuthState()`
+    - `loginWithPassword()`
+    - `logoutCurrentUser()`
+
+- 文件：`web_frontend/src/App.vue`
+- 主要修改：
+  - 新增系统登录页（未登录时不展示业务主界面）；
+  - 登录页支持选择身份（管理员/执行者）并输入账号密码；
+  - 右上角“切换账户”改为登录式切换弹窗，复用同一认证流程；
+  - 登录成功后按角色控制页面权限：
+    - 管理员显示研究模式；
+    - 执行者隐藏研究模式。
+
+- 文件：`web_frontend/src/styles.css`
+- 主要修改：
+  - 新增登录页和登录式切换弹窗样式：
+    - 登录容器、身份选择按钮、账号快捷项、输入框样式。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“切换账户改成登录界面后，现在怎么用”问答；
+  - 明确记录 2 个初始账号与登录入口行为。
+
+- 验证结果：
+  - `python3 -m py_compile web_demo/task_runtime.py web_demo/server.py` 通过；
+  - `npm --prefix web_frontend run build` 通过；
+  - 运行时脚本验证通过：
+    - 错误密码登录失败；
+    - `executor` 与 `admin` 均可登录；
+    - `logout` 后状态回到未登录；
+  - Playwright UI 验证通过：
+    - 首屏出现登录界面；
+    - 执行者登录后无“研究模式”；
+    - 通过切换弹窗登录管理员后出现“研究模式”。
