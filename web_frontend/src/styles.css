@@ -598,6 +598,11 @@ body {
   min-height: 540px;
 }
 
+.ops-executor-summary {
+  display: grid;
+  gap: 12px;
+}
+
 .ops-main-head {
   display: flex;
   justify-content: space-between;

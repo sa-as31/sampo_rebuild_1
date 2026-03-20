@@ -216,8 +216,6 @@ class TaskRuntime:
         self.db = TaskDB(db_path)
         self.tasks: Dict[str, LiveTask] = {}
         self.tasks_lock = threading.RLock()
-        self.scheduler_thread = threading.Thread(target=self._scheduled_task_loop, daemon=True)
-        self.scheduler_thread.start()
 
     def get_auth_state(self) -> Dict[str, Any]:
         return self.db.get_auth_state()
@@ -333,7 +331,7 @@ class TaskRuntime:
             return {"error": "未检测到当前登录账号"}
 
         category = str(payload.get("category") or "issue").strip().lower()
-        if category not in {"issue", "risk", "note"}:
+        if category not in {"issue", "risk", "note", "delay_request", "anomaly"}:
             category = "issue"
 
         message = str(payload.get("message") or "").strip()
@@ -498,26 +496,6 @@ class TaskRuntime:
                 for warning in live.warnings:
                     self._emit_alert(live, "warning", "MODEL_RUNTIME_WARNING", warning, frame_step=0)
 
-    def _scheduled_task_loop(self):
-        while True:
-            time.sleep(0.5)
-            now = now_ts()
-            with self.tasks_lock:
-                live_tasks = list(self.tasks.values())
-            for live in live_tasks:
-                with live.lock:
-                    if live.status != "READY":
-                        continue
-                    scheduled_start_at = live.params.get("scheduled_start_at")
-                    if scheduled_start_at is None:
-                        continue
-                    try:
-                        scheduled_ts = float(scheduled_start_at)
-                    except (TypeError, ValueError):
-                        continue
-                    if scheduled_ts <= now:
-                        self._handle_start_locked(live)
-
     def _load_playback(self, live: LiveTask) -> Dict[str, Any]:
         if live.source == "model":
             try:
@@ -598,6 +576,24 @@ class TaskRuntime:
                 {"status": "PREPARING", "message": "Task is still preparing.", "task": self._task_brief(live)},
             )
             return
+
+        scheduled_start_at = live.params.get("scheduled_start_at")
+        if scheduled_start_at is not None:
+            try:
+                scheduled_ts = float(scheduled_start_at)
+            except (TypeError, ValueError):
+                scheduled_ts = None
+            if scheduled_ts is not None and scheduled_ts > now_ts():
+                self._emit_event(
+                    live,
+                    "task_status",
+                    {
+                        "status": live.status,
+                        "message": "Task is scheduled for a future time and cannot start yet.",
+                        "task": self._task_brief(live),
+                    },
+                )
+                return
 
         if live.status in FINAL_STATUSES and live.frames:
             live.frame_index = 0

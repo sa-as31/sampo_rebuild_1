@@ -141,7 +141,7 @@
           >
             <span class="admin-task-card-top">
               <strong>{{ task.mission_name }}</strong>
-              <em>{{ task.status }}</em>
+              <em>{{ taskStageLabel(task.status) }}</em>
             </span>
             <span class="admin-task-card-meta">{{ assigneeLabel(task) }} · {{ task.params?.map_name || "-" }}</span>
             <span class="admin-task-card-meta">计划开始 {{ fmtDateTime(task.params?.scheduled_start_at) }}</span>
@@ -164,6 +164,10 @@
           <span>搜索任务</span>
           <input v-model="adminFilters.activeKeyword" placeholder="任务名 / task_id / 执行者" />
         </label>
+        <label class="admin-search">
+          <span>按日期筛选</span>
+          <input v-model="adminFilters.activeDate" type="date" />
+        </label>
 
         <div class="admin-overview-list">
           <button
@@ -175,9 +179,9 @@
           >
             <span class="admin-task-card-top">
               <strong>{{ task.mission_name }}</strong>
-              <em>{{ task.status }}</em>
+              <em>{{ taskStageLabel(task.status) }}</em>
             </span>
-            <span class="admin-task-card-meta">{{ templateLabel(task.template) }} · {{ assigneeLabel(task) }}</span>
+            <span class="admin-task-card-meta">{{ templateLabel(task.template) }} · {{ assigneeLabel(task) }} · 原始状态 {{ task.status }}</span>
             <span class="admin-task-card-meta">计划开始 {{ fmtDateTime(task.params?.scheduled_start_at) }}</span>
           </button>
           <div v-if="filteredActiveTasks.length === 0" class="ops-alert-empty">当前没有执行中任务。</div>
@@ -241,6 +245,10 @@
           <span>搜索任务</span>
           <input v-model="adminFilters.completedKeyword" placeholder="任务名 / task_id / 执行者" />
         </label>
+        <label class="admin-search">
+          <span>按日期筛选</span>
+          <input v-model="adminFilters.completedDate" type="date" />
+        </label>
 
         <div class="admin-overview-list">
           <button
@@ -252,9 +260,9 @@
           >
             <span class="admin-task-card-top">
               <strong>{{ task.mission_name }}</strong>
-              <em>{{ task.status }}</em>
+              <em>{{ taskStageLabel(task.status) }}</em>
             </span>
-            <span class="admin-task-card-meta">{{ assigneeLabel(task) }} · {{ fmtDateTime(task.ended_at || task.updated_at) }}</span>
+            <span class="admin-task-card-meta">{{ assigneeLabel(task) }} · {{ fmtDateTime(task.ended_at || task.updated_at) }} · 原始状态 {{ task.status }}</span>
             <span class="admin-task-card-meta">系统告警 {{ selectedTaskId === task.task_id ? selectedAlerts.length : Number(task.metrics?.alerts || 0) }}</span>
           </button>
           <div v-if="filteredCompletedTasks.length === 0" class="ops-alert-empty">当前没有已完成任务。</div>
@@ -358,6 +366,9 @@
         <label>关键词
           <input v-model="filters.keyword" placeholder="任务名 / task_id" />
         </label>
+        <label>按日期筛选
+          <input v-model="filters.date" type="date" />
+        </label>
       </div>
 
       <div class="btn-row" style="margin-top: 10px">
@@ -373,7 +384,7 @@
             <th>任务ID</th>
             <th>任务名</th>
             <th>模板</th>
-            <th>状态</th>
+            <th>阶段</th>
             <th>计划开始</th>
             <th>更新时间</th>
           </tr>
@@ -388,7 +399,7 @@
             <td>{{ task.task_id }}</td>
             <td>{{ task.mission_name }}</td>
             <td>{{ templateLabel(task.template) }}</td>
-            <td>{{ task.status }}</td>
+            <td>{{ taskStageLabel(task.status) }}</td>
             <td>{{ fmtDateTime(task.params?.scheduled_start_at) }}</td>
             <td>{{ fmtTime(task.updated_at) }}</td>
           </tr>
@@ -442,6 +453,11 @@
       <h2>执行者反馈</h2>
       <p class="legend">执行者可以对当前分配任务补充问题、风险和备注，供管理员在完成后复盘查看。</p>
       <div class="status-chip">当前账号：{{ currentUser?.display_name || "-" }}</div>
+      <div class="admin-highlight-card compact" style="margin-top: 12px">
+        <p>当前任务</p>
+        <strong>{{ selectedTask?.mission_name || "未选择任务" }}</strong>
+        <span>{{ selectedTask ? `${taskStageLabel(selectedTask.status)} · ${fmtDateTime(selectedTask.params?.scheduled_start_at)}` : "请先在左侧选择管理员分配给你的任务" }}</span>
+      </div>
 
       <label class="login-label">
         反馈类型
@@ -457,7 +473,10 @@
       </label>
 
       <div class="btn-row" style="margin-top: 12px">
-        <button class="btn" @click="submitExecutorFeedback">提交反馈</button>
+        <button class="btn" @click="startAssignedTask">开始执行</button>
+        <button class="btn secondary" @click="requestTaskDelay">申请延期</button>
+        <button class="btn secondary" @click="reportTaskAnomaly">标记异常</button>
+        <button class="btn secondary" @click="submitExecutorFeedback">提交备注</button>
         <button class="btn secondary" @click="openOpsWithSelected">进入运营中心</button>
       </div>
       <div class="status-chip">{{ feedbackStatus }}</div>
@@ -535,11 +554,14 @@ const filters = reactive({
   status: "ALL",
   template: "ALL",
   keyword: "",
+  date: "",
 });
 
 const adminFilters = reactive({
   activeKeyword: "",
   completedKeyword: "",
+  activeDate: "",
+  completedDate: "",
 });
 
 const assignForm = reactive({
@@ -582,6 +604,7 @@ const filteredTasks = computed(() => {
     }
     if (filters.status !== "ALL" && task.status !== filters.status) return false;
     if (filters.template !== "ALL" && task.template !== filters.template) return false;
+    if (filters.date && !matchTaskDate(task, filters.date)) return false;
     if (!keyword) return true;
     return matchTaskKeyword(task, keyword);
   });
@@ -619,8 +642,8 @@ const scheduledTasks = computed(() =>
   }),
 );
 
-const filteredActiveTasks = computed(() => filterAdminTasks(activeTasks.value, adminFilters.activeKeyword));
-const filteredCompletedTasks = computed(() => filterAdminTasks(completedTasks.value, adminFilters.completedKeyword));
+const filteredActiveTasks = computed(() => filterAdminTasks(activeTasks.value, adminFilters.activeKeyword, adminFilters.activeDate));
+const filteredCompletedTasks = computed(() => filterAdminTasks(completedTasks.value, adminFilters.completedKeyword, adminFilters.completedDate));
 
 const adminTaskStats = computed(() => ({
   total: tasks.value.length,
@@ -681,9 +704,18 @@ function assigneeLabel(task) {
 }
 
 function feedbackCategoryLabel(category) {
+  if (category === "delay_request") return "延期申请";
+  if (category === "anomaly") return "异常上报";
   if (category === "risk") return "风险";
   if (category === "note") return "备注";
   return "问题";
+}
+
+function taskStageLabel(status) {
+  const value = String(status || "").toUpperCase();
+  if (["PREPARING", "READY"].includes(value)) return "待执行";
+  if (["RUNNING", "PAUSED"].includes(value)) return "执行中";
+  return "已完成";
 }
 
 function matchTaskKeyword(task, keyword) {
@@ -697,10 +729,33 @@ function matchTaskKeyword(task, keyword) {
     .some((value) => String(value).toLowerCase().includes(keyword));
 }
 
-function filterAdminTasks(list, keyword) {
+function filterAdminTasks(list, keyword, dateValue) {
   const normalized = String(keyword || "").trim().toLowerCase();
-  if (!normalized) return list;
-  return list.filter((task) => matchTaskKeyword(task, normalized));
+  return list.filter((task) => {
+    if (dateValue && !matchTaskDate(task, dateValue)) return false;
+    if (!normalized) return true;
+    return matchTaskKeyword(task, normalized);
+  });
+}
+
+function matchTaskDate(task, dateValue) {
+  if (!dateValue) return true;
+  const candidate = Number(task?.params?.scheduled_start_at || task?.created_at || 0);
+  if (!candidate) return false;
+  const d = new Date(candidate * 1000);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}` === dateValue;
+}
+
+function ensureVersionedMapName(baseName) {
+  const normalized = String(baseName || "imported-map").trim() || "imported-map";
+  const existing = new Set(importedMaps.value.map((item) => item.map_name));
+  if (!existing.has(normalized)) return normalized;
+  let version = 2;
+  while (existing.has(`${normalized}-v${version}`)) version += 1;
+  return `${normalized}-v${version}`;
 }
 
 function loadImportedMaps() {
@@ -999,14 +1054,15 @@ function onImportMapFile(event) {
   reader.onload = () => {
     try {
       const parsed = JSON.parse(String(reader.result || "{}"));
-      const mapName = String(parsed.map_name || file.name.replace(/\.[^.]+$/, "") || "imported-map");
+      const rawMapName = String(parsed.map_name || file.name.replace(/\.[^.]+$/, "") || "imported-map");
+      const mapName = ensureVersionedMapName(rawMapName);
       const item = {
         id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
         map_name: mapName,
         file_name: file.name,
         ts: Date.now() / 1000,
       };
-      importedMaps.value = [item, ...importedMaps.value.filter((m) => m.map_name !== mapName)].slice(0, 20);
+      importedMaps.value = [item, ...importedMaps.value].slice(0, 20);
       saveImportedMaps();
       assignForm.map_name = mapName;
       assignStatus.value = `地图已导入：${mapName}`;
@@ -1041,6 +1097,58 @@ async function submitExecutorFeedback() {
     feedbackStatus.value = "反馈已提交，管理员可在已完成任务中查看。";
   } catch (error) {
     feedbackStatus.value = `提交失败：${error.message}`;
+  }
+}
+
+async function requestTaskDelay() {
+  if (!selectedTaskId.value) {
+    feedbackStatus.value = "请先选择一个任务";
+    return;
+  }
+  const message = feedbackForm.message.trim() || "申请延期，请管理员确认新的执行时间。";
+  try {
+    await submitTaskFeedback(selectedTaskId.value, {
+      category: "delay_request",
+      message,
+    });
+    feedbackForm.message = "";
+    await loadTaskDetail(selectedTaskId.value, false);
+    feedbackStatus.value = "延期申请已提交，等待管理员处理。";
+  } catch (error) {
+    feedbackStatus.value = `提交延期申请失败：${error.message}`;
+  }
+}
+
+async function reportTaskAnomaly() {
+  if (!selectedTaskId.value) {
+    feedbackStatus.value = "请先选择一个任务";
+    return;
+  }
+  const message = feedbackForm.message.trim() || "发现执行异常，请管理员关注。";
+  try {
+    await submitTaskFeedback(selectedTaskId.value, {
+      category: "anomaly",
+      message,
+    });
+    feedbackForm.message = "";
+    await loadTaskDetail(selectedTaskId.value, false);
+    feedbackStatus.value = "异常已上报，管理员可在复盘界面查看。";
+  } catch (error) {
+    feedbackStatus.value = `异常上报失败：${error.message}`;
+  }
+}
+
+async function startAssignedTask() {
+  if (!selectedTaskId.value) {
+    feedbackStatus.value = "请先选择一个任务";
+    return;
+  }
+  try {
+    await controlOpsTask(selectedTaskId.value, "start");
+    await refreshTasks();
+    feedbackStatus.value = "任务已开始执行。";
+  } catch (error) {
+    feedbackStatus.value = `开始执行失败：${error.message}`;
   }
 }
 

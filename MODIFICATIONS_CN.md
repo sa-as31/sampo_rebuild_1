@@ -1481,9 +1481,10 @@
 
 - 文件：`web_demo/task_runtime.py`
 - 主要修改：
-  - 新增任务自动排期执行能力：
+  - 新增任务排期信息能力：
     - 任务参数支持 `scheduled_start_at` 与 `scheduled_start_label`；
-    - 后端新增调度线程，到达计划时间后自动启动 `READY` 任务；
+    - 计划时间用于约束任务何时可启动；
+    - 启动动作仍需由执行者确认触发；
   - 新增执行者反馈数据表 `task_feedback`；
   - 新增反馈读写能力：
     - `get_feedback()`
@@ -1538,3 +1539,57 @@
   - `python3 -m py_compile web_demo/task_runtime.py web_demo/server.py` 通过；
   - `npm --prefix web_frontend run build` 通过；
   - 任务排期、反馈接口与管理员三段式界面已接通。
+
+## 59. 围绕任务主线继续收束：执行者动作、日期筛选、地图版本化、演示任务
+
+- 文件：`web_demo/task_runtime.py`
+- 主要修改：
+  - 调整计划任务启动逻辑：
+    - 不再“到点自动开始”；
+    - 改为“到达计划时间后允许开始，仍需执行者确认”；
+  - 执行者反馈类型扩展为：
+    - `issue`
+    - `risk`
+    - `note`
+    - `delay_request`
+    - `anomaly`
+
+- 文件：`web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+- 主要修改：
+  - 任务展示状态按业务阶段简化为：
+    - `待执行`
+    - `执行中`
+    - `已完成`
+  - 管理员任务列表和执行者任务列表均新增按日期筛选；
+  - 执行者工作台新增动作：
+    - `开始执行`
+    - `申请延期`
+    - `标记异常`
+    - `提交备注`
+  - 执行者仍可进入联合运行页查看 2D + 3D 回放，但任务启动动作回收到任务中心；
+  - 导入地图时如果同名地图再次导入，不再覆盖，改为生成新版本地图名（符合“改动即新地图”的规则）。
+
+- 文件：`web_frontend/src/modules/operations/OperationsModeView.vue`
+- 主要修改：
+  - 执行者进入联合运行页时，侧栏改为只读任务概览；
+  - 不再在联合运行页暴露任务参数编辑入口，收束为观察/回放界面。
+
+- 文件：`web_frontend/src/styles.css`
+- 主要修改：
+  - 新增执行者只读概览与反馈/筛选相关样式。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“围绕任务已确认的规则”；
+  - 新增“已给执行操作员01准备两条演示任务”说明。
+
+- 演示数据：
+  - 已通过本地运行中的后端服务创建两条分配给 `executor01` 的任务：
+    - `demo_executor01_warehouse`
+    - `demo_executor01_campus`
+  - 当前均处于 `READY` 状态，可在任务中心直接看到并手动启动。
+
+- 验证结果：
+  - `python3 -m py_compile web_demo/task_runtime.py web_demo/server.py` 通过；
+  - `npm --prefix web_frontend run build` 通过；
+  - 本地接口确认两条演示任务已成功写入当前运行服务。

@@ -2,11 +2,11 @@
   <section class="ops-integrated-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
     <aside class="panel ops-sidebar-panel" :class="{ collapsed: sidebarCollapsed }">
       <div class="ops-sidebar-head">
-        <h2>任务参数</h2>
+        <h2>{{ isAdmin ? "任务参数" : "任务概览" }}</h2>
         <button class="btn secondary" @click="toggleSidebar">{{ sidebarCollapsed ? "展开" : "收起" }}</button>
       </div>
 
-      <div v-if="!sidebarCollapsed" class="field-grid">
+      <div v-if="!sidebarCollapsed && isAdmin" class="field-grid">
         <label>参数模板
           <select v-model="selectedTemplateId" :disabled="!isAdmin" @change="applySavedTemplate">
             <option value="">未选择（手动配置）</option>
@@ -53,7 +53,21 @@
           <button v-if="isAdmin" class="btn secondary" @click="saveCurrentAsTemplate">保存为模板</button>
           <button v-if="isAdmin" class="btn secondary" @click="deleteCurrentTemplate">删除当前模板</button>
         </div>
-        <div v-if="!isAdmin" class="status-chip">执行者权限：仅可运行已分配任务，任务创建与参数配置由管理员负责。</div>
+      </div>
+
+      <div v-else-if="!sidebarCollapsed" class="ops-executor-summary">
+        <div class="status-chip">执行者仅查看当前任务，不可在此页修改任务参数。</div>
+        <div class="admin-highlight-card compact">
+          <p>当前任务</p>
+          <strong>{{ runtime.task?.mission_name || "未载入任务" }}</strong>
+          <span>任务ID：{{ currentTaskId || "-" }}</span>
+          <span>状态：{{ runtime.task?.status || "待命" }}</span>
+        </div>
+        <div class="admin-highlight-card compact">
+          <p>操作说明</p>
+          <strong>任务中心发起</strong>
+          <span>开始执行、申请延期、标记异常请在任务中心完成，这里只负责 2D + 3D 观察与回放。</span>
+        </div>
       </div>
     </aside>
 
