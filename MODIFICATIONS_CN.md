@@ -218,3 +218,21 @@
 - 文件：`解疑.md`
 - 主要修改：
   - 新增“为什么环绕观察看起来没有绕着地图转”问答，记录原因与修复结论。
+
+## 16. 3D 页面接入 2D 地图与模型推理回放
+
+- 文件：`web_frontend/src/modules/simulation3d/Simulation3DView.vue`
+- 主要修改：
+  - 将 3D 页面从“纯占位动画”重构为“2D 回放数据驱动”：
+    - 支持调用后端 `runInference`（`/api/run-demo`）加载真实模型回放；
+    - 支持加载前端 2D 示例作为兜底演示链路；
+  - 基于 `environment + frames` 实现 3D 映射渲染：
+    - `obstacles` 转换为 3D 方块；
+    - `agents` 与 `target` 转换为 3D 位置与目标圈；
+  - 新增模型回放参数输入（`map_name / num_agents / max_frames / device`）和控制按钮；
+  - 播放链路改为按回放帧推进，并保留镜头控制（环绕/跟随/俯视）。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“能否把现在的 2D 地图和模型推理先跑在 3D 展示里”问答；
+  - 明确当前已打通“后端推理 -> 3D 展示”。
