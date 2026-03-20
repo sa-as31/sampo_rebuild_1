@@ -22,6 +22,8 @@ class ProvideGlobalObstacles(gym.Wrapper):
 def _map_height_levels(map_definition):
     if isinstance(map_definition, dict) and map_definition.get('layers'):
         return len(map_definition['layers'])
+    if isinstance(map_definition, dict) and map_definition.get('height_levels'):
+        return int(map_definition['height_levels'])
     return 1
 
 

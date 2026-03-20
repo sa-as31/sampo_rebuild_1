@@ -967,3 +967,60 @@
     - 当前 `native3d-demo-a` / `native3d-demo-b` 不是外部下载数据集；
     - 是本次接通原生 3D 地图链路时手工加入的最小工程验证样例；
     - 其主要用途是验证 `use_maps=True` 的 3D 地图加载、planner、训练启动链路。
+
+## 43. 接入 OctoMap 官方现成地图资产
+
+- 文件：`pogema/grid_config.py`
+- 主要修改：
+  - 新增 `octomap_file` 类型 3D map 解析逻辑；
+  - 支持直接从 `.bt` / `.ot` 文件加载 OctoMap 八叉树；
+  - 支持通过以下参数重采样为训练栅格：
+    - `voxel_size`
+    - `metric_min`
+    - `metric_max`
+    - `width`
+    - `height`
+    - `height_levels`
+  - 加载后自动转换成 `(z, x, y)` 占据张量。
+
+- 文件：`env/maps_3d.yaml`
+- 主要修改：
+  - 新增 `octomap-geb079-demo` 地图条目；
+  - 该条目直接引用官方 OctoMap 示例地图 `geb079.bt`；
+  - 通过 `0.5m` 体素尺寸重采样为 `78 x 30 x 7` 的训练网格。
+
+- 文件：`env/octomap_assets/geb079.bt`（新增）
+- 主要修改：
+  - 新增 OctoMap 官方仓库示例地图资产；
+  - 作为当前仓库内可直接使用的外部现成 3D 地图样例。
+
+- 文件：`env/create_env.py`
+- 主要修改：
+  - `use_maps=True` 的元数据预解析新增对显式 `height_levels` 型 map 资产的识别；
+  - 让 `octomap_file` 地图在环境构建前就能切换到 3D observation/action space。
+
+- 文件：`scripts/smoke_octomap_asset.py`（新增）
+- 主要修改：
+  - 新增 OctoMap 官方资产 smoke 脚本；
+  - 验证：
+    - 官方 `.bt` 文件读取；
+    - OctoMap 到训练网格的体素重采样；
+    - planner 3D 障碍接入；
+    - `use_maps=True` 下的 3D 位置与路径输出。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“现在已经接入 OctoMap 官方现成地图资产了吗”问答；
+  - 新增“OctoMap 官方地图资产接入后，验证结果怎么样”问答；
+  - 记录官方样例已经完成地图 smoke 和训练启动 smoke。
+
+- 验证结果：
+  - `python3 -m py_compile pogema/grid_config.py env/create_env.py scripts/smoke_octomap_asset.py` 通过；
+  - `docker build -t smapo:pyoctomap-test .` 通过；
+  - `docker run --rm smapo:pyoctomap-test python scripts/smoke_octomap_asset.py` 通过；
+  - `docker run --rm smapo:pyoctomap-test sh -lc "timeout 45s python main.py --env=Pogema-v0 --train_for_seconds=3 --target_num_agents=64 --map_name=octomap-geb079-demo --max_episode_steps=64"` 已成功走到：
+    - learner 初始化；
+    - 官方 `.bt` 文件加载；
+    - actor / env runner 初始化；
+    - `Decorrelating experience ...`
+  - 说明官方 OctoMap 现成资产已完成训练入口接入，只是初始化成本明显高于小型 demo 图。

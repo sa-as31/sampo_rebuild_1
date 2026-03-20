@@ -1,11 +1,19 @@
 import sys
+from pathlib import Path
 from typing import Optional, Union
+
+import numpy as np
 from pydantic import BaseModel, validator
 
 if sys.version_info >= (3, 8):
     from typing import Literal
 else:
     from typing_extensions import Literal
+
+try:
+    import pyoctomap
+except ImportError:  # pragma: no cover - optional dependency
+    pyoctomap = None
 
 
 class GridConfig(BaseModel, ):
@@ -179,6 +187,9 @@ class GridConfig(BaseModel, ):
 
     @classmethod
     def dict_map_to_list(cls, map_definition, free, obstacle):
+        if map_definition.get('octomap_file'):
+            return cls.octomap_file_to_list(map_definition, free, obstacle)
+
         layers = map_definition.get('layers')
         if not layers:
             raise KeyError("3D map definitions must include a non-empty 'layers' field.")
@@ -214,6 +225,56 @@ class GridConfig(BaseModel, ):
             raise KeyError("3D map definitions must provide the same number of agent and target positions.")
 
         return parsed_layers, embedded_agents_xy, embedded_targets_xy
+
+    @classmethod
+    def octomap_file_to_list(cls, map_definition, free, obstacle):
+        if pyoctomap is None:
+            raise ImportError("pyoctomap is required to load octomap_file-based 3D maps.")
+
+        octomap_file = cls.resolve_octomap_path(map_definition['octomap_file'])
+        if not octomap_file.exists():
+            raise FileNotFoundError(f"OctoMap asset not found: {octomap_file}")
+
+        initial_resolution = float(map_definition.get('tree_resolution', 0.1))
+        tree = pyoctomap.OcTree(initial_resolution)
+
+        if octomap_file.suffix == '.bt':
+            loaded = tree.readBinary(str(octomap_file))
+        else:
+            loaded = tree.read(str(octomap_file))
+        if not loaded:
+            raise RuntimeError(f"Failed to load OctoMap asset from {octomap_file}")
+
+        metric_min = np.array(map_definition.get('metric_min', tree.getMetricMin()), dtype=np.float32)
+        metric_max = np.array(map_definition.get('metric_max', tree.getMetricMax()), dtype=np.float32)
+        voxel_size = float(map_definition.get('voxel_size', tree.getResolution()))
+
+        extents = np.maximum(metric_max - metric_min, voxel_size)
+        width = int(map_definition.get('width', int(np.ceil(extents[0] / voxel_size))))
+        height = int(map_definition.get('height', int(np.ceil(extents[1] / voxel_size))))
+        levels = int(map_definition.get('height_levels', int(np.ceil(extents[2] / voxel_size))))
+        if width <= 0 or height <= 0 or levels <= 0:
+            raise ValueError("Resolved OctoMap grid dimensions must all be positive.")
+
+        dense = np.zeros((levels, height, width), dtype=np.int32)
+        for z in range(levels):
+            metric_z = float(metric_min[2] + (z + 0.5) * voxel_size)
+            for x in range(height):
+                metric_x = float(metric_min[0] + (x + 0.5) * voxel_size)
+                for y in range(width):
+                    metric_y = float(metric_min[1] + (y + 0.5) * voxel_size)
+                    node = tree.search([metric_x, metric_y, metric_z])
+                    if node is not None and tree.isNodeOccupied(node):
+                        dense[z, x, y] = int(obstacle)
+
+        return dense.tolist(), map_definition.get('agents_xy', []), map_definition.get('targets_xy', [])
+
+    @staticmethod
+    def resolve_octomap_path(octomap_path):
+        path = Path(octomap_path)
+        if path.is_absolute():
+            return path
+        return Path(__file__).resolve().parents[1] / path
 
     @classmethod
     def parse_layer_to_list(cls, layer_definition, free, obstacle):

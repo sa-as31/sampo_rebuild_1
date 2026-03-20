@@ -139,3 +139,13 @@ native3d-demo-b:
       ................
       ......#####.....
       ................
+
+octomap-geb079-demo:
+  octomap_file: env/octomap_assets/geb079.bt
+  tree_resolution: 0.08
+  voxel_size: 0.5
+  metric_min: [-8.0, -7.52, -0.32]
+  metric_max: [30.96, 7.44, 2.8]
+  width: 78
+  height: 30
+  height_levels: 7
