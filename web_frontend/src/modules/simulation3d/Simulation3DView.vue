@@ -21,6 +21,9 @@
         <label>回放速度 x{{ speed.toFixed(1) }}
           <input v-model.number="speed" max="2.5" min="0.2" step="0.1" type="range" />
         </label>
+        <label>视图放大 x{{ zoomScale.toFixed(2) }}
+          <input v-model.number="zoomScale" max="2.5" min="0.6" step="0.05" type="range" />
+        </label>
         <label v-if="cameraMode === 'orbit'">环绕速度 {{ orbitSpeed.toFixed(2) }} rad/s
           <input v-model.number="orbitSpeed" max="0.35" min="0.02" step="0.01" type="range" />
         </label>
@@ -53,6 +56,7 @@
         <div class="metric"><span>当前步</span><strong>{{ currentStep }}</strong></div>
         <div class="metric"><span>总帧数</span><strong>{{ frameCount }}</strong></div>
         <div class="metric"><span>帧率估计</span><strong>{{ fps }}</strong></div>
+        <div class="metric"><span>放大倍率</span><strong>{{ zoomScale.toFixed(2) }}x</strong></div>
         <div class="metric"><span>环绕周期(秒)</span><strong>{{ orbitPeriodText }}</strong></div>
       </div>
     </article>
@@ -68,6 +72,7 @@
         <span class="chip">Camera: {{ cameraLabel }}</span>
         <span class="chip">Step: {{ currentStep }}</span>
         <span class="chip">Speed: x{{ speed.toFixed(1) }}</span>
+        <span class="chip">Zoom: x{{ zoomScale.toFixed(2) }}</span>
       </div>
     </article>
 
@@ -99,6 +104,7 @@ const previewCanvasRef = ref(null);
 const scenario = ref("warehouse");
 const cameraMode = ref("orbit");
 const speed = ref(1.0);
+const zoomScale = ref(1.0);
 const orbitSpeed = ref(0.12);
 const statusText = ref("3D预览待命");
 const runtimeSec = ref(0);
@@ -404,7 +410,7 @@ function projectPoint(canvas, camera, x, y, z) {
   const z2 = dy * sinPitch + z1 * cosPitch;
   if (z2 <= 0.25) return null;
 
-  const focal = 630;
+  const focal = 630 * zoomScale.value;
   const scale = focal / z2;
   return {
     x: canvas.width * 0.5 + x1 * scale,
@@ -444,6 +450,7 @@ watch(scenario, () => {
 });
 
 watch(cameraMode, () => drawFrame());
+watch(zoomScale, () => drawFrame());
 
 onMounted(async () => {
   try {
