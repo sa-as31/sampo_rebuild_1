@@ -15,7 +15,10 @@ with open(Path(__file__).parent / "random.yaml", "r") as f:
 with open(Path(__file__).parent / "street_map.yaml", "r") as f:
     street = yaml.safe_load(f)
 
-maps = {**maps, **random_pico, **random_map, **street}
+with open(Path(__file__).parent / "maps_3d.yaml", "r") as f:
+    maps_3d = yaml.safe_load(f)
+
+maps = {**maps, **random_pico, **random_map, **street, **maps_3d}
 
 MAPS_REGISTRY = maps
 _test_regexp = '(wc3-[A-P]|sc1-[A-S]|sc1-TaleofTwoCities|street-[A-P]|mazes-s[0-9]_|mazes-s[1-3][0-9]_|random-s[0-9]_|random-s[1-3][0-9]_)'

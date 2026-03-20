@@ -24,7 +24,7 @@ class Grid:
         if self.config.map is None:
             obstacles = generate_obstacles(self.config)
         else:
-            obstacles = np.array([np.array(line) for line in self.config.map])
+            obstacles = np.asarray(self.config.map, dtype=np.int32)
         obstacles = obstacles.astype(np.int32)
         if grid_config.targets_xy and grid_config.agents_xy:
             starts_xy, finishes_xy = grid_config.agents_xy, grid_config.targets_xy

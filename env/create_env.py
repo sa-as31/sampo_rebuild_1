@@ -1,8 +1,12 @@
+import re
+from copy import deepcopy
+
 import gym
 import numpy as np
 from pogema import pogema_v0
 from pogema.integrations.sample_factory import AutoResetWrapper
 
+from env.custom_maps import MAPS_REGISTRY
 from env.wrappers import MultiMapWrapper, ConcatPositionalFeatures, ProjectionTargetWrapper
 from learning.learning_config import Environment
 from env.SMAPO import SMAPO_preprocessor
@@ -14,7 +18,45 @@ class ProvideGlobalObstacles(gym.Wrapper):
     def get_global_agents_xy(self):
         return self.grid.get_agents_xy()
 
+
+def _map_height_levels(map_definition):
+    if isinstance(map_definition, dict) and map_definition.get('layers'):
+        return len(map_definition['layers'])
+    return 1
+
+
+def _resolve_map_metadata(grid_config):
+    if not getattr(grid_config, 'map_name', None):
+        return grid_config
+
+    matched_maps = [
+        (map_name, map_definition)
+        for map_name, map_definition in MAPS_REGISTRY.items()
+        if re.match(grid_config.map_name, map_name)
+    ]
+    if not matched_maps:
+        return grid_config
+
+    matched_height_levels = {_map_height_levels(map_definition) for _, map_definition in matched_maps}
+    if len(matched_height_levels) > 1:
+        raise ValueError(
+            f"Matched maps for pattern '{grid_config.map_name}' use incompatible layer counts: "
+            f"{sorted(matched_height_levels)}"
+        )
+
+    resolved_grid_config = deepcopy(grid_config)
+    resolved_height_levels = matched_height_levels.pop()
+    if resolved_height_levels > 1:
+        resolved_grid_config.height_levels = resolved_height_levels
+        resolved_grid_config.native_3d_obstacles = True
+    return resolved_grid_config
+
 def create_env_base(env_cfg: Environment):
+    resolved_grid_config = _resolve_map_metadata(env_cfg.grid_config) if env_cfg.use_maps else env_cfg.grid_config
+    if resolved_grid_config is not env_cfg.grid_config:
+        env_cfg = env_cfg.copy(deep=True)
+        env_cfg.grid_config = resolved_grid_config
+
     env = pogema_v0(grid_config=env_cfg.grid_config)
     env = ProvideGlobalObstacles(env)
     if env_cfg.use_maps:

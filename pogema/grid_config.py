@@ -28,7 +28,7 @@ class GridConfig(BaseModel, ):
     collision_system: Literal['block_both', 'priority'] = 'priority'
     persistent: bool = False
     observation_type: Literal['POMAPF', 'MAPF', 'default'] = 'default'
-    map: Union[list, str] = None
+    map: Union[list, str, dict] = None
 
     empty_outside: bool = True
 
@@ -77,22 +77,34 @@ class GridConfig(BaseModel, ):
     def map_validation(cls, v, values, ):
         if v is None:
             return None
-        if isinstance(v, str):
-            v, agents_xy, targets_xy = cls.str_map_to_list(v, values['FREE'], values['OBSTACLE'])
-            if agents_xy and targets_xy and values['agents_xy'] is not None and values['targets_xy'] is not None:
-                raise KeyError("""Can't create task. Please provide agents_xy and targets_xy only ones.
+        agents_xy = None
+        targets_xy = None
+        if isinstance(v, (str, dict)):
+            v, agents_xy, targets_xy = cls.parse_map_to_list(v, values['FREE'], values['OBSTACLE'])
+        elif cls.is_3d_map(v):
+            cls.validate_layer_shapes(v)
+        if agents_xy and targets_xy and values['agents_xy'] is not None and values['targets_xy'] is not None:
+            raise KeyError("""Can't create task. Please provide agents_xy and targets_xy only ones.
                 Either with parameters or with a map.""")
-            elif agents_xy and targets_xy:
-                values['agents_xy'] = agents_xy
-                values['targets_xy'] = targets_xy
-                values['num_agents'] = len(agents_xy)
-        size = len(v)
-        area = 0
-        for line in v:
-            size = max(size, len(line))
-            area += len(line)
+        elif agents_xy and targets_xy:
+            values['agents_xy'] = agents_xy
+            values['targets_xy'] = targets_xy
+            values['num_agents'] = len(agents_xy)
+        size, area, obstacle_sum, height_levels = cls.get_map_stats(v)
         values['size'] = size
-        values['density'] = sum([sum(line) for line in v]) / area
+        values['density'] = obstacle_sum / area if area else 0.0
+        if height_levels > 1:
+            configured_height_levels = int(values.get('height_levels', 1))
+            if configured_height_levels not in (1, height_levels):
+                raise ValueError(
+                    f"3D map has {height_levels} layers, but height_levels={configured_height_levels} was requested."
+                )
+            values['height_levels'] = height_levels
+            values['native_3d_obstacles'] = True
+        if agents_xy is not None:
+            cls.check_positions(agents_xy, values['size'], values.get('height_levels', 1))
+        if targets_xy is not None:
+            cls.check_positions(targets_xy, values['size'], values.get('height_levels', 1))
         return v
 
     @validator('agents_xy')
@@ -156,6 +168,126 @@ class GridConfig(BaseModel, ):
 
         assert len(targets_xy) == len(agents_xy)
         return obstacles, agents_xy, targets_xy
+
+    @classmethod
+    def parse_map_to_list(cls, map_definition, free, obstacle):
+        if isinstance(map_definition, str):
+            return cls.str_map_to_list(map_definition, free, obstacle)
+        if isinstance(map_definition, dict):
+            return cls.dict_map_to_list(map_definition, free, obstacle)
+        raise TypeError(f"Unsupported map definition type: {type(map_definition).__name__}")
+
+    @classmethod
+    def dict_map_to_list(cls, map_definition, free, obstacle):
+        layers = map_definition.get('layers')
+        if not layers:
+            raise KeyError("3D map definitions must include a non-empty 'layers' field.")
+
+        parsed_layers = []
+        embedded_agents_xy = []
+        embedded_targets_xy = []
+        used_embedded_positions = False
+
+        for z, layer in enumerate(layers):
+            layer_grid, layer_agents_xy, layer_targets_xy = cls.parse_layer_to_list(layer, free, obstacle)
+            parsed_layers.append(layer_grid)
+            if layer_agents_xy or layer_targets_xy:
+                used_embedded_positions = True
+            embedded_agents_xy.extend([[x, y, z] for x, y in layer_agents_xy])
+            embedded_targets_xy.extend([[x, y, z] for x, y in layer_targets_xy])
+
+        cls.validate_layer_shapes(parsed_layers)
+
+        explicit_agents_xy = map_definition.get('agents_xy')
+        explicit_targets_xy = map_definition.get('targets_xy')
+        if explicit_agents_xy is not None or explicit_targets_xy is not None:
+            if used_embedded_positions:
+                raise KeyError("3D map definitions cannot mix embedded agent markers with explicit agents_xy/targets_xy.")
+            if explicit_agents_xy is None or explicit_targets_xy is None:
+                raise KeyError("3D map definitions must provide both agents_xy and targets_xy together.")
+            if len(explicit_agents_xy) != len(explicit_targets_xy):
+                raise KeyError("3D map definitions must provide the same number of agents_xy and targets_xy.")
+            embedded_agents_xy = [list(position[:3]) for position in explicit_agents_xy]
+            embedded_targets_xy = [list(position[:3]) for position in explicit_targets_xy]
+
+        if len(embedded_agents_xy) != len(embedded_targets_xy):
+            raise KeyError("3D map definitions must provide the same number of agent and target positions.")
+
+        return parsed_layers, embedded_agents_xy, embedded_targets_xy
+
+    @classmethod
+    def parse_layer_to_list(cls, layer_definition, free, obstacle):
+        if isinstance(layer_definition, str):
+            return cls.str_map_to_list(layer_definition, free, obstacle)
+        if not isinstance(layer_definition, list):
+            raise TypeError(
+                f"Unsupported 3D map layer type: {type(layer_definition).__name__}. "
+                "Expected string or list."
+            )
+
+        normalized_layer = []
+        width = None
+        for row_idx, row in enumerate(layer_definition):
+            if not isinstance(row, list):
+                raise TypeError("List-based 3D map layers must be lists of rows.")
+            if width is None:
+                width = len(row)
+            elif width != len(row):
+                raise ValueError(f"All rows inside a 3D map layer must have equal width; row {row_idx} mismatched.")
+            normalized_row = []
+            for cell in row:
+                if cell not in (free, obstacle):
+                    raise ValueError("Numeric 3D map layers may only contain FREE/OBSTACLE values.")
+                normalized_row.append(int(cell))
+            normalized_layer.append(normalized_row)
+        return normalized_layer, [], []
+
+    @staticmethod
+    def validate_layer_shapes(layers):
+        if not layers:
+            raise ValueError("3D maps must contain at least one layer.")
+        reference_height = len(layers[0])
+        reference_width = len(layers[0][0]) if reference_height else 0
+        for layer_idx, layer in enumerate(layers):
+            if len(layer) != reference_height:
+                raise ValueError(
+                    f"3D map layers must share the same height; layer 0 has {reference_height}, "
+                    f"layer {layer_idx} has {len(layer)}."
+                )
+            for row_idx, row in enumerate(layer):
+                if len(row) != reference_width:
+                    raise ValueError(
+                        f"3D map layers must share the same width; layer {layer_idx}, row {row_idx} mismatched."
+                    )
+
+    @classmethod
+    def get_map_stats(cls, map_definition):
+        if cls.is_3d_map(map_definition):
+            height_levels = len(map_definition)
+            height = len(map_definition[0]) if height_levels else 0
+            width = len(map_definition[0][0]) if height else 0
+            area = max(height_levels * height * width, 1)
+            obstacle_sum = sum(sum(sum(row) for row in layer) for layer in map_definition)
+            return max(height, width), area, obstacle_sum, height_levels
+
+        size = len(map_definition)
+        area = 0
+        obstacle_sum = 0
+        for line in map_definition:
+            size = max(size, len(line))
+            area += len(line)
+            obstacle_sum += sum(line)
+        return size, max(area, 1), obstacle_sum, 1
+
+    @staticmethod
+    def is_3d_map(map_definition):
+        return (
+            isinstance(map_definition, list)
+            and len(map_definition) > 0
+            and isinstance(map_definition[0], list)
+            and len(map_definition[0]) > 0
+            and isinstance(map_definition[0][0], list)
+        )
 
     def is_layered(self):
         return int(self.height_levels) > 1

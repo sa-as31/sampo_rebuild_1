@@ -813,3 +813,70 @@
     - `use_maps=True` 的三维加载逻辑；
     - 三维地图资产制作；
     - 层间连通与起终点语义规范。
+
+## 41. 原生 3D 地图资产接入：让 `use_maps=True` 直接读取 3D map
+
+- 文件：`pogema/grid_config.py`
+- 主要修改：
+  - `GridConfig.map` 扩展为支持 `dict` 形式的 3D map 定义；
+  - 新增 3D map 解析逻辑，支持：
+    - `layers` 多层切片；
+    - 逐层字符串地图；
+    - 可选的三维 `agents_xy / targets_xy`；
+  - 新增三维地图尺寸一致性校验；
+  - 加载 3D map 时会自动推导：
+    - `height_levels`
+    - `density`
+    - `native_3d_obstacles=True`
+
+- 文件：`env/custom_maps.py`
+- 主要修改：
+  - 新增 `env/maps_3d.yaml` 的加载；
+  - 让 3D 地图资产直接进入 `MAPS_REGISTRY`。
+
+- 文件：`env/create_env.py`
+- 主要修改：
+  - 新增 `use_maps=True` 时的地图元数据预解析；
+  - 在构建 `pogema_v0` 之前先判断匹配到的地图是否为 3D；
+  - 若匹配到的是 3D map，会提前把环境配置切到 3D observation/action space；
+  - 修复了 SampleFactory 在 reset 前仍按 2D observation space 分配 buffer，导致 `(3,) -> (2,)` 广播失败的问题；
+  - 若一个正则同时匹配到层数不一致的地图，会直接报错，避免混合 observation space。
+
+- 文件：`pogema/grid.py`
+- 主要修改：
+  - map 加载从二维专用数组构造改为统一 `np.asarray(...)`；
+  - 兼容直接读取三维障碍体地图。
+
+- 文件：`env/maps_3d.yaml`（新增）
+- 主要修改：
+  - 新增两张最小可训练的原生 3D 地图样例：
+    - `native3d-demo-a`
+    - `native3d-demo-b`
+  - 地图尺寸均为 `16 x 16 x 4`；
+  - 每层障碍结构独立，不再是每层复制。
+
+- 文件：`scripts/smoke_native_3d_maps.py`（新增）
+- 主要修改：
+  - 新增 `use_maps=True` 的原生 3D 地图 smoke 脚本；
+  - 验证：
+    - 3D 地图资产是否被选中；
+    - 全局障碍是否为 `(4, 16, 16)`；
+    - planner 是否拿到 3D 障碍张量；
+    - 智能体坐标是否为三维；
+    - 规划路径是否非平凡。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“现在 `use_maps=True` 已经能直接读取原生 3D 地图了吗”问答；
+  - 新增“现在怎么启用原生 3D 地图训练”问答；
+  - 给出新 3D map 文件格式和训练示例命令。
+
+- 验证结果：
+  - `python3 -m py_compile pogema/grid_config.py pogema/grid.py env/custom_maps.py env/create_env.py scripts/smoke_native_3d_maps.py` 通过；
+  - `docker build -t smapo:pyoctomap-test .` 通过；
+  - `docker run --rm smapo:pyoctomap-test python scripts/smoke_native_3d_maps.py` 通过；
+  - `docker run --rm smapo:pyoctomap-test sh -lc "timeout 45s python main.py --env=Pogema-v0 --train_for_seconds=3 --target_num_agents=64 --map_name=native3d-demo-a --max_episode_steps=48"` 通过；
+  - 训练日志已成功走到：
+    - `Finished reset for worker 0`
+    - `Collecting experience...`
+    - 最终 `Done!`。
