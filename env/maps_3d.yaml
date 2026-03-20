@@ -140,6 +140,48 @@ native3d-demo-b:
       ......#####.....
       ................
 
+native3d-demo-c:
+  generated:
+    size: 16
+    height_levels: 4
+    seed: 101
+
+native3d-demo-d:
+  generated:
+    size: 32
+    height_levels: 4
+    seed: 202
+
+native3d-demo-e:
+  generated:
+    size: 32
+    height_levels: 4
+    seed: 303
+
+native3d-demo-f:
+  generated:
+    size: 40
+    height_levels: 4
+    seed: 404
+
+native3d-demo-g:
+  generated:
+    size: 40
+    height_levels: 4
+    seed: 505
+
+native3d-demo-h:
+  generated:
+    size: 64
+    height_levels: 4
+    seed: 606
+
+native3d-demo-i:
+  generated:
+    size: 80
+    height_levels: 4
+    seed: 707
+
 octomap-geb079-demo:
   octomap_file: env/octomap_assets/geb079.bt
   tree_resolution: 0.08

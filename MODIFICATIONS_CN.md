@@ -1173,6 +1173,74 @@
     - `switch_identity(user_id)`
   - 切换账户时更新 `active_user_id` 与 `last_login_at`，实现后端持久化。
 
+## 51. 3D 地图资产扩充到 10 个：仓库内生成式地图 + 全量 smoke 校验
+
+- 文件：`env/custom_maps.py`
+- 主要修改：
+  - 新增仓库内确定性 3D 地图生成逻辑；
+  - 支持从 `maps_3d.yaml` 的 `generated` 规格自动展开为原生 3D `layers`；
+  - 生成策略采用分层走廊、带缺口的横纵障碍和局部块状障碍组合；
+  - 保证每层布局不完全相同，并保持地图边界可通行，适合作为训练资产。
+
+- 文件：`env/maps_3d.yaml`
+- 主要修改：
+  - 在原有：
+    - `native3d-demo-a`
+    - `native3d-demo-b`
+    - `octomap-geb079-demo`
+    基础上，新增 `7` 张生成式原生 3D 地图：
+    - `native3d-demo-c`
+    - `native3d-demo-d`
+    - `native3d-demo-e`
+    - `native3d-demo-f`
+    - `native3d-demo-g`
+    - `native3d-demo-h`
+    - `native3d-demo-i`
+  - 使当前可直接训练的 3D 地图资产总数提升到 `10` 个；
+  - 地图尺寸采用混合分布：
+    - `16x16x4`
+    - `32x32x4`
+    - `40x40x4`
+    - `64x64x4`
+    - `80x80x4`
+    - 再加 `1` 个 OctoMap 现成资产。
+
+- 文件：`scripts/smoke_native_3d_maps.py`
+- 主要修改：
+  - 从“随机命中一张 `native3d-demo-*` 地图做 smoke”升级为“逐张检查所有 `native3d-demo-*` 地图”；
+  - 现在会遍历并验证全部 `9` 张仓库内原生 3D 地图；
+  - 每张地图都会检查：
+    - 全局障碍张量形状；
+    - planner 障碍张量形状；
+    - 3D 坐标；
+    - 路径是否有效；
+    - 层间障碍是否存在差异。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 更新“当前 3D 地图资产来源”说明：
+    - 现在不再只是“手工两张 demo 图”；
+    - 已经加入仓库内确定性生成的 3D 训练地图；
+  - 更新“当前 3D 地图资产数量”说明：
+    - 当前总数改为 `10` 个；
+    - 其中仓库内原生 3D 训练地图 `9` 个；
+    - OctoMap 官方资产 `1` 个；
+  - 更新“后续补到 10 个准备用什么方式生成”问答：
+    - 说明该混合方案已经落地完成。
+
+- 验证结果：
+  - `python3 -m py_compile env/custom_maps.py scripts/smoke_native_3d_maps.py` 通过；
+  - `docker run --rm smapo:pyoctomap-test python scripts/smoke_native_3d_maps.py` 通过：
+    - 全量校验 `9` 张 `native3d-demo-*` 地图；
+    - 形状覆盖：
+      - `(4, 16, 16)`
+      - `(4, 32, 32)`
+      - `(4, 40, 40)`
+      - `(4, 64, 64)`
+      - `(4, 80, 80)`
+  - `docker run --rm smapo:pyoctomap-test python scripts/smoke_octomap_asset.py` 继续通过，确认未回归影响 OctoMap 链路；
+  - 基于 `native3d-demo-d` / `native3d-demo-h` 的 Docker 训练启动 smoke 已成功进入 `Decorrelating experience ...` 阶段。
+
 - 文件：`web_demo/server.py`
 - 主要修改：
   - 新增 `GET /api/identity`，返回当前账户 + 可切换账户列表；
