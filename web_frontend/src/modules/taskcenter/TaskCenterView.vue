@@ -337,7 +337,7 @@
     </section>
   </section>
 
-  <section v-else class="executor-task-shell">
+  <section v-else class="executor-task-shell" :class="{ 'detail-open': hasExecutorSelection }">
     <article class="panel executor-task-list">
       <div class="admin-panel-head">
         <div>
@@ -397,14 +397,17 @@
       </div>
     </article>
 
-    <article class="panel executor-task-detail">
+    <article class="panel executor-task-detail" :class="{ visible: hasExecutorSelection }">
       <template v-if="selectedTask">
         <div class="admin-panel-head">
           <div>
             <h2>{{ selectedTask.mission_name }}</h2>
             <p class="legend">任务已进入执行页，联合运行、回放和反馈都在这里处理。</p>
           </div>
-          <button class="btn secondary" @click="exportReport">导出任务报告</button>
+          <div class="btn-row">
+            <button class="btn secondary" @click="exportReport">导出任务报告</button>
+            <button class="btn secondary" @click="closeExecutorDetail">收起详情</button>
+          </div>
         </div>
 
         <div class="task-meta-grid">
@@ -616,6 +619,7 @@ const replay = reactive({
 const isAdmin = computed(() => props.role === "admin");
 const currentUserId = computed(() => props.currentUser?.user_id || "");
 const currentUser = computed(() => props.currentUser);
+const hasExecutorSelection = computed(() => !isAdmin.value && !!selectedTaskId.value && !!selectedTask.value);
 
 const filteredTasks = computed(() => {
   const keyword = filters.keyword.trim().toLowerCase();
@@ -859,13 +863,31 @@ function ensureSelectedTask() {
     selectedTaskId.value = activeTasks.value[0]?.task_id || completedTasks.value[0]?.task_id || tasks.value[0]?.task_id || "";
     return;
   }
-  selectedTaskId.value = filteredTasks.value[0]?.task_id || "";
+  selectedTaskId.value = "";
+  selectedTask.value = null;
+  selectedSnapshot.value = null;
+  selectedAlerts.value = [];
+  selectedFeedback.value = [];
+  stopReplayTimer();
+  drawEmptyCanvas(liveCanvasRef.value, "请选择左侧任务以展开执行详情");
 }
 
 async function selectTask(taskId) {
   selectedTaskId.value = taskId;
   if (!isAdmin.value) executorView.value = "execute";
   await loadTaskDetail(taskId, true);
+}
+
+function closeExecutorDetail() {
+  if (isAdmin.value) return;
+  selectedTaskId.value = "";
+  selectedTask.value = null;
+  selectedSnapshot.value = null;
+  selectedAlerts.value = [];
+  selectedFeedback.value = [];
+  stopReplayTimer();
+  drawEmptyCanvas(liveCanvasRef.value, "请选择左侧任务以展开执行详情");
+  status.value = `任务列表已更新，可见 ${filteredTasks.value.length} 条（总 ${tasks.value.length} 条）`;
 }
 
 async function loadTaskDetail(taskId, withStatusText) {

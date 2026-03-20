@@ -662,14 +662,20 @@ body {
 
 .executor-task-shell {
   display: grid;
-  grid-template-columns: minmax(320px, 0.88fr) minmax(0, 1.45fr);
+  grid-template-columns: minmax(0, 1fr) 0fr;
   gap: 16px;
   align-items: start;
+  transition: grid-template-columns 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.executor-task-shell.detail-open {
+  grid-template-columns: minmax(320px, 0.88fr) minmax(0, 1.45fr);
 }
 
 .executor-task-list {
   position: sticky;
   top: 18px;
+  min-width: 0;
 }
 
 .executor-task-stack {
@@ -680,6 +686,20 @@ body {
 
 .executor-task-detail {
   min-height: 720px;
+  min-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(28px);
+  pointer-events: none;
+  transition:
+    opacity 240ms ease,
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.executor-task-detail.visible {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
 }
 
 .executor-embedded-run,
