@@ -1,6 +1,6 @@
 <template>
-  <section class="ops-integrated-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
-    <aside class="panel ops-sidebar-panel" :class="{ collapsed: sidebarCollapsed }">
+  <section class="ops-integrated-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed, embedded: isEmbedded }">
+    <aside v-if="!isEmbedded" class="panel ops-sidebar-panel" :class="{ collapsed: sidebarCollapsed }">
       <div class="ops-sidebar-head">
         <h2>{{ isAdmin ? "任务参数" : "任务概览" }}</h2>
         <button class="btn secondary" @click="toggleSidebar">{{ sidebarCollapsed ? "展开" : "收起" }}</button>
@@ -74,7 +74,7 @@
     <article class="panel ops-main-panel">
       <div class="ops-main-head">
         <h2>联合运行视图（2D + 3D）</h2>
-        <button v-if="sidebarCollapsed" class="btn secondary" @click="toggleSidebar">显示参数侧栏</button>
+        <button v-if="sidebarCollapsed && !isEmbedded" class="btn secondary" @click="toggleSidebar">显示参数侧栏</button>
       </div>
       <div class="status-chip">{{ opsStatus }}</div>
       <div class="legend">任务ID: {{ currentTaskId || "未创建" }}</div>
@@ -163,6 +163,14 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  embedded: {
+    type: Boolean,
+    default: false,
+  },
+  focusTaskId: {
+    type: String,
+    default: "",
+  },
 });
 
 const CELL_SIZE = 1.2;
@@ -228,6 +236,7 @@ const cameraModeLabel = computed(() => {
   return "环绕观察";
 });
 const isAdmin = computed(() => props.role === "admin");
+const isEmbedded = computed(() => !!props.embedded);
 
 const statusCards = computed(() => {
   const frame = activeFrame.value;
@@ -312,6 +321,10 @@ function refreshSavedTemplates() {
 
 async function startOpsRun() {
   try {
+    if (isEmbedded.value && !currentTaskId.value) {
+      opsStatus.value = "请先从任务中心选择任务";
+      return;
+    }
     if (!isAdmin.value && (!currentTaskId.value || isTerminalStatus(runtime.task?.status))) {
       opsStatus.value = "执行者不能新建任务，请在任务中心选择管理员分配的任务后再启动。";
       return;
@@ -770,6 +783,13 @@ function handleTemplateUpdate() {
 }
 
 async function restorePrefillAndFocus() {
+  if (isEmbedded.value) {
+    if (props.focusTaskId) {
+      await focusTaskById(props.focusTaskId);
+    }
+    return;
+  }
+
   const rawTemplate = window.localStorage.getItem("OPS_TEMPLATE_PREFILL");
   if (rawTemplate) {
     try {
@@ -799,12 +819,36 @@ async function restorePrefillAndFocus() {
   opsStatus.value = `已切换到任务：${focusTaskId}`;
 }
 
+async function focusTaskById(taskId) {
+  const normalized = String(taskId || "").trim();
+  if (!normalized) {
+    disconnectEvents();
+    resetRuntimeView();
+    drawAll();
+    return;
+  }
+  if (currentTaskId.value !== normalized) {
+    currentTaskId.value = normalized;
+    eventSeq.value = 0;
+    connectEvents();
+  }
+  await syncTaskDetail();
+  opsStatus.value = `已载入任务：${normalized}`;
+}
+
 watch([cameraMode, zoomScale], () => draw3D());
 watch(selectedDroneId, () => drawAll());
+watch(
+  () => props.focusTaskId,
+  async (taskId) => {
+    if (!isEmbedded.value) return;
+    await focusTaskById(taskId);
+  }
+);
 
 onMounted(async () => {
   refreshSavedTemplates();
-  window.addEventListener("ops-template-updated", handleTemplateUpdate);
+  if (!isEmbedded.value) window.addEventListener("ops-template-updated", handleTemplateUpdate);
   window.addEventListener("resize", handleWindowResize);
   drawAll();
   start3DLoop();
@@ -814,7 +858,7 @@ onMounted(async () => {
 onUnmounted(() => {
   disconnectEvents();
   stop3DLoop();
-  window.removeEventListener("ops-template-updated", handleTemplateUpdate);
+  if (!isEmbedded.value) window.removeEventListener("ops-template-updated", handleTemplateUpdate);
   window.removeEventListener("resize", handleWindowResize);
   if (resizeTimer) window.clearTimeout(resizeTimer);
 });

@@ -574,6 +574,10 @@ body {
   gap: 16px;
 }
 
+.ops-integrated-layout.embedded {
+  grid-template-columns: 1fr;
+}
+
 .ops-integrated-layout.sidebar-collapsed {
   grid-template-columns: 90px minmax(0, 1fr);
 }
@@ -654,6 +658,47 @@ body {
 
 .executor-task-grid {
   grid-template-columns: minmax(360px, 1fr) minmax(560px, 1.35fr) minmax(280px, 0.8fr);
+}
+
+.executor-task-shell {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.88fr) minmax(0, 1.45fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.executor-task-list {
+  position: sticky;
+  top: 18px;
+}
+
+.executor-task-stack {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.executor-task-detail {
+  min-height: 720px;
+}
+
+.executor-embedded-run,
+.executor-feedback-panel,
+.executor-history-panel {
+  margin-top: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.executor-empty-state {
+  min-height: 520px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.executor-empty-state h2 {
+  margin: 8px 0 0;
 }
 
 .admin-task-shell {
@@ -1108,6 +1153,10 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .executor-task-shell {
+    grid-template-columns: 1fr;
+  }
+
   .admin-task-hero,
   .admin-overview-grid,
   .admin-list-grid,
@@ -1137,6 +1186,10 @@ body {
   .admin-detail-grid,
   .admin-recap-grid {
     grid-template-columns: 1fr;
+  }
+
+  .executor-task-list {
+    position: static;
   }
 }
 

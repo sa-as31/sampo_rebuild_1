@@ -192,10 +192,9 @@
         <div class="admin-panel-head">
           <div>
             <h2>任务实时详情</h2>
-            <p class="legend">查看当前任务运行状态，并在必要时进入运营中心继续观察。</p>
+            <p class="legend">查看当前任务运行状态，并直接在当前任务页完成必要操作。</p>
           </div>
           <div class="btn-row">
-            <button class="btn secondary" @click="openOpsWithSelected">进入运营中心</button>
             <button class="btn secondary" @click="runTaskAction('start')">立即开始</button>
             <button class="btn secondary" @click="runTaskAction('pause')">暂停</button>
             <button class="btn secondary" @click="runTaskAction('resume')">继续</button>
@@ -338,9 +337,15 @@
     </section>
   </section>
 
-  <section v-else class="task-center-grid executor-task-grid">
-    <article class="panel">
-      <h2>任务中心</h2>
+  <section v-else class="executor-task-shell">
+    <article class="panel executor-task-list">
+      <div class="admin-panel-head">
+        <div>
+          <h2>任务中心</h2>
+          <p class="legend">这里只显示分配给当前执行者的任务，选中后再进入任务执行页。</p>
+        </div>
+        <button class="btn" @click="refreshTasks">刷新列表</button>
+      </div>
 
       <div class="field-grid">
         <label>状态筛选
@@ -371,134 +376,150 @@
         </label>
       </div>
 
-      <div class="btn-row" style="margin-top: 10px">
-        <button class="btn" @click="refreshTasks">刷新列表</button>
-        <button class="btn secondary" @click="openOpsWithSelected">进入运营中心</button>
-        <button class="btn secondary" @click="exportReport">导出任务报告</button>
-      </div>
       <div class="status-chip">{{ status }}</div>
 
-      <table class="fleet-table" style="margin-top: 8px">
-        <thead>
-          <tr>
-            <th>任务ID</th>
-            <th>任务名</th>
-            <th>模板</th>
-            <th>阶段</th>
-            <th>计划开始</th>
-            <th>更新时间</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="task in filteredTasks"
-            :key="task.task_id"
-            :class="{ 'task-row-active': task.task_id === selectedTaskId }"
-            @click="selectTask(task.task_id)"
-          >
-            <td>{{ task.task_id }}</td>
-            <td>{{ task.mission_name }}</td>
-            <td>{{ templateLabel(task.template) }}</td>
-            <td>{{ taskStageLabel(task.status) }}</td>
-            <td>{{ fmtDateTime(task.params?.scheduled_start_at) }}</td>
-            <td>{{ fmtTime(task.updated_at) }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </article>
-
-    <article class="panel">
-      <h2>任务详情与回放</h2>
-
-      <div class="task-meta-grid">
-        <div class="task-meta"><span>任务ID</span><strong>{{ selectedTask?.task_id || "-" }}</strong></div>
-        <div class="task-meta"><span>任务状态</span><strong>{{ selectedTask?.status || "-" }}</strong></div>
-        <div class="task-meta"><span>累计任务数</span><strong>{{ selectedSnapshot?.metrics?.tasks_completed ?? selectedTask?.metrics?.tasks_completed ?? "-" }}</strong></div>
-        <div class="task-meta"><span>告警数</span><strong>{{ selectedAlerts.length }}</strong></div>
-      </div>
-
-      <div class="btn-row" style="margin-top: 10px">
-        <button class="btn secondary" @click="loadReplay">加载历史回放</button>
-        <button class="btn secondary" @click="togglePlayback">{{ replay.playing ? "暂停回放" : "播放回放" }}</button>
-        <input
-          v-model.number="replay.frameIndex"
-          :max="Math.max(0, replay.frames.length - 1)"
-          min="0"
-          type="range"
-          @input="drawReplayFrame"
-        />
-      </div>
-
-      <div class="canvas-wrap" style="margin-top: 10px">
-        <canvas ref="liveCanvasRef" width="920" height="460"></canvas>
-      </div>
-
-      <div class="ops-alerts" style="margin-top: 10px">
-        <h3>任务告警</h3>
-        <div v-if="selectedAlerts.length === 0" class="ops-alert-empty">无告警记录</div>
-        <div
-          v-for="alert in selectedAlerts"
-          :key="`${alert.ts}-${alert.code}`"
-          class="ops-alert-item"
-          :class="`level-${alert.level}`"
+      <div class="executor-task-stack">
+        <button
+          v-for="task in filteredTasks"
+          :key="task.task_id"
+          class="admin-task-card"
+          :class="{ active: task.task_id === selectedTaskId }"
+          @click="selectTask(task.task_id)"
         >
-          <span class="ops-alert-code">[{{ alert.code }}]</span>
-          <span>{{ alert.message }}</span>
-          <span class="ops-alert-step">step {{ alert.frame_step }}</span>
-        </div>
+          <span class="admin-task-card-top">
+            <strong>{{ task.mission_name }}</strong>
+            <em>{{ taskStageLabel(task.status) }}</em>
+          </span>
+          <span class="admin-task-card-meta">{{ templateLabel(task.template) }} · {{ fmtDateTime(task.params?.scheduled_start_at) }}</span>
+          <span class="admin-task-card-meta">任务ID {{ task.task_id }}</span>
+        </button>
+        <div v-if="filteredTasks.length === 0" class="ops-alert-empty">当前没有分配给你的任务。</div>
       </div>
     </article>
 
-    <article class="panel">
-      <h2>执行者反馈</h2>
-      <p class="legend">执行者可以对当前分配任务补充问题、风险和备注，供管理员在完成后复盘查看。</p>
-      <div class="status-chip">当前账号：{{ currentUser?.display_name || "-" }}</div>
-      <div class="admin-highlight-card compact" style="margin-top: 12px">
-        <p>当前任务</p>
-        <strong>{{ selectedTask?.mission_name || "未选择任务" }}</strong>
-        <span>{{ selectedTask ? `${taskStageLabel(selectedTask.status)} · ${fmtDateTime(selectedTask.params?.scheduled_start_at)}` : "请先在左侧选择管理员分配给你的任务" }}</span>
-      </div>
-
-      <label class="login-label">
-        反馈类型
-        <select v-model="feedbackForm.category">
-          <option value="issue">问题</option>
-          <option value="risk">风险</option>
-          <option value="note">备注</option>
-        </select>
-      </label>
-      <label class="login-label">
-        反馈内容
-        <textarea v-model="feedbackForm.message" class="feedback-textarea" placeholder="例如：地图障碍与实际现场不一致，导致第 3 架无人机多次停滞。"></textarea>
-      </label>
-
-      <div class="btn-row" style="margin-top: 12px">
-        <button class="btn" @click="startAssignedTask">开始执行</button>
-        <button class="btn secondary" @click="requestTaskDelay">申请延期</button>
-        <button class="btn secondary" @click="reportTaskAnomaly">标记异常</button>
-        <button class="btn secondary" @click="submitExecutorFeedback">提交备注</button>
-        <button class="btn secondary" @click="openOpsWithSelected">进入运营中心</button>
-      </div>
-      <div class="status-chip">{{ feedbackStatus }}</div>
-
-      <div class="ops-alerts" style="margin-top: 12px">
-        <h3>已提交反馈</h3>
-        <div v-if="selectedFeedback.length === 0" class="ops-alert-empty">当前没有反馈记录。</div>
-        <div v-for="item in selectedFeedback" :key="`${item.created_at}-${item.username}-${item.message}`" class="feedback-item">
-          <div class="feedback-head">
-            <strong>{{ item.display_name || item.username || "未知用户" }}</strong>
-            <span>{{ feedbackCategoryLabel(item.category) }}</span>
-            <em>{{ fmtDateTime(item.created_at) }}</em>
+    <article class="panel executor-task-detail">
+      <template v-if="selectedTask">
+        <div class="admin-panel-head">
+          <div>
+            <h2>{{ selectedTask.mission_name }}</h2>
+            <p class="legend">任务已进入执行页，联合运行、回放和反馈都在这里处理。</p>
           </div>
-          <p>{{ item.message }}</p>
+          <button class="btn secondary" @click="exportReport">导出任务报告</button>
         </div>
-      </div>
+
+        <div class="task-meta-grid">
+          <div class="task-meta"><span>任务ID</span><strong>{{ selectedTask.task_id }}</strong></div>
+          <div class="task-meta"><span>任务阶段</span><strong>{{ taskStageLabel(selectedTask.status) }}</strong></div>
+          <div class="task-meta"><span>计划开始</span><strong>{{ fmtDateTime(selectedTask.params?.scheduled_start_at) }}</strong></div>
+          <div class="task-meta"><span>累计任务数</span><strong>{{ selectedSnapshot?.metrics?.tasks_completed ?? selectedTask?.metrics?.tasks_completed ?? "-" }}</strong></div>
+        </div>
+
+        <div class="admin-workspace-tabs" style="margin-top: 12px">
+          <button class="tab-btn" :class="{ active: executorView === 'execute' }" @click="executorView = 'execute'">任务执行</button>
+          <button class="tab-btn" :class="{ active: executorView === 'feedback' }" @click="executorView = 'feedback'">反馈与操作</button>
+          <button class="tab-btn" :class="{ active: executorView === 'history' }" @click="executorView = 'history'">回放与告警</button>
+        </div>
+
+        <section v-if="executorView === 'execute'" class="executor-embedded-run">
+          <div class="btn-row" style="margin-top: 12px">
+            <button class="btn" @click="startAssignedTask">开始执行</button>
+            <button class="btn secondary" @click="runTaskAction('pause')">暂停</button>
+            <button class="btn secondary" @click="runTaskAction('resume')">继续</button>
+            <button class="btn secondary" @click="runTaskAction('stop')">停止</button>
+          </div>
+          <div class="status-chip">{{ feedbackStatus }}</div>
+          <OperationsModeView embedded :current-user="currentUser" :focus-task-id="selectedTaskId" :role="props.role" />
+        </section>
+
+        <section v-else-if="executorView === 'feedback'" class="executor-feedback-panel">
+          <div class="admin-highlight-card compact">
+            <p>当前任务</p>
+            <strong>{{ selectedTask.mission_name }}</strong>
+            <span>{{ taskStageLabel(selectedTask.status) }} · {{ fmtDateTime(selectedTask.params?.scheduled_start_at) }}</span>
+          </div>
+
+          <label class="login-label">
+            反馈类型
+            <select v-model="feedbackForm.category">
+              <option value="issue">问题</option>
+              <option value="risk">风险</option>
+              <option value="note">备注</option>
+            </select>
+          </label>
+          <label class="login-label">
+            反馈内容
+            <textarea v-model="feedbackForm.message" class="feedback-textarea" placeholder="例如：地图障碍与实际现场不一致，导致第 3 架无人机多次停滞。"></textarea>
+          </label>
+
+          <div class="btn-row" style="margin-top: 12px">
+            <button class="btn secondary" @click="requestTaskDelay">申请延期</button>
+            <button class="btn secondary" @click="reportTaskAnomaly">标记异常</button>
+            <button class="btn" @click="submitExecutorFeedback">提交备注</button>
+          </div>
+          <div class="status-chip">{{ feedbackStatus }}</div>
+
+          <div class="ops-alerts" style="margin-top: 12px">
+            <h3>已提交反馈</h3>
+            <div v-if="selectedFeedback.length === 0" class="ops-alert-empty">当前没有反馈记录。</div>
+            <div v-for="item in selectedFeedback" :key="`${item.created_at}-${item.username}-${item.message}`" class="feedback-item">
+              <div class="feedback-head">
+                <strong>{{ item.display_name || item.username || "未知用户" }}</strong>
+                <span>{{ feedbackCategoryLabel(item.category) }}</span>
+                <em>{{ fmtDateTime(item.created_at) }}</em>
+              </div>
+              <p>{{ item.message }}</p>
+            </div>
+          </div>
+        </section>
+
+        <section v-else class="executor-history-panel">
+          <div class="btn-row" style="margin-top: 12px">
+            <button class="btn secondary" @click="loadReplay">加载历史回放</button>
+            <button class="btn secondary" @click="togglePlayback">{{ replay.playing ? "暂停回放" : "播放回放" }}</button>
+            <input
+              v-model.number="replay.frameIndex"
+              :max="Math.max(0, replay.frames.length - 1)"
+              min="0"
+              type="range"
+              @input="drawReplayFrame"
+            />
+          </div>
+
+          <div class="canvas-wrap" style="margin-top: 10px">
+            <canvas ref="liveCanvasRef" width="920" height="460"></canvas>
+          </div>
+
+          <div class="ops-alerts" style="margin-top: 10px">
+            <h3>任务告警</h3>
+            <div v-if="selectedAlerts.length === 0" class="ops-alert-empty">无告警记录</div>
+            <div
+              v-for="alert in selectedAlerts"
+              :key="`${alert.ts}-${alert.code}`"
+              class="ops-alert-item"
+              :class="`level-${alert.level}`"
+            >
+              <span class="ops-alert-code">[{{ alert.code }}]</span>
+              <span>{{ alert.message }}</span>
+              <span class="ops-alert-step">step {{ alert.frame_step }}</span>
+            </div>
+          </div>
+        </section>
+      </template>
+
+      <template v-else>
+        <div class="executor-empty-state">
+          <p class="section-kicker">TASK DETAIL</p>
+          <h2>选择一个任务进入执行页</h2>
+          <p class="legend">左侧任务列表只负责展示任务。点选后，右侧会展开该任务的执行、反馈和回放界面。</p>
+        </div>
+      </template>
     </article>
   </section>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import OperationsModeView from "../operations/OperationsModeView.vue";
 import {
   controlOpsTask,
   createOpsTask,
@@ -581,6 +602,7 @@ const feedbackForm = reactive({
   category: "issue",
   message: "",
 });
+const executorView = ref("execute");
 
 const replay = reactive({
   available: false,
@@ -842,6 +864,7 @@ function ensureSelectedTask() {
 
 async function selectTask(taskId) {
   selectedTaskId.value = taskId;
+  if (!isAdmin.value) executorView.value = "execute";
   await loadTaskDetail(taskId, true);
 }
 
@@ -1150,23 +1173,6 @@ async function startAssignedTask() {
   } catch (error) {
     feedbackStatus.value = `开始执行失败：${error.message}`;
   }
-}
-
-function openOpsWithSelected() {
-  if (!selectedTaskId.value) {
-    status.value = "请先选择任务";
-    return;
-  }
-  if (!isAdmin.value) {
-    const task = tasks.value.find((item) => item.task_id === selectedTaskId.value);
-    const assignee = String(task?.params?.assignee_user_id || "");
-    if (assignee !== currentUserId.value) {
-      status.value = "该任务未分配给当前执行者";
-      return;
-    }
-  }
-  window.localStorage.setItem("OPS_FOCUS_TASK_ID", selectedTaskId.value);
-  window.dispatchEvent(new CustomEvent("app-switch-mode", { detail: { mode: "ops" } }));
 }
 
 watch(adminSection, async (section) => {

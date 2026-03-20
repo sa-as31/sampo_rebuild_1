@@ -66,7 +66,6 @@
       <main>
         <TaskCenterView v-if="activeMode === 'taskCenter'" :current-user="currentUser" :role="currentRole" />
         <OpsDashboardView v-else-if="activeMode === 'dashboard'" />
-        <OperationsModeView v-else :current-user="currentUser" :role="currentRole" />
       </main>
     </template>
   </div>
@@ -74,7 +73,6 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import OperationsModeView from "./modules/operations/OperationsModeView.vue";
 import TaskCenterView from "./modules/taskcenter/TaskCenterView.vue";
 import OpsDashboardView from "./modules/dashboard/OpsDashboardView.vue";
 import { fetchAuthOptions, fetchAuthState, fetchIdentity, loginWithPassword, logoutCurrentUser } from "./services/api";
@@ -83,7 +81,6 @@ const adminTabs = [
   { key: "taskCenter", label: "任务分配" },
 ];
 const executorTabs = [
-  { key: "ops", label: "联合运行" },
   { key: "taskCenter", label: "任务中心" },
   { key: "dashboard", label: "运营大屏" },
 ];
@@ -98,7 +95,7 @@ const authAccounts = ref([]);
 const loginRole = ref("executor");
 const loginUsername = ref("");
 const loginPassword = ref("");
-const activeMode = ref("ops");
+const activeMode = ref("taskCenter");
 
 const currentRole = computed(() => (currentUser.value?.role === "admin" ? "admin" : "executor"));
 const tabs = computed(() => (currentRole.value === "admin" ? adminTabs : executorTabs));
@@ -199,7 +196,7 @@ async function submitLogout() {
     await logoutCurrentUser();
     loggedIn.value = false;
     currentUser.value = null;
-    activeMode.value = "ops";
+    activeMode.value = "taskCenter";
     loginPassword.value = "";
     prefillByRole(loginRole.value);
   } catch (error) {

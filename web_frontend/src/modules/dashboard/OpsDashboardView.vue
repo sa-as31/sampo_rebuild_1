@@ -14,7 +14,6 @@
       <div class="btn-row" style="margin-top: 10px">
         <button class="btn secondary" @click="refreshDashboard">刷新</button>
         <button class="btn secondary" @click="goMode('taskCenter')">查看任务中心</button>
-        <button class="btn secondary" @click="goMode('ops')">进入运营中心</button>
       </div>
 
       <table class="fleet-table" style="margin-top: 10px">

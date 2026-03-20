@@ -1593,3 +1593,48 @@
   - `python3 -m py_compile web_demo/task_runtime.py web_demo/server.py` 通过；
   - `npm --prefix web_frontend run build` 通过；
   - 本地接口确认两条演示任务已成功写入当前运行服务。
+
+## 60. 页面结构重排：任务中心成为主入口，联合运行嵌入任务执行页
+
+- 文件：`web_frontend/src/App.vue`
+- 主要修改：
+  - 执行者顶层导航移除独立的 `联合运行` 标签；
+  - 任务中心改为执行者主入口；
+  - 保留 `任务中心 / 运营大屏` 两个顶层入口。
+
+- 文件：`web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+- 主要修改：
+  - 执行者任务中心布局从“三栏并列”重排为：
+    - 左侧：任务列表；
+    - 右侧：任务执行页；
+  - 点击左侧任务后，右侧进入该任务的专属页面；
+  - 任务执行页中新增三个内部分区：
+    - `任务执行`
+    - `反馈与操作`
+    - `回放与告警`
+  - 原来独立页面中的联合运行视图，已内嵌到 `任务执行` 分区中。
+
+- 文件：`web_frontend/src/modules/operations/OperationsModeView.vue`
+- 主要修改：
+  - 联合运行组件新增嵌入式模式 `embedded`；
+  - 支持通过 `focusTaskId` 直接聚焦某个任务；
+  - 嵌入模式下隐藏外部侧栏跳转语义，只保留任务内的 2D + 3D 联合运行能力。
+
+- 文件：`web_frontend/src/modules/dashboard/OpsDashboardView.vue`
+- 主要修改：
+  - 移除“进入运营中心”旧按钮，避免和新的任务内执行页冲突。
+
+- 文件：`web_frontend/src/styles.css`
+- 主要修改：
+  - 新增执行者“左列表 + 右任务页”布局样式；
+  - 新增嵌入式联合运行、空态页、任务栈布局样式；
+  - 调整响应式行为，确保小屏下仍能收敛为单列。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“为什么把联合运行放进任务执行页”问答；
+  - 说明新的任务驱动页面流程。
+
+- 验证结果：
+  - `npm --prefix web_frontend run build` 通过；
+  - 执行者不再从独立标签进入联合运行，而是在任务中心选中任务后直接进入任务执行页。
