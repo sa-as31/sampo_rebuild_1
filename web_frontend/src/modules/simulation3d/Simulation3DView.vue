@@ -336,18 +336,18 @@ function drawGrid(ctx, canvas, camera, env, focusAgent) {
 }
 
 function drawObstacles(ctx, canvas, camera, env, focusAgent) {
+  const solidMode = cameraMode.value === "drone";
   for (let row = 0; row < env.height; row += 1) {
     for (let col = 0; col < env.width; col += 1) {
       if (focusAgent && !isInsideLocalWindow(row, col, focusAgent, LOCAL_VIEW_RADIUS)) continue;
       if (env.obstacles?.[row]?.[col] !== 1) continue;
       const p = gridToWorld(row, col, env);
-      drawBoxWire(
-        ctx,
-        canvas,
-        camera,
-        { x: p.x - CELL_SIZE * 0.45, z: p.z - CELL_SIZE * 0.45, w: CELL_SIZE * 0.9, d: CELL_SIZE * 0.9, h: 0.9 },
-        "rgba(145,160,182,0.95)"
-      );
+      const block = { x: p.x - CELL_SIZE * 0.45, z: p.z - CELL_SIZE * 0.45, w: CELL_SIZE * 0.9, d: CELL_SIZE * 0.9, h: 0.9 };
+      if (solidMode) {
+        drawBoxSolid(ctx, canvas, camera, block);
+      } else {
+        drawBoxWire(ctx, canvas, camera, block, "rgba(145,160,182,0.95)");
+      }
     }
   }
 }
@@ -449,6 +449,61 @@ function drawBoxWire(ctx, canvas, camera, block, color) {
   });
 }
 
+function drawBoxSolid(ctx, canvas, camera, block) {
+  const x1 = block.x;
+  const x2 = block.x + block.w;
+  const y1 = 0;
+  const y2 = block.h;
+  const z1 = block.z;
+  const z2 = block.z + block.d;
+  const corners = [
+    [x1, y1, z1],
+    [x2, y1, z1],
+    [x2, y1, z2],
+    [x1, y1, z2],
+    [x1, y2, z1],
+    [x2, y2, z1],
+    [x2, y2, z2],
+    [x1, y2, z2],
+  ];
+  const projected = corners.map(([x, y, z]) => projectPoint(canvas, camera, x, y, z));
+  if (projected.some((p) => !p)) {
+    drawBoxWire(ctx, canvas, camera, block, "rgba(145,160,182,0.95)");
+    return;
+  }
+
+  const cx = x1 + block.w / 2;
+  const cz = z1 + block.d / 2;
+  const xFace = camera.x <= cx ? [0, 3, 7, 4] : [1, 2, 6, 5];
+  const zFace = camera.z <= cz ? [0, 1, 5, 4] : [3, 2, 6, 7];
+  const topFace = [4, 5, 6, 7];
+  const faces = [
+    { indices: xFace, fill: "#6e7d90", stroke: "#7f8ea2" },
+    { indices: zFace, fill: "#5f6f84", stroke: "#73839a" },
+    { indices: topFace, fill: "#8a9aae", stroke: "#99a9be" },
+  ]
+    .map((face) => ({
+      ...face,
+      pts: face.indices.map((idx) => projected[idx]),
+      depth: face.indices.reduce((sum, idx) => sum + projected[idx].depth, 0) / face.indices.length,
+    }))
+    .sort((a, b) => b.depth - a.depth);
+
+  faces.forEach((face) => {
+    ctx.fillStyle = face.fill;
+    ctx.strokeStyle = face.stroke;
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(face.pts[0].x, face.pts[0].y);
+    for (let i = 1; i < face.pts.length; i += 1) {
+      ctx.lineTo(face.pts[i].x, face.pts[i].y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  });
+}
+
 function drawLine3D(ctx, canvas, camera, a, b, color, width) {
   const pa = projectPoint(canvas, camera, a.x, a.y, a.z);
   const pb = projectPoint(canvas, camera, b.x, b.y, b.z);
@@ -483,6 +538,7 @@ function projectPoint(canvas, camera, x, y, z) {
     x: canvas.width * 0.5 + x1 * scale,
     y: canvas.height * 0.58 - y2 * scale,
     scale: Math.max(0.3, Math.min(2.2, scale / 120)),
+    depth: z2,
   };
 }
 
@@ -564,7 +620,11 @@ function onCanvasPointerMove(event) {
     orbitHeightFactor = clamp(orbitHeightFactor - dy * 0.0025, 0.2, 0.92);
   } else {
     viewYawOffset += dx * 0.006;
-    viewPitchOffset = clamp(viewPitchOffset + dy * 0.003, -0.5, 0.5);
+    if (cameraMode.value === "drone") {
+      viewPitchOffset = clamp(viewPitchOffset + dy * 0.003, -0.28, 0.34);
+    } else {
+      viewPitchOffset = clamp(viewPitchOffset + dy * 0.003, -0.5, 0.5);
+    }
   }
   drawFrame();
 }
