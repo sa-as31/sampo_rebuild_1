@@ -668,6 +668,39 @@
   - `npm --prefix web_frontend run build` 通过；
   - `TaskRuntime.get_replay()` 本地 smoke 校验通过。
 
+## 30. 2D/3D 页面整合（同任务同页联动）+ 参数侧边栏隐藏
+
+- 文件：`web_frontend/src/modules/operations/OperationsModeView.vue`
+- 主要修改：
+  - 将原“运营中心（2D）”重构为“联合运行视图（2D + 3D）”：
+    - 左侧 2D 俯视运行状态；
+    - 右侧 3D 运行状态；
+    - 两者绑定同一 `task_id` 与同一实时帧数据；
+  - 保留任务生命周期控制（开始/暂停/继续/停止）与实时告警展示；
+  - 保留并接入参数模板能力（保存/应用/删除）；
+  - 新增 3D 联动渲染（环绕/俯视/跟随镜头，放大倍率、环绕速度）。
+
+- 文件：`web_frontend/src/App.vue`
+- 主要修改：
+  - 导航文案调整为“联合运行”；
+  - 移除独立“3D回放”入口，避免 2D/3D 分页割裂；
+  - 页面入口统一到单页联动视图。
+
+- 文件：`web_frontend/src/styles.css`
+- 主要修改：
+  - 新增联合页面布局样式：
+    - 可折叠参数侧边栏；
+    - 双视图网格（2D + 3D）；
+    - 主区与移动端自适应。
+
+- 交互结果：
+  - 现在同一次任务中，可在一个页面同时观察 2D 和 3D 运行状态；
+  - 参数添加与调整都在左侧栏，支持隐藏以扩大主画面区域。
+
+- 验证结果：
+  - `npm --prefix web_frontend run build` 通过；
+  - `python3 -m py_compile web_demo/server.py web_demo/task_runtime.py` 通过。
+
 ## 29. 文档补充：SMAPO 训练是否需要训练数据
 
 - 文件：`解疑.md`

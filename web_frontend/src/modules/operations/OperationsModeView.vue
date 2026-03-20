@@ -1,9 +1,12 @@
 <template>
-  <section class="ops-grid">
-    <article class="panel">
-      <h2>任务下发</h2>
+  <section class="ops-integrated-layout">
+    <aside class="panel ops-sidebar-panel" :class="{ collapsed: sidebarCollapsed }">
+      <div class="ops-sidebar-head">
+        <h2>任务参数</h2>
+        <button class="btn secondary" @click="toggleSidebar">{{ sidebarCollapsed ? "展开" : "收起" }}</button>
+      </div>
 
-      <div class="field-grid">
+      <div v-if="!sidebarCollapsed" class="field-grid">
         <label>参数模板
           <select v-model="selectedTemplateId" @change="applySavedTemplate">
             <option value="">未选择（手动配置）</option>
@@ -27,41 +30,73 @@
         <label>无人机数量 <input v-model.number="taskConfig.num_agents" min="1" type="number" /></label>
         <label>最大帧数 <input v-model.number="taskConfig.max_frames" min="4" type="number" /></label>
         <label>节拍(ms) <input v-model.number="taskConfig.tick_ms" min="120" step="20" type="number" /></label>
-      </div>
 
-      <div class="btn-row" style="margin-top: 10px">
-        <button class="btn" @click="startOpsRun">开始任务</button>
-        <button class="btn secondary" @click="pauseOpsRun">暂停</button>
-        <button class="btn secondary" @click="resumeOpsRun">继续</button>
-        <button class="btn secondary" @click="stopOpsRun">停止</button>
-        <button class="btn secondary" @click="saveCurrentAsTemplate">保存为模板</button>
-        <button class="btn secondary" @click="deleteCurrentTemplate">删除当前模板</button>
+        <label>3D镜头
+          <select v-model="cameraMode">
+            <option value="orbit">环绕观察</option>
+            <option value="overview">俯视全局</option>
+            <option value="follow">跟随选中无人机</option>
+          </select>
+        </label>
+        <label>3D放大 x{{ zoomScale.toFixed(2) }}
+          <input v-model.number="zoomScale" max="2.5" min="0.6" step="0.05" type="range" />
+        </label>
+        <label v-if="cameraMode === 'orbit'">环绕速度 {{ orbitSpeed.toFixed(2) }} rad/s
+          <input v-model.number="orbitSpeed" max="0.35" min="0.02" step="0.01" type="range" />
+        </label>
+
+        <div class="btn-row" style="margin-top: 10px">
+          <button class="btn" @click="startOpsRun">开始任务</button>
+          <button class="btn secondary" @click="pauseOpsRun">暂停</button>
+          <button class="btn secondary" @click="resumeOpsRun">继续</button>
+          <button class="btn secondary" @click="stopOpsRun">停止</button>
+          <button class="btn secondary" @click="saveCurrentAsTemplate">保存为模板</button>
+          <button class="btn secondary" @click="deleteCurrentTemplate">删除当前模板</button>
+        </div>
+      </div>
+    </aside>
+
+    <article class="panel ops-main-panel">
+      <div class="ops-main-head">
+        <h2>联合运行视图（2D + 3D）</h2>
+        <button v-if="sidebarCollapsed" class="btn secondary" @click="toggleSidebar">显示参数侧栏</button>
       </div>
       <div class="status-chip">{{ opsStatus }}</div>
       <div class="legend">任务ID: {{ currentTaskId || "未创建" }}</div>
 
-      <div class="legend">点击地图空白网格可设置目标点</div>
-      <div class="field-grid" style="margin-top: 8px">
-        <label>当前选中无人机
-          <select v-model.number="selectedDroneId">
-            <option v-for="d in fleetRows" :key="d.id" :value="d.id">无人机 {{ d.id + 1 }}</option>
-          </select>
-        </label>
-      </div>
-    </article>
-
-    <article class="panel">
-      <h2>运行态势</h2>
-
-      <div class="status-cards">
+      <div class="status-cards" style="margin-top: 10px">
         <div class="status-card"><p>在线无人机数</p><strong>{{ statusCards.online }}</strong></div>
         <div class="status-card"><p>累计完成任务</p><strong>{{ statusCards.completed }}</strong></div>
         <div class="status-card"><p>冲突告警数</p><strong>{{ statusCards.conflicts }}</strong></div>
         <div class="status-card"><p>平均任务时延(步)</p><strong>{{ statusCards.latency }}</strong></div>
       </div>
 
-      <div class="canvas-wrap" style="margin-top: 12px">
-        <canvas ref="opsCanvasRef" width="920" height="520" @click="onOpsCanvasClick"></canvas>
+      <div class="ops-dual-view-grid">
+        <section class="ops-view-card">
+          <h3>2D 俯视运行状态</h3>
+          <div class="legend">点击地图空白网格可设置目标点（仅非运行状态可编辑）</div>
+          <div class="legend">当前选中无人机：{{ selectedDroneId + 1 }}</div>
+          <div class="canvas-wrap" style="margin-top: 8px">
+            <canvas ref="opsCanvasRef" width="880" height="500" @click="onOpsCanvasClick"></canvas>
+          </div>
+        </section>
+
+        <section class="ops-view-card">
+          <h3>3D 运行状态</h3>
+          <div class="legend">与左侧 2D 使用同一任务、同一帧数据</div>
+          <div class="legend">镜头：{{ cameraModeLabel }} · 放大：x{{ zoomScale.toFixed(2) }}</div>
+          <div class="canvas-wrap" style="margin-top: 8px">
+            <canvas ref="ops3dCanvasRef" width="880" height="500"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <div class="field-grid" style="margin-top: 10px; max-width: 280px">
+        <label>当前选中无人机
+          <select v-model.number="selectedDroneId">
+            <option v-for="d in fleetRows" :key="d.id" :value="d.id">无人机 {{ d.id + 1 }}</option>
+          </select>
+        </label>
       </div>
 
       <table class="fleet-table">
@@ -99,25 +134,35 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { buildSampleRun, createRenderer } from "../shared/renderer";
 import { connectOpsTaskEvents, controlOpsTask, createOpsTask, getOpsTask } from "../../services/api";
 import { deleteOpsTemplate, loadOpsTemplates, upsertOpsTemplate } from "../shared/templateStore";
 
+const CELL_SIZE = 1.2;
+const DRONE_COLORS = ["#7ec8ff", "#68f2ca", "#ffd774", "#ff9191", "#8da9ff", "#d99eff"];
+
 const renderer = createRenderer();
 const opsCanvasRef = ref(null);
+const ops3dCanvasRef = ref(null);
 const selectedTemplate = ref("warehouse");
 const missionName = ref("enterprise_batch_demo");
 const selectedDroneId = ref(0);
 const executionSource = ref("sample");
 const selectedTemplateId = ref("");
 const savedTemplates = ref(loadOpsTemplates());
+const sidebarCollapsed = ref(false);
+const cameraMode = ref("orbit");
+const zoomScale = ref(1.0);
+const orbitSpeed = ref(0.12);
+
 const taskConfig = reactive({
   num_agents: 16,
   max_frames: 64,
   tick_ms: 320,
   device: "cpu",
 });
+
 const opsStatus = ref("待命");
 const currentTaskId = ref("");
 const eventSeq = ref(0);
@@ -143,9 +188,18 @@ const runtime = reactive({
   alerts: [],
 });
 
+let rafId = null;
+let lastTs = 0;
+let orbitAngle = 0;
+
 const activeEnvironment = computed(() => runtime.environment || samplePlayback.value.environment);
 const activeFrame = computed(() => runtime.frame || samplePlayback.value.frames[0] || { agents: [], vertex_conflicts: 0, step: 0 });
 const alerts = computed(() => runtime.alerts || []);
+const cameraModeLabel = computed(() => {
+  if (cameraMode.value === "overview") return "俯视全局";
+  if (cameraMode.value === "follow") return "跟随选中无人机";
+  return "环绕观察";
+});
 
 const statusCards = computed(() => {
   const frame = activeFrame.value;
@@ -169,11 +223,15 @@ const fleetRows = computed(() => {
   }));
 });
 
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value;
+}
+
 function applyTemplate() {
   selectedTemplateId.value = "";
   samplePlayback.value = buildSampleRun(selectedTemplate.value);
   selectedDroneId.value = 0;
-  drawOps();
+  drawAll();
   opsStatus.value = `已切换模板：${templateLabel(selectedTemplate.value)}`;
 }
 
@@ -188,7 +246,7 @@ function applySavedTemplate() {
   taskConfig.tick_ms = Number(template.tick_ms || taskConfig.tick_ms);
   samplePlayback.value = buildSampleRun(selectedTemplate.value);
   selectedDroneId.value = 0;
-  drawOps();
+  drawAll();
   opsStatus.value = `已应用模板：${template.name}`;
 }
 
@@ -274,7 +332,7 @@ async function resumeOpsRun() {
 async function stopOpsRun() {
   if (!currentTaskId.value) {
     resetRuntimeView();
-    drawOps();
+    drawAll();
     opsStatus.value = "任务已停止";
     return;
   }
@@ -302,7 +360,7 @@ function connectEvents() {
       const message = JSON.parse(event.data);
       handleTaskEvent(message);
     } catch {
-      // Ignore non-JSON heartbeat lines.
+      // Ignore heartbeat.
     }
   };
   es.onerror = () => {
@@ -369,7 +427,7 @@ function applySnapshot(snapshot) {
   if (runtime.frame?.agents?.length && !runtime.frame.agents.some((a) => a.id === selectedDroneId.value)) {
     selectedDroneId.value = runtime.frame.agents[0].id;
   }
-  drawOps();
+  drawAll();
 }
 
 function resetRuntimeView() {
@@ -392,7 +450,6 @@ function resetRuntimeView() {
   eventSeq.value = 0;
 }
 
-// In backend-driven mode target editing is not applied to task runtime yet.
 function onOpsCanvasClick(event) {
   if (currentTaskId.value && !isTerminalStatus(runtime.task?.status)) {
     opsStatus.value = "运行中任务暂不支持在线改目标（可先暂停/停止后重建任务）";
@@ -426,11 +483,233 @@ function onOpsCanvasClick(event) {
   target.target_x = row;
   target.target_y = col;
   opsStatus.value = `已为无人机${target.id + 1}设置目标点(${row}, ${col})`;
-  drawOps();
+  drawAll();
 }
 
-function drawOps() {
+function drawAll() {
+  draw2D();
+  draw3D();
+}
+
+function draw2D() {
   renderer.draw(opsCanvasRef.value, activeEnvironment.value, activeFrame.value);
+}
+
+function draw3D() {
+  const canvas = ops3dCanvasRef.value;
+  const env = activeEnvironment.value;
+  const frame = activeFrame.value;
+  if (!canvas || !env || !frame) return;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, "#091a33");
+  gradient.addColorStop(1, "#050d1d");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (!env.width || !env.height) return;
+
+  const leadAgent = frame.agents.find((agent) => agent.id === selectedDroneId.value) || frame.agents[0];
+  const lead = leadAgent ? gridToWorld(leadAgent.x, leadAgent.y, env) : { x: 0, z: 0 };
+  const radius = Math.max((env.height - 1) * CELL_SIZE, (env.width - 1) * CELL_SIZE) * 0.95 + 6;
+  const camera = buildCamera(lead, radius);
+
+  drawGrid3D(ctx, canvas, camera, env);
+  drawObstacles3D(ctx, canvas, camera, env);
+  drawAgents3D(ctx, canvas, camera, env, frame);
+}
+
+function start3DLoop() {
+  stop3DLoop();
+  lastTs = 0;
+  rafId = window.requestAnimationFrame(tick3D);
+}
+
+function stop3DLoop() {
+  if (rafId) window.cancelAnimationFrame(rafId);
+  rafId = null;
+}
+
+function tick3D(ts) {
+  if (!lastTs) lastTs = ts;
+  const dt = Math.max((ts - lastTs) / 1000, 0);
+  lastTs = ts;
+  if (cameraMode.value === "orbit") orbitAngle += dt * orbitSpeed.value;
+  draw3D();
+  rafId = window.requestAnimationFrame(tick3D);
+}
+
+function buildCamera(lead, radius) {
+  if (cameraMode.value === "overview") {
+    return lookAtCamera({ x: 0, y: radius * 0.9, z: radius * 0.5 }, { x: 0, y: 0.3, z: 0 });
+  }
+  if (cameraMode.value === "follow") {
+    return lookAtCamera(
+      { x: lead.x - radius * 0.16, y: radius * 0.28, z: lead.z + radius * 0.23 },
+      { x: lead.x, y: 0.4, z: lead.z }
+    );
+  }
+  return lookAtCamera(
+    { x: Math.cos(orbitAngle) * radius, y: radius * 0.45, z: Math.sin(orbitAngle) * radius },
+    { x: 0, y: 0.3, z: 0 }
+  );
+}
+
+function drawGrid3D(ctx, canvas, camera, env) {
+  const halfX = ((env.height - 1) * CELL_SIZE) / 2;
+  const halfZ = ((env.width - 1) * CELL_SIZE) / 2;
+  for (let row = 0; row < env.height; row += 1) {
+    const x = row * CELL_SIZE - halfX;
+    drawLine3D(ctx, canvas, camera, { x, y: 0, z: -halfZ }, { x, y: 0, z: halfZ }, "rgba(145,180,230,0.16)", 1);
+  }
+  for (let col = 0; col < env.width; col += 1) {
+    const z = col * CELL_SIZE - halfZ;
+    drawLine3D(ctx, canvas, camera, { x: -halfX, y: 0, z }, { x: halfX, y: 0, z }, "rgba(145,180,230,0.16)", 1);
+  }
+}
+
+function drawObstacles3D(ctx, canvas, camera, env) {
+  for (let row = 0; row < env.height; row += 1) {
+    for (let col = 0; col < env.width; col += 1) {
+      if (env.obstacles?.[row]?.[col] !== 1) continue;
+      const p = gridToWorld(row, col, env);
+      const block = { x: p.x - CELL_SIZE * 0.45, z: p.z - CELL_SIZE * 0.45, w: CELL_SIZE * 0.9, d: CELL_SIZE * 0.9, h: 0.9 };
+      drawBoxWire(ctx, canvas, camera, block, "rgba(145,160,182,0.95)");
+    }
+  }
+}
+
+function drawAgents3D(ctx, canvas, camera, env, frame) {
+  frame.agents?.forEach((agent) => {
+    const color = DRONE_COLORS[agent.id % DRONE_COLORS.length];
+    const bodyPos = gridToWorld(agent.x, agent.y, env);
+    const targetPos = gridToWorld(agent.target_x, agent.target_y, env);
+    const body = projectPoint(canvas, camera, bodyPos.x, 0.72, bodyPos.z);
+    const ground = projectPoint(canvas, camera, bodyPos.x, 0.03, bodyPos.z);
+    const target = projectPoint(canvas, camera, targetPos.x, 0.08, targetPos.z);
+    if (!body || !ground) return;
+
+    if (target) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(target.x, target.y, Math.max(5, target.scale * 7), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = "rgba(175,209,255,0.35)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(body.x, body.y);
+    ctx.lineTo(ground.x, ground.y);
+    ctx.stroke();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(body.x, body.y, Math.max(3.2, body.scale * 4.6), 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function gridToWorld(row, col, env) {
+  const halfX = ((env.height - 1) * CELL_SIZE) / 2;
+  const halfZ = ((env.width - 1) * CELL_SIZE) / 2;
+  return { x: row * CELL_SIZE - halfX, z: col * CELL_SIZE - halfZ };
+}
+
+function drawBoxWire(ctx, canvas, camera, block, color) {
+  const x1 = block.x;
+  const x2 = block.x + block.w;
+  const y1 = 0;
+  const y2 = block.h;
+  const z1 = block.z;
+  const z2 = block.z + block.d;
+  const corners = [
+    [x1, y1, z1],
+    [x2, y1, z1],
+    [x2, y1, z2],
+    [x1, y1, z2],
+    [x1, y2, z1],
+    [x2, y2, z1],
+    [x2, y2, z2],
+    [x1, y2, z2],
+  ];
+  const edges = [
+    [0, 1],
+    [1, 2],
+    [2, 3],
+    [3, 0],
+    [4, 5],
+    [5, 6],
+    [6, 7],
+    [7, 4],
+    [0, 4],
+    [1, 5],
+    [2, 6],
+    [3, 7],
+  ];
+  edges.forEach(([a, b]) => {
+    const pa = corners[a];
+    const pb = corners[b];
+    drawLine3D(
+      ctx,
+      canvas,
+      camera,
+      { x: pa[0], y: pa[1], z: pa[2] },
+      { x: pb[0], y: pb[1], z: pb[2] },
+      color,
+      1.5
+    );
+  });
+}
+
+function drawLine3D(ctx, canvas, camera, a, b, color, width) {
+  const pa = projectPoint(canvas, camera, a.x, a.y, a.z);
+  const pb = projectPoint(canvas, camera, b.x, b.y, b.z);
+  if (!pa || !pb) return;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  ctx.moveTo(pa.x, pa.y);
+  ctx.lineTo(pb.x, pb.y);
+  ctx.stroke();
+}
+
+function projectPoint(canvas, camera, x, y, z) {
+  const dx = x - camera.x;
+  const dy = y - camera.y;
+  const dz = z - camera.z;
+
+  const cosYaw = Math.cos(-camera.yaw);
+  const sinYaw = Math.sin(-camera.yaw);
+  const x1 = dx * cosYaw - dz * sinYaw;
+  const z1 = dx * sinYaw + dz * cosYaw;
+
+  const cosPitch = Math.cos(-camera.pitch);
+  const sinPitch = Math.sin(-camera.pitch);
+  const y2 = dy * cosPitch - z1 * sinPitch;
+  const z2 = dy * sinPitch + z1 * cosPitch;
+  if (z2 <= 0.25) return null;
+
+  const focal = 620 * zoomScale.value;
+  const scale = focal / z2;
+  return {
+    x: canvas.width * 0.5 + x1 * scale,
+    y: canvas.height * 0.58 - y2 * scale,
+    scale: Math.max(0.3, Math.min(2.2, scale / 120)),
+  };
+}
+
+function lookAtCamera(position, target) {
+  const dx = target.x - position.x;
+  const dy = target.y - position.y;
+  const dz = target.z - position.z;
+  const yaw = -Math.atan2(dx, dz);
+  const distXZ = Math.hypot(dx, dz);
+  const pitch = -Math.atan2(dy, distXZ);
+  return { x: position.x, y: position.y, z: position.z, yaw, pitch };
 }
 
 function templateLabel(templateKey) {
@@ -456,7 +735,7 @@ async function restorePrefillAndFocus() {
       taskConfig.tick_ms = Number(template.tick_ms || taskConfig.tick_ms);
       samplePlayback.value = buildSampleRun(selectedTemplate.value);
       selectedDroneId.value = 0;
-      drawOps();
+      drawAll();
       opsStatus.value = `已载入模板：${template.name || "未命名模板"}`;
     } catch {
       // Ignore malformed prefill payload.
@@ -473,15 +752,20 @@ async function restorePrefillAndFocus() {
   opsStatus.value = `已切换到任务：${focusTaskId}`;
 }
 
+watch([cameraMode, zoomScale], () => draw3D());
+watch(selectedDroneId, () => drawAll());
+
 onMounted(async () => {
   refreshSavedTemplates();
   window.addEventListener("ops-template-updated", handleTemplateUpdate);
-  drawOps();
+  drawAll();
+  start3DLoop();
   await restorePrefillAndFocus();
 });
 
 onUnmounted(() => {
   disconnectEvents();
+  stop3DLoop();
   window.removeEventListener("ops-template-updated", handleTemplateUpdate);
 });
 </script>

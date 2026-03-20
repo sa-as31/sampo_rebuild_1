@@ -27,8 +27,7 @@
       <ResearchModeView v-if="activeMode === 'research'" />
       <TaskCenterView v-else-if="activeMode === 'taskCenter'" />
       <OpsDashboardView v-else-if="activeMode === 'dashboard'" />
-      <OperationsModeView v-else-if="activeMode === 'ops'" />
-      <Simulation3DView v-else />
+      <OperationsModeView v-else />
     </main>
 
     <div v-if="showRoleDialog" class="role-modal-mask" @click.self="closeRoleDialog">
@@ -58,22 +57,19 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import ResearchModeView from "./modules/research/ResearchModeView.vue";
 import OperationsModeView from "./modules/operations/OperationsModeView.vue";
-import Simulation3DView from "./modules/simulation3d/Simulation3DView.vue";
 import TaskCenterView from "./modules/taskcenter/TaskCenterView.vue";
 import OpsDashboardView from "./modules/dashboard/OpsDashboardView.vue";
 
 const adminTabs = [
-  { key: "ops", label: "运营中心" },
+  { key: "ops", label: "联合运行" },
   { key: "taskCenter", label: "任务中心" },
   { key: "dashboard", label: "运营大屏" },
-  { key: "sim3d", label: "3D回放" },
   { key: "research", label: "研究模式" },
 ];
 const executorTabs = [
-  { key: "ops", label: "运营中心" },
+  { key: "ops", label: "联合运行" },
   { key: "taskCenter", label: "任务中心" },
   { key: "dashboard", label: "运营大屏" },
-  { key: "sim3d", label: "3D回放" },
 ];
 
 const userRole = ref("executor");
