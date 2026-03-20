@@ -62,29 +62,95 @@ body {
   text-transform: uppercase;
 }
 
-.role-switch {
+.role-entry {
   display: flex;
-  gap: 6px;
-  padding: 4px;
-  border: 1px solid rgba(133, 178, 242, 0.2);
+  align-items: center;
+  gap: 10px;
+}
+
+.role-pill {
+  border: 1px solid rgba(133, 178, 242, 0.24);
   border-radius: 10px;
+  padding: 8px 11px;
+  font-size: 13px;
+  color: #b5c8e9;
   background: rgba(6, 22, 43, 0.82);
 }
 
-.role-switch button {
-  border: 1px solid transparent;
-  background: transparent;
-  color: #a7bbdd;
-  border-radius: 8px;
-  padding: 7px 12px;
+.switch-trigger {
+  border: 1px solid rgba(151, 205, 255, 0.66);
+  border-radius: 10px;
+  background: linear-gradient(120deg, rgba(45, 127, 232, 0.86), rgba(33, 168, 222, 0.8));
+  color: #f7fbff;
+  padding: 8px 12px;
   font-size: 13px;
   cursor: pointer;
 }
 
-.role-switch button.active {
-  color: #f7fbff;
-  border-color: rgba(153, 205, 255, 0.72);
-  background: linear-gradient(120deg, rgba(45, 127, 232, 0.86), rgba(33, 168, 222, 0.8));
+.role-modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(1, 6, 14, 0.55);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  z-index: 40;
+}
+
+.role-modal {
+  width: min(560px, calc(100vw - 24px));
+  border: 1px solid rgba(118, 177, 247, 0.35);
+  border-radius: 14px;
+  padding: 16px;
+  background: linear-gradient(165deg, rgba(7, 27, 52, 0.98), rgba(8, 19, 37, 0.99));
+}
+
+.role-modal h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.role-modal p {
+  margin: 8px 0 0;
+  color: #9eb3d4;
+  font-size: 13px;
+}
+
+.role-card-grid {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.role-card {
+  text-align: left;
+  border: 1px solid rgba(133, 178, 242, 0.22);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(10, 29, 53, 0.82);
+  cursor: pointer;
+}
+
+.role-card strong {
+  display: block;
+  color: #e9f1ff;
+  font-size: 16px;
+}
+
+.role-card span {
+  display: block;
+  margin-top: 3px;
+  color: #a4bbdf;
+  font-size: 13px;
+}
+
+.role-card.active {
+  border-color: rgba(123, 204, 255, 0.7);
+  background: linear-gradient(120deg, rgba(31, 93, 163, 0.86), rgba(30, 115, 160, 0.82));
+}
+
+.role-card.active span {
+  color: #def1ff;
 }
 
 .mode-tabs {
