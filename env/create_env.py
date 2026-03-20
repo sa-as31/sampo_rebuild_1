@@ -9,7 +9,7 @@ from env.SMAPO import SMAPO_preprocessor
 
 class ProvideGlobalObstacles(gym.Wrapper):
     def get_global_obstacles(self):
-        return self.grid.get_obstacles().astype(int).tolist()
+        return np.asarray(self.grid.get_obstacles(), dtype=np.int32).copy()
 
     def get_global_agents_xy(self):
         return self.grid.get_agents_xy()

@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 import heapq
 import math
+import numpy as np
 
 try:
     from typing import Literal
@@ -30,7 +31,10 @@ class Planner:
         self.cfg = cfg
 
     def add_grid_obstacles(self, obstacles, starts):
-        self.obstacles = obstacles
+        normalized_obstacles = np.asarray(obstacles, dtype=np.int32)
+        if normalized_obstacles.ndim != 2:
+            raise ValueError("Planner expects a 2D obstacle grid.")
+        self.obstacles = normalized_obstacles.tolist()
         self.starts = starts
         self.planner = None
 
@@ -107,15 +111,15 @@ class LayeredPlanner:
         self.action_deltas = GridConfig().MOVES_2P5D
 
     def add_grid_obstacles(self, obstacles, starts):
-        self.obstacles = obstacles
+        self.obstacles = np.asarray(obstacles, dtype=np.int32)
         self.starts = starts
-        if hasattr(obstacles, 'shape') and len(obstacles.shape) == 3:
-            self.height_levels = int(obstacles.shape[0])
+        if self.obstacles.ndim == 3:
+            self.height_levels = int(self.obstacles.shape[0])
         if starts and len(starts[0]) >= 3:
             self.height_levels = max(self.height_levels, max(int(pos[2]) for pos in starts) + 1)
 
     def _in_bounds(self, x, y, z):
-        if hasattr(self.obstacles, 'shape') and len(self.obstacles.shape) == 3:
+        if self.obstacles.ndim == 3:
             _, height, width = self.obstacles.shape
             return 0 <= x < height and 0 <= y < width and 0 <= z < self.height_levels
         return (
@@ -127,7 +131,7 @@ class LayeredPlanner:
     def _is_free(self, x, y, z, blocked):
         if not self._in_bounds(x, y, z):
             return False
-        if hasattr(self.obstacles, 'shape') and len(self.obstacles.shape) == 3:
+        if self.obstacles.ndim == 3:
             if self.obstacles[z][x][y] != 0:
                 return False
         elif self.obstacles[x][y] != 0:

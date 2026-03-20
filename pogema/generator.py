@@ -81,6 +81,12 @@ def _neighbor_positions(position, moves):
         yield x + dx, y + dy
 
 
+def _get_connectivity_moves(grid, grid_config):
+    if _is_3d_grid(grid):
+        return tuple(tuple(int(v) for v in move) for move in grid_config.get_action_deltas())
+    return tuple(tuple(int(v) for v in move[:2]) for move in grid_config.MOVES)
+
+
 def _label_connected_components(grid, moves, start_id, free_cell):
     q = deque()
     current_id = start_id
@@ -325,7 +331,7 @@ def generate_positions_and_targets_fast(obstacles, grid_config):
 
     start_id = max(c.FREE, c.OBSTACLE) + 1
 
-    moves = tuple(tuple(move) for move in c.get_action_deltas())
+    moves = _get_connectivity_moves(grid, c)
     components = bfs(grid, moves, c.size, start_id, free_cell=c.FREE)
     if _is_3d_grid(obstacles):
         levels, height, width = obstacles.shape
@@ -352,7 +358,7 @@ def get_components(grid_config, obstacles, positions_xy, target_xy):
     grid = obstacles.copy()
 
     start_id = max(c.FREE, c.OBSTACLE) + 1
-    moves = tuple(tuple(move) for move in c.get_action_deltas())
+    moves = _get_connectivity_moves(grid, c)
     components = bfs(grid, moves, c.size, start_id, free_cell=c.FREE)
 
     comp_to_points = defaultdict(list)

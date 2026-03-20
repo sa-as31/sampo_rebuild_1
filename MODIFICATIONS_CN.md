@@ -746,3 +746,46 @@
     - 默认训练路径 `EnvironmentMazes / use_maps=True` 在 3D 模式下仍会因二维地图 + 三维动作导致 reset 时报错；
     - `ProvideGlobalObstacles -> SMAPO -> LayeredPlanner` 会把 3D 障碍先转成 Python list，导致规划器没有真正按 3D 障碍空间搜索；
   - 补充说明当前地图集仍是二维地图集，即使修复崩溃链，也还不能自动得到原生 3D 地图集训练。
+
+## 38. 训练主链路补全：修复默认 mazes 路径与 planner 3D 障碍传递
+
+- 文件：`pogema/generator.py`
+- 主要修改：
+  - 新增 `_get_connectivity_moves()`；
+  - 连通域搜索会根据障碍维度自动选择二维或三维动作；
+  - 修复 `use_maps=True + height_levels>1` 时二维 `bfs()` 被三维动作直接打崩的问题；
+  - `generate_positions_and_targets_fast()`、`get_components()` 现在都会按障碍图维度选择正确的连通域邻接方式。
+
+- 文件：`env/create_env.py`
+- 主要修改：
+  - `ProvideGlobalObstacles.get_global_obstacles()` 不再把障碍张量 `.tolist()`；
+  - 改为直接传递 `np.ndarray`，保留 3D 障碍的 `.shape` 信息。
+
+- 文件：`env/planning.py`
+- 主要修改：
+  - `Planner.add_grid_obstacles()` 统一把二维障碍标准化为 `np.ndarray -> list`，保持原二维 C++ planner 兼容；
+  - `LayeredPlanner.add_grid_obstacles()` 统一把障碍标准化为 `np.ndarray`；
+  - `_in_bounds()`、`_is_free()` 直接按标准化后的二维 / 三维张量判定；
+  - 修复 planner 在 3D 模式下因为收到 Python list 而退回二维语义的问题。
+
+- 文件：`scripts/smoke_2p5d_training_paths.py`（新增）
+- 主要修改：
+  - 新增双链路 smoke 脚本；
+  - 同时验证：
+    - 原生 3D 随机场景路径；
+    - 默认 `EnvironmentMazes` 的 2.5D fallback 路径；
+  - 会检查 planner 类型、planner 障碍形状以及路径是否非平凡。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“现在 2.5D / 原生 3D 训练主链路修好了吗，复测结果如何”问答；
+  - 新增“为什么改了 `num_agents` 后训练还是按 64/128 个 agent 启动”问答；
+  - 记录 `agent_bins` 会覆盖 `grid_config.num_agents` 的旧训练配置行为。
+
+- 验证结果：
+  - `python3 -m py_compile pogema/generator.py env/create_env.py env/planning.py scripts/smoke_2p5d_training_paths.py` 通过；
+  - `docker build -t smapo:pyoctomap-test .` 通过；
+  - `docker run --rm smapo:pyoctomap-test python scripts/smoke_pyoctomap_env.py` 通过；
+  - `docker run --rm smapo:pyoctomap-test python scripts/smoke_2p5d_training_paths.py` 通过；
+  - `docker run --rm smapo:pyoctomap-test sh -lc "python main.py --env=Pogema-v0 ... --target_num_agents=64 --use_maps=False --height_levels=4 --native_3d_obstacles=True --obstacle_backend=pyoctomap"` 通过；
+  - `docker run --rm smapo:pyoctomap-test sh -lc "python main.py --env=PogemaMazes-v0 ... --target_num_agents=128 --height_levels=4 --native_3d_obstacles=True --obstacle_backend=pyoctomap"` 通过。
