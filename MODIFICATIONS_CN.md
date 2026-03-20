@@ -735,3 +735,14 @@
   - `docker build -t smapo:pyoctomap-test .` 通过；
   - `docker run --rm smapo:pyoctomap-test python scripts/smoke_pyoctomap_env.py` 通过；
   - `docker run --rm smapo:pyoctomap-test sh -lc "python main.py ... --height_levels=4 --native_3d_obstacles=True --obstacle_backend=pyoctomap ..."` 已成功走通最小化训练启动与退出流程。
+
+## 37. 完整训练链路审计：2.5D / 原生 3D 适配缺口确认
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“当前训练完整路径是否已经全部适配 2.5D / 原生 3D”问答；
+  - 明确结论为“尚未全部完成”；
+  - 记录两处高风险问题：
+    - 默认训练路径 `EnvironmentMazes / use_maps=True` 在 3D 模式下仍会因二维地图 + 三维动作导致 reset 时报错；
+    - `ProvideGlobalObstacles -> SMAPO -> LayeredPlanner` 会把 3D 障碍先转成 Python list，导致规划器没有真正按 3D 障碍空间搜索；
+  - 补充说明当前地图集仍是二维地图集，即使修复崩溃链，也还不能自动得到原生 3D 地图集训练。
