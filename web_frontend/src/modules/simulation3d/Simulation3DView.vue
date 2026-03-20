@@ -64,7 +64,16 @@
     <article class="panel">
       <h2>3D 回放窗口</h2>
       <div class="canvas-wrap sim3d-canvas-wrap">
-        <canvas ref="previewCanvasRef" height="560" width="960"></canvas>
+        <canvas
+          ref="previewCanvasRef"
+          height="560"
+          width="960"
+          @pointerdown="onCanvasPointerDown"
+          @pointermove="onCanvasPointerMove"
+          @pointerup="onCanvasPointerUp"
+          @pointerleave="onCanvasPointerUp"
+          @pointercancel="onCanvasPointerUp"
+        ></canvas>
       </div>
       <div class="canvas-overlay">
         <span class="chip">Source: {{ sourceLabel }}</span>
@@ -73,6 +82,7 @@
         <span class="chip">Step: {{ currentStep }}</span>
         <span class="chip">Speed: x{{ speed.toFixed(1) }}</span>
         <span class="chip">Zoom: x{{ zoomScale.toFixed(2) }}</span>
+        <span class="chip">拖拽: 左键旋转视角</span>
       </div>
     </article>
 
@@ -132,7 +142,14 @@ let lastTs = 0;
 let fpsTs = 0;
 let frameCounter = 0;
 let orbitAngle = 0;
+let orbitHeightFactor = 0.48;
 let frameCursor = 0;
+let dragPointerId = null;
+let lastDragX = 0;
+let lastDragY = 0;
+let viewYawOffset = 0;
+let viewPitchOffset = 0;
+let dragging = false;
 
 const frameCount = computed(() => playback.value?.frames?.length || 0);
 const currentStep = computed(() => playback.value?.frames?.[frameIndex.value]?.step ?? 0);
@@ -154,6 +171,9 @@ function resetPlaybackCursor() {
   frameIndex.value = 0;
   runtimeSec.value = 0;
   orbitAngle = 0;
+  orbitHeightFactor = 0.48;
+  viewYawOffset = 0;
+  viewPitchOffset = 0;
   drawFrame();
 }
 
@@ -213,7 +233,7 @@ function tick(ts) {
   const dt = Math.max((ts - lastTs) / 1000, 0);
   lastTs = ts;
   runtimeSec.value += dt;
-  if (cameraMode.value === "orbit") orbitAngle += dt * orbitSpeed.value;
+  if (cameraMode.value === "orbit" && !dragging) orbitAngle += dt * orbitSpeed.value;
   advanceFrame(dt);
   drawFrame();
 
@@ -258,7 +278,7 @@ function drawFrame() {
 
   const lead = frame.agents?.[0] ? gridToWorld(frame.agents[0].x, frame.agents[0].y, env) : { x: 0, z: 0 };
   const sceneRadius = Math.max((env.height - 1) * CELL_SIZE, (env.width - 1) * CELL_SIZE) * 0.95 + 6;
-  const camera = buildCamera(cameraMode.value, lead, orbitAngle, sceneRadius);
+  const camera = buildCamera(cameraMode.value, lead, orbitAngle, sceneRadius, orbitHeightFactor, viewYawOffset, viewPitchOffset);
 
   drawGrid(ctx, canvas, camera, env);
   drawObstacles(ctx, canvas, camera, env);
@@ -419,20 +439,26 @@ function projectPoint(canvas, camera, x, y, z) {
   };
 }
 
-function buildCamera(mode, lead, angle, radius) {
+function buildCamera(mode, lead, angle, radius, heightFactor, yawOffset, pitchOffset) {
+  let baseCamera = null;
   if (mode === "follow") {
-    return lookAtCamera(
+    baseCamera = lookAtCamera(
       { x: lead.x - radius * 0.16, y: radius * 0.28, z: lead.z + radius * 0.24 },
       { x: lead.x, y: 0.4, z: lead.z }
     );
+  } else if (mode === "overview") {
+    baseCamera = lookAtCamera({ x: 0, y: radius * 0.9, z: radius * 0.52 }, { x: 0, y: 0, z: 0 });
+  } else {
+    baseCamera = lookAtCamera(
+      { x: Math.cos(angle) * radius, y: radius * heightFactor, z: Math.sin(angle) * radius },
+      { x: 0, y: 0.4, z: 0 }
+    );
   }
-  if (mode === "overview") {
-    return lookAtCamera({ x: 0, y: radius * 0.9, z: radius * 0.52 }, { x: 0, y: 0, z: 0 });
-  }
-  return lookAtCamera(
-    { x: Math.cos(angle) * radius, y: radius * 0.48, z: Math.sin(angle) * radius },
-    { x: 0, y: 0.4, z: 0 }
-  );
+  return {
+    ...baseCamera,
+    yaw: baseCamera.yaw + yawOffset,
+    pitch: clamp(baseCamera.pitch + pitchOffset, -1.35, -0.08),
+  };
 }
 
 function lookAtCamera(position, target) {
@@ -443,6 +469,46 @@ function lookAtCamera(position, target) {
   const distXZ = Math.hypot(dx, dz);
   const pitch = -Math.atan2(dy, distXZ);
   return { x: position.x, y: position.y, z: position.z, yaw, pitch };
+}
+
+function onCanvasPointerDown(event) {
+  if (event.button !== 0) return;
+  const canvas = previewCanvasRef.value;
+  if (!canvas) return;
+  dragging = true;
+  dragPointerId = event.pointerId;
+  lastDragX = event.clientX;
+  lastDragY = event.clientY;
+  canvas.setPointerCapture(event.pointerId);
+}
+
+function onCanvasPointerMove(event) {
+  if (!dragging || event.pointerId !== dragPointerId) return;
+  const dx = event.clientX - lastDragX;
+  const dy = event.clientY - lastDragY;
+  lastDragX = event.clientX;
+  lastDragY = event.clientY;
+
+  if (cameraMode.value === "orbit") {
+    orbitAngle += dx * 0.01;
+    orbitHeightFactor = clamp(orbitHeightFactor - dy * 0.0025, 0.2, 0.92);
+  } else {
+    viewYawOffset += dx * 0.006;
+    viewPitchOffset = clamp(viewPitchOffset + dy * 0.003, -0.5, 0.5);
+  }
+  drawFrame();
+}
+
+function onCanvasPointerUp(event) {
+  if (!dragging || event.pointerId !== dragPointerId) return;
+  dragging = false;
+  dragPointerId = null;
+  const canvas = previewCanvasRef.value;
+  if (canvas?.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
 watch(scenario, () => {
