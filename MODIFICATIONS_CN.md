@@ -880,3 +880,13 @@
     - `Finished reset for worker 0`
     - `Collecting experience...`
     - 最终 `Done!`。
+
+## 42. 文档补充：说明当前 3D 地图资产来源
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“现在仓库里的 3D 地图资产是哪里来的”问答；
+  - 明确说明：
+    - 当前 `native3d-demo-a` / `native3d-demo-b` 不是外部下载数据集；
+    - 是本次接通原生 3D 地图链路时手工加入的最小工程验证样例；
+    - 其主要用途是验证 `use_maps=True` 的 3D 地图加载、planner、训练启动链路。
