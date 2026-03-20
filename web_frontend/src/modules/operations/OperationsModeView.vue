@@ -1,8 +1,7 @@
 <template>
   <section class="ops-grid">
     <article class="panel">
-      <h2>运营模式 / 快速任务下发</h2>
-      <p>面向企业侧操作员：简化参数输入，快速配置任务并查看执行状态。</p>
+      <h2>任务下发</h2>
 
       <div class="field-grid">
         <label>任务模板
@@ -23,7 +22,7 @@
       </div>
       <div class="status-chip">{{ opsStatus }}</div>
 
-      <div class="legend">交互说明：点击右侧地图空白网格，可为“当前选中无人机”快速设置目标点。</div>
+      <div class="legend">点击地图空白网格可设置目标点</div>
       <div class="field-grid" style="margin-top: 8px">
         <label>当前选中无人机
           <select v-model.number="selectedDroneId">
@@ -35,7 +34,6 @@
 
     <article class="panel">
       <h2>运行态势</h2>
-      <p>聚焦状态展示，不暴露复杂算法参数。</p>
 
       <div class="status-cards">
         <div class="status-card"><p>在线无人机数</p><strong>{{ statusCards.online }}</strong></div>

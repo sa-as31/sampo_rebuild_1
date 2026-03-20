@@ -32,69 +32,74 @@ body {
 .app-shell {
   max-width: 1500px;
   margin: 0 auto;
-  padding: 24px 28px 32px;
+  padding: 18px 20px 26px;
 }
 
-.hero {
+.topbar {
   display: flex;
   justify-content: space-between;
-  gap: 18px;
-  padding: 26px 28px;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
   border: 1px solid var(--line);
-  border-radius: 22px;
-  background: linear-gradient(145deg, #03142c 0%, #071935 70%, #091b37 100%);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #03142c 0%, #071935 75%, #091b37 100%);
 }
 
-.eyebrow {
-  margin: 0 0 10px;
-  letter-spacing: 2px;
-  font-size: 14px;
-  color: #66c5ff;
-}
-
-h1 {
+.brand h1 {
   margin: 0;
-  font-size: clamp(34px, 4vw, 62px);
-  line-height: 1.08;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: 0.3px;
 }
 
-.hero-copy {
-  margin: 16px 0 0;
-  color: var(--subtle);
-  line-height: 1.7;
-  max-width: 840px;
+.brand span {
+  display: block;
+  margin-top: 4px;
+  color: #8eb4e6;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
-.hero-tags {
+.role-switch {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid rgba(133, 178, 242, 0.2);
+  border-radius: 10px;
+  background: rgba(6, 22, 43, 0.82);
 }
 
-.hero-tags span {
-  border: 1px solid rgba(161, 196, 244, 0.28);
-  border-radius: 999px;
-  padding: 9px 18px;
-  font-size: 30px;
-  font-size: clamp(16px, 1.2vw, 28px);
-  color: #dbe7ff;
-  background: rgba(13, 33, 61, 0.86);
+.role-switch button {
+  border: 1px solid transparent;
+  background: transparent;
+  color: #a7bbdd;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.role-switch button.active {
+  color: #f7fbff;
+  border-color: rgba(153, 205, 255, 0.72);
+  background: linear-gradient(120deg, rgba(45, 127, 232, 0.86), rgba(33, 168, 222, 0.8));
 }
 
 .mode-tabs {
   display: flex;
   gap: 10px;
-  margin: 18px 0;
+  margin: 12px 0;
 }
 
 .tab-btn {
   border: 1px solid rgba(133, 178, 242, 0.28);
   background: rgba(8, 24, 46, 0.95);
   color: #bbcdf2;
-  border-radius: 12px;
-  padding: 11px 18px;
-  font-size: 15px;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -113,15 +118,15 @@ h1 {
 
 .panel {
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 14px;
   background: linear-gradient(162deg, rgba(6, 26, 49, 0.97), rgba(7, 20, 38, 0.98));
-  padding: 18px;
+  padding: 14px;
   min-height: 150px;
 }
 
 .panel h2 {
   margin: 0;
-  font-size: 26px;
+  font-size: 20px;
 }
 
 .panel p {
@@ -335,6 +340,11 @@ h1 {
 }
 
 @media (max-width: 1280px) {
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .layout-grid {
     grid-template-columns: 1fr;
   }

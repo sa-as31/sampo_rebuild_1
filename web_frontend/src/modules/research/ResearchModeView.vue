@@ -1,8 +1,7 @@
 <template>
   <section class="layout-grid">
     <article class="panel">
-      <h2>研究模式 / 参数控制</h2>
-      <p>用于算法实验与论文复现实验，保留完整推理参数。</p>
+      <h2>管理员 / 研究配置</h2>
       <div class="btn-row">
         <button class="btn secondary" @click="applyPreset('maze')">迷宫预设</button>
         <button class="btn secondary" @click="applyPreset('dense')">高密度预设</button>
@@ -30,7 +29,6 @@
 
     <article class="panel">
       <h2>轨迹回放</h2>
-      <p>无人机图标表示智能体位置，空心圆表示目标，灰方块表示障碍。</p>
       <div class="canvas-wrap">
         <div class="canvas-overlay">
           <span class="chip">Step {{ currentStep }}</span>
@@ -54,7 +52,6 @@
 
     <article class="panel">
       <h2>运行日志</h2>
-      <p>记录一次推理输入和关键输出，方便实验复现。</p>
       <div class="log-box">{{ logText }}</div>
     </article>
   </section>
@@ -186,4 +183,3 @@ onMounted(async () => {
 
 onUnmounted(() => stopTimer());
 </script>
-

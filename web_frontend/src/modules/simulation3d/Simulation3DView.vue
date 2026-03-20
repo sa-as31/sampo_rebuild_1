@@ -2,7 +2,6 @@
   <section class="sim3d-grid">
     <article class="panel">
       <h2>3D 仿真配置</h2>
-      <p>将现有 2D 地图与模型回放结果映射到 3D 视角中展示。</p>
 
       <div class="field-grid">
         <label>示例模板（仅前端示例）
@@ -60,7 +59,6 @@
 
     <article class="panel">
       <h2>3D 回放窗口</h2>
-      <p>无人机和障碍均来自当前 2D 回放数据，按网格坐标转换为 3D 空间。</p>
       <div class="canvas-wrap sim3d-canvas-wrap">
         <canvas ref="previewCanvasRef" height="560" width="960"></canvas>
       </div>
@@ -74,16 +72,15 @@
     </article>
 
     <article class="panel">
-      <h2>3D 技术路线建议</h2>
-      <p>目前已实现“2D 推理结果 -> 3D 展示层”桥接，后续可替换为真实引擎。</p>
+      <h2>系统摘要</h2>
       <div class="sim3d-stack">
         <div class="sim3d-card recommend">
-          <h3>推荐：Three.js + glTF + WebSocket</h3>
-          <p>保留当前数据接口，替换渲染层即可升级到真实 3D 模型与材质。</p>
+          <h3>渲染链路</h3>
+          <p>2D 地图与回放数据实时映射到 3D 视图。</p>
         </div>
         <div class="sim3d-card">
-          <h3>当前已打通</h3>
-          <p>可调用 `/api/run-demo`，读取后端 `environment` 和 `frames`，并在 3D 中回放。</p>
+          <h3>模型接口</h3>
+          <p>支持直接调用 `/api/run-demo` 并加载回放。</p>
         </div>
       </div>
     </article>
