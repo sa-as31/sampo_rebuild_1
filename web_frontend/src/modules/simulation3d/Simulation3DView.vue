@@ -292,6 +292,11 @@ function drawFrame() {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  if (!env.width || !env.height) {
+    drawEmptyHint(ctx, canvas, "无可绘制地图数据");
+    return;
+  }
+
   const focusAgent = cameraMode.value === "drone" ? resolveFocusedAgent(frame) : null;
   const prevFocusAgent = cameraMode.value === "drone" ? resolveFocusedAgent(playback.value?.frames?.[Math.max(frameIndex.value - 1, 0)]) : null;
   const leadSource = focusAgent || frame.agents?.[0];
@@ -521,8 +526,8 @@ function buildCamera(mode, lead, angle, radius, heightFactor, yawOffset, pitchOf
     ...baseCamera,
     yaw: baseCamera.yaw + yawOffset,
     pitch: mode === "drone"
-      ? clamp(baseCamera.pitch + pitchOffset, -1.2, 0.55)
-      : clamp(baseCamera.pitch + pitchOffset, -1.35, -0.08),
+      ? clamp(baseCamera.pitch + pitchOffset, -1.2, 0.7)
+      : clamp(baseCamera.pitch + pitchOffset, -1.2, 1.2),
   };
 }
 
@@ -574,6 +579,13 @@ function onCanvasPointerUp(event) {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function drawEmptyHint(ctx, canvas, text) {
+  ctx.fillStyle = "rgba(205,225,255,0.86)";
+  ctx.font = '16px "PingFang SC", "Noto Sans SC", sans-serif';
+  ctx.textAlign = "center";
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
 }
 
 function resolveFocusedAgent(frame) {
