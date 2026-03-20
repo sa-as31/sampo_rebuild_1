@@ -216,6 +216,8 @@ class TaskRuntime:
         self.db = TaskDB(db_path)
         self.tasks: Dict[str, LiveTask] = {}
         self.tasks_lock = threading.RLock()
+        self.scheduler_thread = threading.Thread(target=self._scheduled_task_loop, daemon=True)
+        self.scheduler_thread.start()
 
     def get_auth_state(self) -> Dict[str, Any]:
         return self.db.get_auth_state()
@@ -313,6 +315,53 @@ class TaskRuntime:
         with live.lock:
             alerts = list(reversed(live.alerts[-limit:]))
         return {"task_id": task_id, "alerts": alerts}
+
+    def get_feedback(self, task_id: str, limit: int = 20) -> Optional[Dict[str, Any]]:
+        stored = self.db.get_task(task_id)
+        if stored is None and self._get_live_task(task_id) is None:
+            return None
+        return {"task_id": task_id, "feedback": self.db.get_feedback(task_id, limit=limit)}
+
+    def submit_feedback(self, task_id: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        task = self.db.get_task(task_id)
+        live = self._get_live_task(task_id)
+        if task is None and live is None:
+            return None
+
+        current = self.db.get_current_user()
+        if current is None:
+            return {"error": "未检测到当前登录账号"}
+
+        category = str(payload.get("category") or "issue").strip().lower()
+        if category not in {"issue", "risk", "note"}:
+            category = "issue"
+
+        message = str(payload.get("message") or "").strip()
+        if not message:
+            return {"error": "反馈内容不能为空"}
+
+        task_payload = task or self._task_brief(live)
+        params = task_payload.get("params") or {}
+        assignee_user_id = str(params.get("assignee_user_id") or "")
+        if current.get("role") == "executor" and assignee_user_id and assignee_user_id != current.get("user_id"):
+            return {"error": "当前执行者不能提交未分配给自己的任务反馈"}
+
+        feedback = {
+            "task_id": task_id,
+            "user_id": str(current.get("user_id") or ""),
+            "username": str(current.get("username") or ""),
+            "display_name": str(current.get("display_name") or ""),
+            "role": str(current.get("role") or ""),
+            "category": category,
+            "message": message,
+            "created_at": now_ts(),
+        }
+        self.db.insert_feedback(task_id, feedback)
+
+        if live is not None:
+            self._emit_event(live, "feedback_added", {"task_id": task_id, "feedback": feedback, "task": self._task_brief(live)})
+
+        return {"task_id": task_id, "feedback": feedback}
 
     def get_replay(self, task_id: str) -> Optional[Dict[str, Any]]:
         live = self._get_live_task(task_id)
@@ -448,6 +497,26 @@ class TaskRuntime:
             if live.source == "model" and live.warnings:
                 for warning in live.warnings:
                     self._emit_alert(live, "warning", "MODEL_RUNTIME_WARNING", warning, frame_step=0)
+
+    def _scheduled_task_loop(self):
+        while True:
+            time.sleep(0.5)
+            now = now_ts()
+            with self.tasks_lock:
+                live_tasks = list(self.tasks.values())
+            for live in live_tasks:
+                with live.lock:
+                    if live.status != "READY":
+                        continue
+                    scheduled_start_at = live.params.get("scheduled_start_at")
+                    if scheduled_start_at is None:
+                        continue
+                    try:
+                        scheduled_ts = float(scheduled_start_at)
+                    except (TypeError, ValueError):
+                        continue
+                    if scheduled_ts <= now:
+                        self._handle_start_locked(live)
 
     def _load_playback(self, live: LiveTask) -> Dict[str, Any]:
         if live.source == "model":
@@ -672,6 +741,8 @@ class TaskRuntime:
             "source": live.source,
             "status": live.status,
             "tick_ms": live.tick_ms,
+            "params": dict(live.params),
+            "metrics": dict(live.runtime_metrics or {}),
             "created_at": live.created_at,
             "started_at": live.started_at,
             "ended_at": live.ended_at,
@@ -786,6 +857,18 @@ class TaskDB:
                     password_hash TEXT NOT NULL,
                     updated_at REAL NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS task_feedback (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id TEXT NOT NULL,
+                    user_id TEXT,
+                    username TEXT,
+                    display_name TEXT,
+                    role TEXT,
+                    category TEXT NOT NULL,
+                    message TEXT NOT NULL,
+                    created_at REAL NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_task_feedback_task_created ON task_feedback(task_id, created_at DESC);
                 """
             )
             self._seed_default_users(conn)
@@ -957,6 +1040,10 @@ class TaskDB:
         current = self._pick_current_user(users, active_user_id)
         return {"current_user": current, "users": users}
 
+    def get_current_user(self) -> Optional[Dict[str, Any]]:
+        state = self.get_auth_state()
+        return state.get("current_user")
+
     def switch_identity(self, user_id: str) -> Optional[Dict[str, Any]]:
         now = now_ts()
         with self._connect() as conn:
@@ -1125,6 +1212,26 @@ class TaskDB:
             )
             conn.commit()
 
+    def insert_feedback(self, task_id: str, feedback: Dict[str, Any]):
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO task_feedback(task_id, user_id, username, display_name, role, category, message, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    task_id,
+                    str(feedback.get("user_id") or ""),
+                    str(feedback.get("username") or ""),
+                    str(feedback.get("display_name") or ""),
+                    str(feedback.get("role") or ""),
+                    str(feedback.get("category") or "issue"),
+                    str(feedback.get("message") or ""),
+                    float(feedback.get("created_at") or now_ts()),
+                ),
+            )
+            conn.commit()
+
     def list_tasks(self, limit: int = 30) -> List[Dict[str, Any]]:
         with self._connect() as conn:
             rows = conn.execute(
@@ -1164,6 +1271,31 @@ class TaskDB:
                 "code": str(row["code"]),
                 "message": str(row["message"]),
                 "frame_step": int(row["frame_step"]),
+            }
+            for row in rows
+        ]
+
+    def get_feedback(self, task_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT user_id, username, display_name, role, category, message, created_at
+                FROM task_feedback
+                WHERE task_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (task_id, limit),
+            ).fetchall()
+        return [
+            {
+                "user_id": str(row["user_id"] or ""),
+                "username": str(row["username"] or ""),
+                "display_name": str(row["display_name"] or ""),
+                "role": str(row["role"] or ""),
+                "category": str(row["category"] or "issue"),
+                "message": str(row["message"] or ""),
+                "created_at": float(row["created_at"]),
             }
             for row in rows
         ]
@@ -1226,6 +1358,11 @@ def normalize_task_payload(payload: Dict[str, Any], template: str) -> Dict[str, 
     merged["max_frames"] = clamp_int(merged.get("max_frames"), 64, 4, 1024)
     merged["max_episode_steps"] = clamp_int(merged.get("max_episode_steps"), 64, 8, 2048)
     merged["device"] = "gpu" if str(merged.get("device", "cpu")).lower() == "gpu" else "cpu"
+    try:
+        merged["scheduled_start_at"] = float(merged["scheduled_start_at"]) if merged.get("scheduled_start_at") else None
+    except (TypeError, ValueError):
+        merged["scheduled_start_at"] = None
+    merged["scheduled_start_label"] = str(merged.get("scheduled_start_label") or "")
     return merged
 
 

@@ -95,6 +95,20 @@ export async function fetchTaskReplay(taskId) {
   return parseJsonOrThrow(response);
 }
 
+export async function fetchTaskFeedback(taskId, limit = 20) {
+  const response = await fetch(`/api/tasks/${taskId}/feedback?limit=${limit}`);
+  return parseJsonOrThrow(response);
+}
+
+export async function submitTaskFeedback(taskId, payload) {
+  const response = await fetch(`/api/tasks/${taskId}/feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response);
+}
+
 export async function fetchIdentity() {
   const response = await fetch("/api/identity");
   return parseJsonOrThrow(response);

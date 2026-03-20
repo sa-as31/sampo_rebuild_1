@@ -78,6 +78,14 @@ class DemoHandler(SimpleHTTPRequestHandler):
                     return
                 self._send_json(HTTPStatus.OK, payload)
                 return
+            if action == "feedback":
+                limit = int((query.get("limit") or ["20"])[0])
+                payload = TASK_RUNTIME.get_feedback(task_id, limit=limit)
+                if payload is None:
+                    self._send_json(HTTPStatus.NOT_FOUND, {"error": "Task not found"})
+                    return
+                self._send_json(HTTPStatus.OK, payload)
+                return
             if action == "detail":
                 payload = TASK_RUNTIME.get_task(task_id)
                 if payload is None:
@@ -155,6 +163,16 @@ class DemoHandler(SimpleHTTPRequestHandler):
                     return
                 self._send_json(HTTPStatus.OK, result)
                 return
+            if action == "feedback":
+                result = TASK_RUNTIME.submit_feedback(task_id, payload)
+                if result is None:
+                    self._send_json(HTTPStatus.NOT_FOUND, {"error": "Task not found"})
+                    return
+                if result.get("error"):
+                    self._send_json(HTTPStatus.BAD_REQUEST, result)
+                    return
+                self._send_json(HTTPStatus.OK, result)
+                return
 
         if route != "/api/run-demo":
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Unknown endpoint"})
@@ -195,13 +213,14 @@ class DemoHandler(SimpleHTTPRequestHandler):
         #   /api/tasks/{task_id}/events
         #   /api/tasks/{task_id}/alerts
         #   /api/tasks/{task_id}/replay
+        #   /api/tasks/{task_id}/feedback
         parts = [part for part in route.split("/") if part]
         if len(parts) < 3 or parts[0] != "api" or parts[1] != "tasks":
             return None
         task_id = parts[2]
         if len(parts) == 3:
             return task_id, "detail"
-        if len(parts) == 4 and parts[3] in ("control", "events", "alerts", "replay"):
+        if len(parts) == 4 and parts[3] in ("control", "events", "alerts", "replay", "feedback"):
             return task_id, parts[3]
         return None
 

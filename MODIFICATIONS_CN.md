@@ -1476,3 +1476,65 @@
 - 验证结果：
   - `npm --prefix web_frontend run build` 通过；
   - 管理员界面已从单页三栏堆叠改为分步骤工作台结构。
+
+## 58. 管理员任务流重构：创建任务、执行中任务、已完成任务
+
+- 文件：`web_demo/task_runtime.py`
+- 主要修改：
+  - 新增任务自动排期执行能力：
+    - 任务参数支持 `scheduled_start_at` 与 `scheduled_start_label`；
+    - 后端新增调度线程，到达计划时间后自动启动 `READY` 任务；
+  - 新增执行者反馈数据表 `task_feedback`；
+  - 新增反馈读写能力：
+    - `get_feedback()`
+    - `submit_feedback()`
+  - 实时任务摘要 `_task_brief()` 增补 `params` 与 `metrics`，方便前端直接展示执行者、地图、计划时间等信息。
+
+- 文件：`web_demo/server.py`
+- 主要修改：
+  - 新增反馈接口：
+    - `GET /api/tasks/{task_id}/feedback`
+    - `POST /api/tasks/{task_id}/feedback`
+
+- 文件：`web_frontend/src/services/api.js`
+- 主要修改：
+  - 新增前端接口方法：
+    - `fetchTaskFeedback()`
+    - `submitTaskFeedback()`
+
+- 文件：`web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+- 主要修改：
+  - 管理员任务中心按真实工作流改为三个主界面：
+    - `创建任务`
+    - `执行中任务`
+    - `已完成任务`
+  - 创建任务界面支持：
+    - 选择已导入地图；
+    - 指定执行者；
+    - 指定计划执行时间；
+  - 执行中任务界面支持：
+    - 查看当前活动任务；
+    - 查看实时状态与当前画面；
+    - 执行开始、暂停、继续、停止；
+  - 已完成任务界面支持：
+    - 查看历史任务；
+    - 查看系统告警；
+    - 查看执行者反馈；
+    - 加载历史回放与导出报告；
+  - 执行者界面新增“反馈问题/风险/备注”入口，数据直接提交给后端。
+
+- 文件：`web_frontend/src/styles.css`
+- 主要修改：
+  - 新增管理员三段式工作区样式；
+  - 新增反馈卡片、搜索框、复盘双栏等样式；
+  - 为反馈输入框与管理卡片补充交互样式。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“管理员现在应该如何管理任务”问答；
+  - 说明管理员三块功能的职责与执行者反馈链路。
+
+- 验证结果：
+  - `python3 -m py_compile web_demo/task_runtime.py web_demo/server.py` 通过；
+  - `npm --prefix web_frontend run build` 通过；
+  - 任务排期、反馈接口与管理员三段式界面已接通。
