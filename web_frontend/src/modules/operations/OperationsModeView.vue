@@ -11,7 +11,16 @@
             <option value="emergency">应急调度</option>
           </select>
         </label>
+        <label>执行数据源
+          <select v-model="executionSource">
+            <option value="sample">后端样例仿真</option>
+            <option value="model">模型推理回放</option>
+          </select>
+        </label>
         <label>任务批次名称 <input v-model="missionName" placeholder="如：night_shift_batch_03" /></label>
+        <label>无人机数量 <input v-model.number="taskConfig.num_agents" min="1" type="number" /></label>
+        <label>最大帧数 <input v-model.number="taskConfig.max_frames" min="4" type="number" /></label>
+        <label>节拍(ms) <input v-model.number="taskConfig.tick_ms" min="120" step="20" type="number" /></label>
       </div>
 
       <div class="btn-row" style="margin-top: 10px">
@@ -21,6 +30,7 @@
         <button class="btn secondary" @click="stopOpsRun">停止</button>
       </div>
       <div class="status-chip">{{ opsStatus }}</div>
+      <div class="legend">任务ID: {{ currentTaskId || "未创建" }}</div>
 
       <div class="legend">点击地图空白网格可设置目标点</div>
       <div class="field-grid" style="margin-top: 8px">
@@ -66,37 +76,77 @@
           </tr>
         </tbody>
       </table>
+
+      <div class="ops-alerts">
+        <h3>实时告警</h3>
+        <div v-if="alerts.length === 0" class="ops-alert-empty">当前无告警</div>
+        <div v-for="alert in alerts" :key="`${alert.ts}-${alert.code}`" class="ops-alert-item" :class="`level-${alert.level}`">
+          <span class="ops-alert-code">[{{ alert.code }}]</span>
+          <span>{{ alert.message }}</span>
+          <span class="ops-alert-step">step {{ alert.frame_step }}</span>
+        </div>
+      </div>
     </article>
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import { buildSampleRun, createRenderer } from "../shared/renderer";
+import { connectOpsTaskEvents, controlOpsTask, createOpsTask, getOpsTask } from "../../services/api";
 
 const renderer = createRenderer();
 const opsCanvasRef = ref(null);
 const selectedTemplate = ref("warehouse");
 const missionName = ref("enterprise_batch_demo");
 const selectedDroneId = ref(0);
+const executionSource = ref("sample");
+const taskConfig = reactive({
+  num_agents: 16,
+  max_frames: 64,
+  tick_ms: 320,
+  device: "cpu",
+});
 const opsStatus = ref("待命");
-const running = ref(false);
-const frameIndex = ref(0);
-let timer = null;
+const currentTaskId = ref("");
+const eventSeq = ref(0);
+const eventSource = ref(null);
+let reconnectTimer = null;
 
-const playback = ref(buildSampleRun(selectedTemplate.value));
+const samplePlayback = ref(buildSampleRun(selectedTemplate.value));
+const runtime = reactive({
+  task: null,
+  environment: null,
+  frame: null,
+  metrics: {
+    online: 0,
+    tasks_completed: 0,
+    throughput: 0,
+    avg_latency: 0,
+    frame_conflicts: 0,
+    cumulative_conflicts: 0,
+    alerts: 0,
+    step: 0,
+    status: "IDLE",
+  },
+  alerts: [],
+});
+
+const activeEnvironment = computed(() => runtime.environment || samplePlayback.value.environment);
+const activeFrame = computed(() => runtime.frame || samplePlayback.value.frames[0] || { agents: [], vertex_conflicts: 0, step: 0 });
+const alerts = computed(() => runtime.alerts || []);
 
 const statusCards = computed(() => {
-  const frame = playback.value.frames[frameIndex.value] || { agents: [], vertex_conflicts: 0 };
-  const online = frame.agents.length;
-  const completed = frame.agents.filter((a) => a.done).length;
-  const conflicts = frame.vertex_conflicts || 0;
-  const latency = online ? Math.round((frame.step + 1) * 0.7) : 0;
+  const frame = activeFrame.value;
+  const online = runtime.metrics.online || frame.agents.length;
+  const completed = runtime.metrics.tasks_completed || frame.agents.filter((a) => a.done).length;
+  const conflicts = runtime.metrics.cumulative_conflicts || frame.vertex_conflicts || 0;
+  const latency = runtime.metrics.avg_latency ? Number(runtime.metrics.avg_latency).toFixed(1) : "0.0";
   return { online, completed, conflicts, latency };
 });
 
 const fleetRows = computed(() => {
-  const frame = playback.value.frames[frameIndex.value] || { agents: [] };
+  const frame = activeFrame.value;
   return frame.agents.map((a) => ({
     id: a.id,
     x: a.x,
@@ -109,90 +159,189 @@ const fleetRows = computed(() => {
 });
 
 function applyTemplate() {
-  stopTimer();
-  playback.value = buildSampleRun(selectedTemplate.value);
-  frameIndex.value = 0;
+  samplePlayback.value = buildSampleRun(selectedTemplate.value);
   selectedDroneId.value = 0;
   drawOps();
   opsStatus.value = `已切换模板：${templateLabel(selectedTemplate.value)}`;
 }
 
-function startOpsRun() {
-  stopTimer();
-  const max = playback.value.frames.length - 1;
-  frameIndex.value = 0;
-  drawOps();
-  if (max <= 0) {
-    opsStatus.value = max === 0 ? "任务已完成" : "暂无可播放轨迹";
-    return;
+async function startOpsRun() {
+  try {
+    if (!currentTaskId.value || isTerminalStatus(runtime.task?.status)) {
+      const created = await createOpsTask({
+        mission_name: missionName.value,
+        template: selectedTemplate.value,
+        source: executionSource.value,
+        num_agents: taskConfig.num_agents,
+        max_frames: taskConfig.max_frames,
+        tick_ms: taskConfig.tick_ms,
+        device: taskConfig.device,
+      });
+      currentTaskId.value = created.task.task_id;
+      eventSeq.value = Number(created.last_event_seq || 0);
+      await syncTaskDetail();
+      connectEvents();
+    } else if (!eventSource.value) {
+      connectEvents();
+    }
+
+    await controlOpsTask(currentTaskId.value, "start");
+    opsStatus.value = `任务启动：${missionName.value}`;
+  } catch (error) {
+    opsStatus.value = `启动失败：${error.message}`;
   }
-  running.value = true;
-  opsStatus.value = `任务启动：${missionName.value}`;
-  timer = window.setInterval(tickOpsFrame, 320);
 }
 
-function pauseOpsRun() {
-  if (!running.value) return;
-  running.value = false;
-  if (timer) window.clearInterval(timer);
-  timer = null;
-  opsStatus.value = "任务已暂停";
+async function pauseOpsRun() {
+  if (!currentTaskId.value) return;
+  try {
+    await controlOpsTask(currentTaskId.value, "pause");
+    opsStatus.value = "任务已暂停";
+  } catch (error) {
+    opsStatus.value = `暂停失败：${error.message}`;
+  }
 }
 
-function resumeOpsRun() {
-  if (running.value) return;
-  const max = playback.value.frames.length - 1;
-  if (max < 0) {
-    opsStatus.value = "暂无可播放轨迹";
-    return;
+async function resumeOpsRun() {
+  if (!currentTaskId.value) return;
+  try {
+    await controlOpsTask(currentTaskId.value, "resume");
+    opsStatus.value = "任务继续执行";
+  } catch (error) {
+    opsStatus.value = `继续失败：${error.message}`;
   }
-  if (frameIndex.value >= max) {
-    frameIndex.value = max;
+}
+
+async function stopOpsRun() {
+  if (!currentTaskId.value) {
+    resetRuntimeView();
     drawOps();
+    opsStatus.value = "任务已停止";
+    return;
+  }
+  try {
+    await controlOpsTask(currentTaskId.value, "stop");
+    opsStatus.value = "任务已停止";
+  } catch (error) {
+    opsStatus.value = `停止失败：${error.message}`;
+  }
+}
+
+function isTerminalStatus(status) {
+  return ["COMPLETED", "FAILED", "STOPPED"].includes(String(status || "").toUpperCase());
+}
+
+function connectEvents() {
+  disconnectEvents();
+  if (!currentTaskId.value) return;
+
+  const es = connectOpsTaskEvents(currentTaskId.value, eventSeq.value);
+  eventSource.value = es;
+  es.onmessage = (event) => {
+    if (!event?.data) return;
+    try {
+      const message = JSON.parse(event.data);
+      handleTaskEvent(message);
+    } catch {
+      // Ignore non-JSON heartbeat lines.
+    }
+  };
+  es.onerror = () => {
+    if (eventSource.value !== es) return;
+    es.close();
+    eventSource.value = null;
+    if (isTerminalStatus(runtime.task?.status)) return;
+    if (reconnectTimer) window.clearTimeout(reconnectTimer);
+    reconnectTimer = window.setTimeout(() => connectEvents(), 1200);
+  };
+}
+
+function disconnectEvents() {
+  if (eventSource.value) {
+    eventSource.value.close();
+    eventSource.value = null;
+  }
+  if (reconnectTimer) {
+    window.clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+}
+
+async function syncTaskDetail() {
+  if (!currentTaskId.value) return;
+  const data = await getOpsTask(currentTaskId.value);
+  if (data.task) runtime.task = data.task;
+  if (data.snapshot) applySnapshot(data.snapshot);
+  if (Array.isArray(data.alerts)) runtime.alerts = data.alerts;
+}
+
+function handleTaskEvent(event) {
+  if (!event || typeof event !== "object") return;
+  const seq = Number(event.seq || 0);
+  if (seq > 0) eventSeq.value = Math.max(eventSeq.value, seq);
+
+  const payload = event.payload || {};
+  if (payload.task) runtime.task = payload.task;
+  if (payload.snapshot) applySnapshot(payload.snapshot);
+
+  if (event.type === "alert" && payload.alert) {
+    runtime.alerts = [payload.alert, ...runtime.alerts].slice(0, 30);
+  }
+  if (event.type === "task_failed") {
+    opsStatus.value = `任务失败：${payload.error || "未知错误"}`;
+  } else if (event.type === "task_completed") {
     opsStatus.value = "任务已完成";
-    return;
+  } else if (event.type === "task_stopped") {
+    opsStatus.value = "任务已停止";
+  } else if (event.type === "task_ready") {
+    opsStatus.value = "任务就绪，等待启动";
+  } else if (event.type === "task_status" && payload.status) {
+    opsStatus.value = `任务状态：${payload.status}`;
   }
-  running.value = true;
-  opsStatus.value = "任务继续执行";
-  timer = window.setInterval(tickOpsFrame, 320);
 }
 
-function stopOpsRun() {
-  stopTimer();
-  frameIndex.value = 0;
-  drawOps();
-  opsStatus.value = "任务已停止";
-}
+function applySnapshot(snapshot) {
+  if (snapshot.environment) runtime.environment = snapshot.environment;
+  if (snapshot.frame) runtime.frame = snapshot.frame;
+  if (snapshot.metrics) runtime.metrics = snapshot.metrics;
+  if (Array.isArray(snapshot.alerts)) runtime.alerts = snapshot.alerts;
+  if (snapshot.task) runtime.task = snapshot.task;
 
-function stopTimer() {
-  running.value = false;
-  if (timer) window.clearInterval(timer);
-  timer = null;
-}
-
-function tickOpsFrame() {
-  const max = playback.value.frames.length - 1;
-  if (max < 0) {
-    stopTimer();
-    opsStatus.value = "暂无可播放轨迹";
-    return;
+  if (runtime.frame?.agents?.length && !runtime.frame.agents.some((a) => a.id === selectedDroneId.value)) {
+    selectedDroneId.value = runtime.frame.agents[0].id;
   }
-  if (frameIndex.value >= max) {
-    frameIndex.value = max;
-    drawOps();
-    stopTimer();
-    opsStatus.value = "任务已完成";
-    return;
-  }
-  frameIndex.value += 1;
   drawOps();
 }
 
-// For ops mode we keep target assignment fully visual.
+function resetRuntimeView() {
+  runtime.task = null;
+  runtime.environment = null;
+  runtime.frame = null;
+  runtime.metrics = {
+    online: 0,
+    tasks_completed: 0,
+    throughput: 0,
+    avg_latency: 0,
+    frame_conflicts: 0,
+    cumulative_conflicts: 0,
+    alerts: 0,
+    step: 0,
+    status: "IDLE",
+  };
+  runtime.alerts = [];
+  currentTaskId.value = "";
+  eventSeq.value = 0;
+}
+
+// In backend-driven mode target editing is not applied to task runtime yet.
 function onOpsCanvasClick(event) {
+  if (currentTaskId.value && !isTerminalStatus(runtime.task?.status)) {
+    opsStatus.value = "运行中任务暂不支持在线改目标（可先暂停/停止后重建任务）";
+    return;
+  }
   const canvas = opsCanvasRef.value;
-  const env = playback.value.environment;
-  const frame = playback.value.frames[frameIndex.value];
+  const env = activeEnvironment.value;
+  const frame = activeFrame.value;
   if (!canvas || !env || !frame) return;
 
   const rect = canvas.getBoundingClientRect();
@@ -222,8 +371,7 @@ function onOpsCanvasClick(event) {
 }
 
 function drawOps() {
-  const frame = playback.value.frames[frameIndex.value];
-  renderer.draw(opsCanvasRef.value, playback.value.environment, frame);
+  renderer.draw(opsCanvasRef.value, activeEnvironment.value, activeFrame.value);
 }
 
 function templateLabel(templateKey) {
@@ -233,5 +381,5 @@ function templateLabel(templateKey) {
 }
 
 onMounted(() => drawOps());
-onUnmounted(() => stopTimer());
+onUnmounted(() => disconnectEvents());
 </script>

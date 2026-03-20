@@ -219,6 +219,40 @@
 - 主要修改：
   - 新增“为什么环绕观察看起来没有绕着地图转”问答，记录原因与修复结论。
 
+## 16. 训练输入维度概念澄清文档补充
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“把模型感知范围改成 `11 x 11 x 4` 里的 `4` 代表什么”问答；
+  - 明确说明这里的 `4` 指的是 4 个观测通道，而不是 4 层空间高度；
+  - 同时记录当前项目训练主输入更接近 `2 x 11 x 11`，便于后续讨论是否扩成 4 通道。
+
+## 17. 二维环境与三维升降改造范围说明文档补充
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“想让无人机可以上下移动，需要改什么”问答；
+  - 明确说明当前项目训练环境本质上是二维栅格；
+  - 记录若要支持真实升降飞行，需要同时修改动作空间、状态坐标、局部观测、规划器、训练与前端回放链路。
+
+## 18. SMAPO 论文适用场景与二维抽象原因说明文档补充
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“SMAPO 这类训练框架主要是为了解决什么场景的问题，为什么只有 2D”问答；
+  - 说明该框架主要面向 MAPF / LMAPF 类长期多智能体协同导航问题；
+  - 澄清当前项目虽然可类比无人机调度，但训练主链路仍采用二维离散路径规划抽象；
+  - 总结 2D 设定的原因包括问题建模、训练成本、基准数据和论文关注点等。
+
+## 19. 2D 迁移到 3D 的复杂度与可行性评估文档补充
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“将当前 2D 训练框架迁移为 3D 的复杂度和可行性如何”问答；
+  - 明确给出总体判断：可行但复杂度高，且更适合作为研究型重构；
+  - 区分 `2.5D / 分层高度`、`真 3D 离散体素`、`真实飞控级 3D` 三种路径；
+  - 说明环境、规划器、模型、DT 数据增强和重新训练成本都会显著增加。
+
 ## 16. 3D 页面接入 2D 地图与模型推理回放
 
 - 文件：`web_frontend/src/modules/simulation3d/Simulation3DView.vue`
@@ -436,3 +470,64 @@
 - 文件：`解疑.md`
 - 主要修改：
   - 新增“管理员和执行者如何做真实切换”问答，说明当前前端交互和权限行为。
+
+## 28. P0 闭环落地（任务生命周期 + 实时通道 + 落库 + 告警 + 运营看板）
+
+- 文件：`web_demo/task_runtime.py`（新增）
+- 主要修改：
+  - 新增后端任务运行时引擎 `TaskRuntime`，实现任务全生命周期：
+    - `PREPARING -> READY -> RUNNING -> PAUSED -> COMPLETED/FAILED/STOPPED`；
+  - 新增任务执行链路：
+    - 支持 `sample/model` 两类数据源；
+    - `model` 失败时自动降级到 `sample` 并记录 warning；
+  - 新增 SQLite 持久化：
+    - `tasks`（任务主表）
+    - `task_events`（事件流）
+    - `task_alerts`（告警记录）
+  - 新增安全基础告警规则：
+    - 顶点冲突告警 `VERTEX_CONFLICT`
+    - 智能体卡滞告警 `STALL_AGENT_*`
+    - 低吞吐超时告警 `LOW_THROUGHPUT_TIMEOUT`
+  - 新增后端样例回放生成器（模板地图 + A* 路径 + 指标）。
+
+- 文件：`web_demo/server.py`
+- 主要修改：
+  - 新增任务 API：
+    - `POST /api/tasks`（创建任务）
+    - `GET /api/tasks`（任务列表）
+    - `GET /api/tasks/{id}`（任务详情/快照）
+    - `POST /api/tasks/{id}/control`（start/pause/resume/stop）
+    - `GET /api/tasks/{id}/alerts`（告警列表）
+  - 新增实时通道：
+    - `GET /api/tasks/{id}/events`（SSE）
+  - 新增系统汇总接口：
+    - `GET /api/dashboard/summary`（任务状态与吞吐均值）。
+
+- 文件：`web_frontend/src/services/api.js`
+- 主要修改：
+  - 新增运营模式任务 API 客户端：
+    - `createOpsTask`
+    - `controlOpsTask`
+    - `getOpsTask`
+    - `fetchOpsAlerts`
+    - `connectOpsTaskEvents`（SSE）。
+
+- 文件：`web_frontend/src/modules/operations/OperationsModeView.vue`
+- 主要修改：
+  - 运营模式从“前端本地定时器回放”升级为“后端驱动任务”；
+  - 接入任务创建、开始、暂停、继续、停止；
+  - 接入 SSE 实时事件流，实时刷新：
+    - 地图回放帧
+    - 运行状态卡片
+    - 无人机表格
+    - 告警列表
+  - 新增执行配置项：数据源、无人机数量、最大帧数、节拍。
+
+- 文件：`web_frontend/src/styles.css`
+- 主要修改：
+  - 新增运营模式告警组件样式（告警列表、级别色、代码与步数展示）。
+
+- 验证结果：
+  - `python3 -m py_compile web_demo/task_runtime.py web_demo/server.py` 通过；
+  - `npm --prefix web_frontend run build` 通过；
+  - `TaskRuntime` 本地 smoke 脚本通过（任务可从 `READY` 运行到 `COMPLETED`）。

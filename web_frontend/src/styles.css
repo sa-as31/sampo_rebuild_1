@@ -356,6 +356,63 @@ body {
   text-align: left;
 }
 
+.ops-alerts {
+  margin-top: 12px;
+  border: 1px solid rgba(131, 177, 238, 0.2);
+  border-radius: 12px;
+  background: rgba(8, 20, 37, 0.9);
+  padding: 10px;
+}
+
+.ops-alerts h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.ops-alert-empty {
+  color: #9eb3d4;
+  font-size: 13px;
+}
+
+.ops-alert-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  border-top: 1px solid rgba(125, 166, 226, 0.16);
+  padding: 8px 0;
+  font-size: 13px;
+  color: #d5e5ff;
+}
+
+.ops-alert-item:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.ops-alert-item.level-warning {
+  color: #ffd898;
+}
+
+.ops-alert-item.level-info {
+  color: #b9d5ff;
+}
+
+.ops-alert-code {
+  font-family:
+    "SFMono-Regular",
+    Menlo,
+    Consolas,
+    monospace;
+  font-size: 12px;
+  color: #9fc4ff;
+}
+
+.ops-alert-step {
+  margin-left: auto;
+  color: #9fb6d8;
+  white-space: nowrap;
+}
+
 .legend {
   margin-top: 8px;
   color: #9bb2d9;

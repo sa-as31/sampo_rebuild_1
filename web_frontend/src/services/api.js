@@ -20,3 +20,34 @@ export async function runInference(payload) {
   return parseJsonOrThrow(response);
 }
 
+export async function createOpsTask(payload) {
+  const response = await fetch("/api/tasks", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response);
+}
+
+export async function controlOpsTask(taskId, action) {
+  const response = await fetch(`/api/tasks/${taskId}/control`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action }),
+  });
+  return parseJsonOrThrow(response);
+}
+
+export async function getOpsTask(taskId) {
+  const response = await fetch(`/api/tasks/${taskId}`);
+  return parseJsonOrThrow(response);
+}
+
+export async function fetchOpsAlerts(taskId, limit = 20) {
+  const response = await fetch(`/api/tasks/${taskId}/alerts?limit=${limit}`);
+  return parseJsonOrThrow(response);
+}
+
+export function connectOpsTaskEvents(taskId, afterSeq = 0) {
+  return new EventSource(`/api/tasks/${taskId}/events?after=${afterSeq}`);
+}
