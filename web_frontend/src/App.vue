@@ -49,15 +49,15 @@
           <span>Control Console</span>
         </div>
         <div class="role-entry">
-          <button class="account-chip" @click="openLoginDialog">
+          <div class="account-chip">
             <span class="account-avatar">{{ currentUserInitial }}</span>
             <span class="account-meta">
               <strong>{{ currentUserName }}</strong>
               <small>{{ roleLabel }} · {{ currentUserDept }}</small>
             </span>
-          </button>
-          <button class="switch-trigger" :disabled="authBusy" @click="openLoginDialog">
-            {{ authBusy ? "处理中..." : "切换账户" }}
+          </div>
+          <button class="switch-trigger" :disabled="authBusy" @click="submitLogout">
+            {{ authBusy ? "退出中..." : "退出登录" }}
           </button>
         </div>
       </header>
@@ -81,44 +81,6 @@
         <OperationsModeView v-else />
       </main>
     </template>
-
-    <div v-if="showLoginDialog && loggedIn" class="role-modal-mask" @click.self="closeLoginDialog">
-      <section class="role-modal role-modal-real">
-        <div class="role-modal-head">
-          <h3>切换账户</h3>
-          <span class="role-pill">当前：{{ currentUserName }}</span>
-        </div>
-        <p class="role-modal-sub">按登录流程重新验证身份。</p>
-        <div class="login-role-row" style="margin-top: 10px">
-          <button class="role-toggle" :class="{ active: loginRole === 'executor' }" @click="setLoginRole('executor')">执行者</button>
-          <button class="role-toggle" :class="{ active: loginRole === 'admin' }" @click="setLoginRole('admin')">管理员</button>
-        </div>
-        <div class="login-account-list">
-          <button
-            v-for="account in visibleAccounts"
-            :key="account.user_id"
-            class="login-account-item"
-            @click="fillFromAccount(account)"
-          >
-            <strong>{{ account.display_name }}</strong>
-            <span>{{ account.username }} · {{ account.department }}</span>
-          </button>
-        </div>
-        <label class="login-label">
-          账号
-          <input v-model="loginUsername" type="text" autocomplete="username" />
-        </label>
-        <label class="login-label">
-          密码
-          <input v-model="loginPassword" type="password" autocomplete="current-password" @keyup.enter="submitLogin(true)" />
-        </label>
-        <p v-if="authError" class="role-error">{{ authError }}</p>
-        <div class="btn-row" style="margin-top: 12px">
-          <button class="btn" :disabled="authBusy" @click="submitLogin(true)">{{ authBusy ? "切换中..." : "确认切换" }}</button>
-          <button class="btn secondary" :disabled="authBusy" @click="closeLoginDialog">取消</button>
-        </div>
-      </section>
-    </div>
   </div>
 </template>
 
@@ -128,7 +90,7 @@ import ResearchModeView from "./modules/research/ResearchModeView.vue";
 import OperationsModeView from "./modules/operations/OperationsModeView.vue";
 import TaskCenterView from "./modules/taskcenter/TaskCenterView.vue";
 import OpsDashboardView from "./modules/dashboard/OpsDashboardView.vue";
-import { fetchAuthOptions, fetchAuthState, fetchIdentity, loginWithPassword } from "./services/api";
+import { fetchAuthOptions, fetchAuthState, fetchIdentity, loginWithPassword, logoutCurrentUser } from "./services/api";
 
 const adminTabs = [
   { key: "ops", label: "联合运行" },
@@ -146,7 +108,6 @@ const authBooting = ref(true);
 const loggedIn = ref(false);
 const authBusy = ref(false);
 const authError = ref("");
-const showLoginDialog = ref(false);
 
 const currentUser = ref(null);
 const authAccounts = ref([]);
@@ -228,7 +189,7 @@ function fillFromAccount(account) {
   loginUsername.value = account.username;
 }
 
-async function submitLogin(closeDialog = false) {
+async function submitLogin() {
   authBusy.value = true;
   authError.value = "";
   try {
@@ -242,7 +203,6 @@ async function submitLogin(closeDialog = false) {
     loginPassword.value = "";
     await loadIdentity();
     ensureActiveModeVisible();
-    if (closeDialog) showLoginDialog.value = false;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     authError.value = `登录失败：${message}`;
@@ -251,17 +211,22 @@ async function submitLogin(closeDialog = false) {
   }
 }
 
-function openLoginDialog() {
-  showLoginDialog.value = true;
+async function submitLogout() {
+  authBusy.value = true;
   authError.value = "";
-  loginRole.value = currentRole.value;
-  loginUsername.value = currentUser.value?.username || "";
-  loginPassword.value = "";
-}
-
-function closeLoginDialog() {
-  showLoginDialog.value = false;
-  authError.value = "";
+  try {
+    await logoutCurrentUser();
+    loggedIn.value = false;
+    currentUser.value = null;
+    activeMode.value = "ops";
+    loginPassword.value = "";
+    prefillByRole(loginRole.value);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    authError.value = `退出失败：${message}`;
+  } finally {
+    authBusy.value = false;
+  }
 }
 
 function userInitial(user) {

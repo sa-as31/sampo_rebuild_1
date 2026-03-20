@@ -171,7 +171,7 @@ body {
   gap: 9px;
   color: #b5c8e9;
   background: rgba(6, 22, 43, 0.82);
-  cursor: pointer;
+  cursor: default;
 }
 
 .account-avatar {
