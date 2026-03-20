@@ -392,3 +392,20 @@
   - 新增“`https://github.com/alibaba/page-agent` 这个项目可以安装给 Codex 使用吗”问答；
   - 结论为“不能直接作为 skill 安装”，并补充原因（缺少 `SKILL.md` skill 结构）；
   - 补充两种替代方案：作为普通 npm 依赖使用，或二次封装为 Codex skill 后安装。
+
+## 25. 新增并安装 Codex 技能：`page-agent-codex`
+
+- 新增目录：`codex_skills/page-agent-codex/`
+- 新增文件：
+  - `codex_skills/page-agent-codex/SKILL.md`
+  - `codex_skills/page-agent-codex/agents/openai.yaml`
+  - `codex_skills/page-agent-codex/references/page-agent-integration.md`
+- 主要内容：
+  - 定义 Page Agent 接入场景的技能触发描述与标准流程；
+  - 提供 `npm` 与 `CDN` 两种接入路径、验证清单与常见故障排查；
+  - 配置技能 UI 元数据（display name / short description / default prompt）。
+- 安装动作：
+  - 已将该技能复制安装到 `~/.codex/skills/page-agent-codex/`。
+- 说明：
+  - `quick_validate.py` 依赖 `PyYAML`，受当前网络限制无法安装依赖，未执行官方脚本校验；
+  - 已完成手动结构校验（目录与关键文件完整）。

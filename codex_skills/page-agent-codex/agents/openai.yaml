@@ -1,0 +1,4 @@
+interface:
+  display_name: "Page Agent Integration"
+  short_description: "Integrate page-agent into web apps safely."
+  default_prompt: "Use $page-agent-codex to integrate page-agent into this web project with a minimal, testable setup."
