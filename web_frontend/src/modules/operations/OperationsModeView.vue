@@ -4,6 +4,12 @@
       <h2>任务下发</h2>
 
       <div class="field-grid">
+        <label>参数模板
+          <select v-model="selectedTemplateId" @change="applySavedTemplate">
+            <option value="">未选择（手动配置）</option>
+            <option v-for="item in savedTemplates" :key="item.id" :value="item.id">{{ item.name }}</option>
+          </select>
+        </label>
         <label>任务模板
           <select v-model="selectedTemplate" @change="applyTemplate">
             <option value="warehouse">仓储巡检</option>
@@ -28,6 +34,8 @@
         <button class="btn secondary" @click="pauseOpsRun">暂停</button>
         <button class="btn secondary" @click="resumeOpsRun">继续</button>
         <button class="btn secondary" @click="stopOpsRun">停止</button>
+        <button class="btn secondary" @click="saveCurrentAsTemplate">保存为模板</button>
+        <button class="btn secondary" @click="deleteCurrentTemplate">删除当前模板</button>
       </div>
       <div class="status-chip">{{ opsStatus }}</div>
       <div class="legend">任务ID: {{ currentTaskId || "未创建" }}</div>
@@ -94,6 +102,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import { buildSampleRun, createRenderer } from "../shared/renderer";
 import { connectOpsTaskEvents, controlOpsTask, createOpsTask, getOpsTask } from "../../services/api";
+import { deleteOpsTemplate, loadOpsTemplates, upsertOpsTemplate } from "../shared/templateStore";
 
 const renderer = createRenderer();
 const opsCanvasRef = ref(null);
@@ -101,6 +110,8 @@ const selectedTemplate = ref("warehouse");
 const missionName = ref("enterprise_batch_demo");
 const selectedDroneId = ref(0);
 const executionSource = ref("sample");
+const selectedTemplateId = ref("");
+const savedTemplates = ref(loadOpsTemplates());
 const taskConfig = reactive({
   num_agents: 16,
   max_frames: 64,
@@ -159,10 +170,58 @@ const fleetRows = computed(() => {
 });
 
 function applyTemplate() {
+  selectedTemplateId.value = "";
   samplePlayback.value = buildSampleRun(selectedTemplate.value);
   selectedDroneId.value = 0;
   drawOps();
   opsStatus.value = `已切换模板：${templateLabel(selectedTemplate.value)}`;
+}
+
+function applySavedTemplate() {
+  const template = savedTemplates.value.find((item) => item.id === selectedTemplateId.value);
+  if (!template) return;
+  selectedTemplate.value = template.template;
+  executionSource.value = template.source;
+  missionName.value = template.mission_name || missionName.value;
+  taskConfig.num_agents = Number(template.num_agents || taskConfig.num_agents);
+  taskConfig.max_frames = Number(template.max_frames || taskConfig.max_frames);
+  taskConfig.tick_ms = Number(template.tick_ms || taskConfig.tick_ms);
+  samplePlayback.value = buildSampleRun(selectedTemplate.value);
+  selectedDroneId.value = 0;
+  drawOps();
+  opsStatus.value = `已应用模板：${template.name}`;
+}
+
+function saveCurrentAsTemplate() {
+  const name = window.prompt("请输入模板名称", `${templateLabel(selectedTemplate.value)}-${taskConfig.num_agents}机`);
+  if (!name) return;
+  const saved = upsertOpsTemplate({
+    name: name.trim(),
+    template: selectedTemplate.value,
+    source: executionSource.value,
+    mission_name: missionName.value,
+    num_agents: taskConfig.num_agents,
+    max_frames: taskConfig.max_frames,
+    tick_ms: taskConfig.tick_ms,
+  });
+  refreshSavedTemplates();
+  selectedTemplateId.value = saved.id;
+  opsStatus.value = `模板已保存：${saved.name}`;
+}
+
+function deleteCurrentTemplate() {
+  if (!selectedTemplateId.value) {
+    opsStatus.value = "请先选择模板";
+    return;
+  }
+  deleteOpsTemplate(selectedTemplateId.value);
+  refreshSavedTemplates();
+  selectedTemplateId.value = "";
+  opsStatus.value = "模板已删除";
+}
+
+function refreshSavedTemplates() {
+  savedTemplates.value = loadOpsTemplates();
 }
 
 async function startOpsRun() {
@@ -380,6 +439,49 @@ function templateLabel(templateKey) {
   return "仓储巡检";
 }
 
-onMounted(() => drawOps());
-onUnmounted(() => disconnectEvents());
+function handleTemplateUpdate() {
+  refreshSavedTemplates();
+}
+
+async function restorePrefillAndFocus() {
+  const rawTemplate = window.localStorage.getItem("OPS_TEMPLATE_PREFILL");
+  if (rawTemplate) {
+    try {
+      const template = JSON.parse(rawTemplate);
+      selectedTemplate.value = template.template || selectedTemplate.value;
+      executionSource.value = template.source || executionSource.value;
+      missionName.value = template.mission_name || missionName.value;
+      taskConfig.num_agents = Number(template.num_agents || taskConfig.num_agents);
+      taskConfig.max_frames = Number(template.max_frames || taskConfig.max_frames);
+      taskConfig.tick_ms = Number(template.tick_ms || taskConfig.tick_ms);
+      samplePlayback.value = buildSampleRun(selectedTemplate.value);
+      selectedDroneId.value = 0;
+      drawOps();
+      opsStatus.value = `已载入模板：${template.name || "未命名模板"}`;
+    } catch {
+      // Ignore malformed prefill payload.
+    }
+    window.localStorage.removeItem("OPS_TEMPLATE_PREFILL");
+  }
+
+  const focusTaskId = window.localStorage.getItem("OPS_FOCUS_TASK_ID");
+  if (!focusTaskId) return;
+  window.localStorage.removeItem("OPS_FOCUS_TASK_ID");
+  currentTaskId.value = focusTaskId;
+  connectEvents();
+  await syncTaskDetail();
+  opsStatus.value = `已切换到任务：${focusTaskId}`;
+}
+
+onMounted(async () => {
+  refreshSavedTemplates();
+  window.addEventListener("ops-template-updated", handleTemplateUpdate);
+  drawOps();
+  await restorePrefillAndFocus();
+});
+
+onUnmounted(() => {
+  disconnectEvents();
+  window.removeEventListener("ops-template-updated", handleTemplateUpdate);
+});
 </script>

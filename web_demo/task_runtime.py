@@ -180,6 +180,28 @@ class TaskRuntime:
             alerts = list(reversed(live.alerts[-limit:]))
         return {"task_id": task_id, "alerts": alerts}
 
+    def get_replay(self, task_id: str) -> Optional[Dict[str, Any]]:
+        live = self._get_live_task(task_id)
+        if live is None:
+            stored = self.db.get_task(task_id)
+            if stored is None:
+                return None
+            return {
+                "task_id": task_id,
+                "available": False,
+                "reason": "Task exists in history DB, but replay frames are not kept after runtime restart.",
+                "task": stored,
+            }
+        with live.lock:
+            return {
+                "task_id": task_id,
+                "available": True,
+                "task": self._task_brief(live),
+                "environment": live.environment,
+                "frames": live.frames,
+                "metrics": live.base_metrics,
+            }
+
     def control_task(self, task_id: str, action: str) -> Optional[Dict[str, Any]]:
         action = str(action or "").lower()
         live = self._get_live_task(task_id)

@@ -591,6 +591,83 @@
   - `npm --prefix web_frontend run build` 通过；
   - `TaskRuntime` 本地 smoke 脚本通过（任务可从 `READY` 运行到 `COMPLETED`）。
 
+## 29. 前端增强（任务中心 + 运营大屏 + 参数模板系统 + 报告导出）
+
+- 文件：`web_frontend/src/App.vue`
+- 主要修改：
+  - 扩展导航页签：
+    - `任务中心`
+    - `运营大屏`
+  - 新增页面组件挂载：
+    - `TaskCenterView`
+    - `OpsDashboardView`
+  - 增加全局模式切换事件监听（`app-switch-mode`），支持跨页面一键跳转。
+
+- 文件：`web_frontend/src/modules/taskcenter/TaskCenterView.vue`（新增）
+- 主要修改：
+  - 实现任务中心页：
+    - 任务列表筛选（状态/模板/关键词）；
+    - 任务详情与告警查看；
+    - 历史回放入口（加载任务回放数据并在 Canvas 回放）；
+    - 一键跳转运营中心并聚焦任务；
+    - 任务报告导出（Markdown）；
+    - 参数模板库管理（保存/删除/应用到运营中心）。
+
+- 文件：`web_frontend/src/modules/dashboard/OpsDashboardView.vue`（新增）
+- 主要修改：
+  - 实现只读运营大屏：
+    - 汇总指标卡片（总任务、运行中、完成数、平均吞吐）；
+    - 任务列表与焦点任务切换；
+    - 焦点任务地图快照与最近告警展示。
+
+- 文件：`web_frontend/src/modules/operations/OperationsModeView.vue`
+- 主要修改：
+  - 接入参数模板系统：
+    - 模板选择/应用；
+    - 保存当前配置为模板；
+    - 删除当前模板；
+  - 支持从任务中心带入：
+    - 预填模板参数（`OPS_TEMPLATE_PREFILL`）；
+    - 聚焦指定任务（`OPS_FOCUS_TASK_ID`）。
+
+- 文件：`web_frontend/src/modules/shared/templateStore.js`（新增）
+- 主要修改：
+  - 新增参数模板本地存储工具：
+    - `loadOpsTemplates`
+    - `upsertOpsTemplate`
+    - `deleteOpsTemplate`
+  - 统一模板字段规范和范围校验；
+  - 通过 `ops-template-updated` 事件同步多页面模板状态。
+
+- 文件：`web_frontend/src/services/api.js`
+- 主要修改：
+  - 新增 API 封装：
+    - `fetchOpsTasks`
+    - `fetchDashboardSummary`
+    - `fetchTaskReplay`
+
+- 文件：`web_demo/task_runtime.py`
+- 主要修改：
+  - 新增 `get_replay(task_id)`：
+    - 运行中/本进程内任务可返回 `environment + frames`；
+    - 仅历史数据库任务返回 `available=false` 与原因说明。
+
+- 文件：`web_demo/server.py`
+- 主要修改：
+  - 新增接口：
+    - `GET /api/tasks/{id}/replay`
+
+- 文件：`web_frontend/src/styles.css`
+- 主要修改：
+  - 新增任务中心/运营大屏布局与元信息卡样式；
+  - 新增任务列表选中态样式；
+  - 增补移动端自适配样式。
+
+- 验证结果：
+  - `python3 -m py_compile web_demo/server.py web_demo/task_runtime.py` 通过；
+  - `npm --prefix web_frontend run build` 通过；
+  - `TaskRuntime.get_replay()` 本地 smoke 校验通过。
+
 ## 29. 文档补充：SMAPO 训练是否需要训练数据
 
 - 文件：`解疑.md`

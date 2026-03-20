@@ -51,3 +51,18 @@ export async function fetchOpsAlerts(taskId, limit = 20) {
 export function connectOpsTaskEvents(taskId, afterSeq = 0) {
   return new EventSource(`/api/tasks/${taskId}/events?after=${afterSeq}`);
 }
+
+export async function fetchOpsTasks(limit = 60) {
+  const response = await fetch(`/api/tasks?limit=${limit}`);
+  return parseJsonOrThrow(response);
+}
+
+export async function fetchDashboardSummary() {
+  const response = await fetch("/api/dashboard/summary");
+  return parseJsonOrThrow(response);
+}
+
+export async function fetchTaskReplay(taskId) {
+  const response = await fetch(`/api/tasks/${taskId}/replay`);
+  return parseJsonOrThrow(response);
+}

@@ -59,6 +59,13 @@ class DemoHandler(SimpleHTTPRequestHandler):
                     return
                 self._send_json(HTTPStatus.OK, payload)
                 return
+            if action == "replay":
+                payload = TASK_RUNTIME.get_replay(task_id)
+                if payload is None:
+                    self._send_json(HTTPStatus.NOT_FOUND, {"error": "Task not found"})
+                    return
+                self._send_json(HTTPStatus.OK, payload)
+                return
             if action == "detail":
                 payload = TASK_RUNTIME.get_task(task_id)
                 if payload is None:
@@ -144,13 +151,14 @@ class DemoHandler(SimpleHTTPRequestHandler):
         #   /api/tasks/{task_id}/control
         #   /api/tasks/{task_id}/events
         #   /api/tasks/{task_id}/alerts
+        #   /api/tasks/{task_id}/replay
         parts = [part for part in route.split("/") if part]
         if len(parts) < 3 or parts[0] != "api" or parts[1] != "tasks":
             return None
         task_id = parts[2]
         if len(parts) == 3:
             return task_id, "detail"
-        if len(parts) == 4 and parts[3] in ("control", "events", "alerts"):
+        if len(parts) == 4 and parts[3] in ("control", "events", "alerts", "replay"):
             return task_id, parts[3]
         return None
 
