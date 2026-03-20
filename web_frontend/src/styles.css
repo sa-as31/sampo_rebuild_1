@@ -631,6 +631,170 @@ body {
   gap: 16px;
 }
 
+.executor-task-grid {
+  grid-template-columns: minmax(360px, 1fr) minmax(560px, 1.35fr) minmax(280px, 0.8fr);
+}
+
+.admin-task-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-task-hero {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.05fr) minmax(460px, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.section-kicker {
+  margin: 0 0 6px;
+  color: #86bdf8;
+  font-size: 12px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.admin-summary-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.admin-workspace-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-workspace-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-overview-grid,
+.admin-list-grid,
+.admin-dispatch-grid {
+  grid-template-columns: minmax(420px, 1.2fr) minmax(360px, 0.95fr);
+}
+
+.admin-replay-grid {
+  grid-template-columns: minmax(620px, 1.45fr) minmax(320px, 0.85fr);
+}
+
+.admin-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.admin-panel-head p {
+  margin: 6px 0 0;
+}
+
+.admin-overview-list {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-task-card {
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(125, 166, 226, 0.18);
+  border-radius: 14px;
+  background: rgba(8, 22, 40, 0.82);
+  color: #dce9ff;
+  padding: 14px;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease,
+    background 160ms ease;
+}
+
+.admin-task-card:hover,
+.admin-task-card.active {
+  border-color: rgba(111, 185, 255, 0.48);
+  background: rgba(14, 35, 64, 0.95);
+  transform: translateY(-1px);
+}
+
+.admin-task-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-task-card-top strong {
+  font-size: 16px;
+}
+
+.admin-task-card-top em {
+  font-style: normal;
+  color: #8ed9c9;
+  font-size: 12px;
+}
+
+.admin-task-card-meta {
+  display: block;
+  margin-top: 6px;
+  color: #9eb7da;
+  font-size: 13px;
+}
+
+.admin-highlight-card {
+  margin-top: 14px;
+  border: 1px solid rgba(112, 190, 255, 0.22);
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgba(10, 31, 56, 0.95), rgba(8, 20, 38, 0.98));
+  padding: 14px;
+}
+
+.admin-highlight-card.compact {
+  padding: 12px;
+}
+
+.admin-highlight-card p {
+  margin: 0;
+  color: #8fb2dc;
+  font-size: 12px;
+}
+
+.admin-highlight-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.admin-highlight-card span {
+  display: block;
+  margin-top: 6px;
+  color: #aac1e2;
+  font-size: 13px;
+}
+
+.admin-slider-row {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  color: #acc0df;
+}
+
+.admin-map-import-grid {
+  grid-template-columns: 1fr;
+}
+
+.admin-fleet-table td,
+.admin-fleet-table th {
+  vertical-align: top;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: minmax(420px, 0.95fr) minmax(620px, 1.35fr);
@@ -842,6 +1006,14 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .admin-task-hero,
+  .admin-overview-grid,
+  .admin-list-grid,
+  .admin-dispatch-grid,
+  .admin-replay-grid {
+    grid-template-columns: 1fr;
+  }
+
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
@@ -852,5 +1024,19 @@ body {
 
   .task-meta-grid {
     grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+
+  .admin-panel-head {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-summary-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-slider-row {
+    grid-template-columns: 1fr;
   }
 }

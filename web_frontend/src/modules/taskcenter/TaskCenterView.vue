@@ -1,5 +1,352 @@
 <template>
-  <section class="task-center-grid">
+  <section v-if="isAdmin" class="admin-task-shell">
+    <article class="panel admin-task-hero">
+      <div>
+        <p class="section-kicker">ADMIN WORKSPACE</p>
+        <h2>任务调度台</h2>
+        <p class="legend">把任务筛选、历史回放、创建分配与地图导入拆成独立工作界面，避免管理员在一个页面里同时处理所有事情。</p>
+      </div>
+      <div class="admin-summary-row">
+        <div class="status-card">
+          <p>任务总数</p>
+          <strong>{{ adminTaskStats.total }}</strong>
+        </div>
+        <div class="status-card">
+          <p>执行中任务</p>
+          <strong>{{ adminTaskStats.running }}</strong>
+        </div>
+        <div class="status-card">
+          <p>执行者账号</p>
+          <strong>{{ assignees.length }}</strong>
+        </div>
+        <div class="status-card">
+          <p>已导入地图</p>
+          <strong>{{ importedMaps.length }}</strong>
+        </div>
+      </div>
+    </article>
+
+    <nav class="admin-workspace-tabs">
+      <button class="tab-btn" :class="{ active: adminView === 'overview' }" @click="adminView = 'overview'">总览</button>
+      <button class="tab-btn" :class="{ active: adminView === 'tasks' }" @click="adminView = 'tasks'">任务列表</button>
+      <button class="tab-btn" :class="{ active: adminView === 'replay' }" @click="adminView = 'replay'">任务回放</button>
+      <button class="tab-btn" :class="{ active: adminView === 'dispatch' }" @click="adminView = 'dispatch'">创建与地图</button>
+    </nav>
+
+    <section v-if="adminView === 'overview'" class="admin-workspace-grid admin-overview-grid">
+      <article class="panel">
+        <div class="admin-panel-head">
+          <div>
+            <h2>任务总览</h2>
+            <p class="legend">先看当前任务状态，再决定进入列表、回放还是创建流程。</p>
+          </div>
+          <div class="btn-row">
+            <button class="btn" @click="refreshTasks">刷新列表</button>
+            <button class="btn secondary" @click="adminView = 'dispatch'">创建新任务</button>
+          </div>
+        </div>
+        <div class="status-chip">{{ status }}</div>
+
+        <div class="admin-overview-list">
+          <button
+            v-for="task in adminRecentTasks"
+            :key="task.task_id"
+            class="admin-task-card"
+            :class="{ active: task.task_id === selectedTaskId }"
+            @click="selectTask(task.task_id)"
+          >
+            <span class="admin-task-card-top">
+              <strong>{{ task.mission_name }}</strong>
+              <em>{{ task.status }}</em>
+            </span>
+            <span class="admin-task-card-meta">{{ templateLabel(task.template) }} · {{ assigneeLabel(task) }}</span>
+            <span class="admin-task-card-meta">更新时间 {{ fmtTime(task.updated_at) }} · 吞吐量 {{ fmtNumber(task.metrics?.throughput, 4) }}</span>
+          </button>
+          <div v-if="adminRecentTasks.length === 0" class="ops-alert-empty">当前没有可展示任务。</div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="admin-panel-head">
+          <div>
+            <h2>当前选中任务</h2>
+            <p class="legend">聚焦一个任务的关键信息与后续操作。</p>
+          </div>
+          <div class="btn-row">
+            <button class="btn secondary" @click="adminView = 'tasks'">进入任务列表</button>
+            <button class="btn secondary" @click="adminView = 'replay'">查看回放</button>
+          </div>
+        </div>
+
+        <div class="task-meta-grid">
+          <div class="task-meta"><span>任务ID</span><strong>{{ selectedTask?.task_id || "-" }}</strong></div>
+          <div class="task-meta"><span>任务状态</span><strong>{{ selectedTask?.status || "-" }}</strong></div>
+          <div class="task-meta"><span>累计任务数</span><strong>{{ selectedSnapshot?.metrics?.tasks_completed ?? "-" }}</strong></div>
+          <div class="task-meta"><span>吞吐量</span><strong>{{ fmtNumber(selectedSnapshot?.metrics?.throughput, 4) }}</strong></div>
+        </div>
+
+        <div class="admin-highlight-card">
+          <p>任务名称</p>
+          <strong>{{ selectedTask?.mission_name || "未选择任务" }}</strong>
+          <span>{{ selectedTask ? `${templateLabel(selectedTask.template)} · ${assigneeLabel(selectedTask)}` : "请先从左侧选择任务" }}</span>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn secondary" @click="openOpsWithSelected">进入运营中心</button>
+          <button class="btn secondary" @click="exportReport">导出任务报告</button>
+          <button class="btn secondary" @click="loadReplay">加载历史回放</button>
+        </div>
+      </article>
+    </section>
+
+    <section v-else-if="adminView === 'tasks'" class="admin-workspace-grid admin-list-grid">
+      <article class="panel">
+        <div class="admin-panel-head">
+          <div>
+            <h2>任务列表</h2>
+            <p class="legend">先筛选，再定位到要处理的任务。</p>
+          </div>
+          <div class="btn-row">
+            <button class="btn" @click="refreshTasks">刷新列表</button>
+            <button class="btn secondary" @click="exportReport">导出任务报告</button>
+          </div>
+        </div>
+
+        <div class="field-grid">
+          <label>状态筛选
+            <select v-model="filters.status">
+              <option value="ALL">全部</option>
+              <option value="PREPARING">PREPARING</option>
+              <option value="READY">READY</option>
+              <option value="RUNNING">RUNNING</option>
+              <option value="PAUSED">PAUSED</option>
+              <option value="COMPLETED">COMPLETED</option>
+              <option value="FAILED">FAILED</option>
+              <option value="STOPPED">STOPPED</option>
+            </select>
+          </label>
+          <label>模板筛选
+            <select v-model="filters.template">
+              <option value="ALL">全部</option>
+              <option value="warehouse">仓储巡检</option>
+              <option value="campus">园区配送</option>
+              <option value="emergency">应急调度</option>
+            </select>
+          </label>
+          <label>关键词
+            <input v-model="filters.keyword" placeholder="任务名 / task_id" />
+          </label>
+        </div>
+
+        <table class="fleet-table admin-fleet-table" style="margin-top: 8px">
+          <thead>
+            <tr>
+              <th>任务ID</th>
+              <th>任务名</th>
+              <th>模板</th>
+              <th>执行者</th>
+              <th>状态</th>
+              <th>吞吐量</th>
+              <th>更新时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="task in filteredTasks"
+              :key="task.task_id"
+              :class="{ 'task-row-active': task.task_id === selectedTaskId }"
+              @click="selectTask(task.task_id)"
+            >
+              <td>{{ task.task_id }}</td>
+              <td>{{ task.mission_name }}</td>
+              <td>{{ templateLabel(task.template) }}</td>
+              <td>{{ assigneeLabel(task) }}</td>
+              <td>{{ task.status }}</td>
+              <td>{{ fmtNumber(task.metrics?.throughput, 4) }}</td>
+              <td>{{ fmtTime(task.updated_at) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </article>
+
+      <article class="panel">
+        <div class="admin-panel-head">
+          <div>
+            <h2>任务摘要</h2>
+            <p class="legend">展示当前所选任务的核心状态和快捷入口。</p>
+          </div>
+          <button class="btn secondary" @click="adminView = 'replay'">切到回放界面</button>
+        </div>
+
+        <div class="task-meta-grid">
+          <div class="task-meta"><span>任务ID</span><strong>{{ selectedTask?.task_id || "-" }}</strong></div>
+          <div class="task-meta"><span>任务状态</span><strong>{{ selectedTask?.status || "-" }}</strong></div>
+          <div class="task-meta"><span>累计任务数</span><strong>{{ selectedSnapshot?.metrics?.tasks_completed ?? "-" }}</strong></div>
+          <div class="task-meta"><span>告警数</span><strong>{{ selectedSnapshot?.metrics?.alerts ?? "-" }}</strong></div>
+        </div>
+
+        <div class="admin-highlight-card compact">
+          <p>当前任务</p>
+          <strong>{{ selectedTask?.mission_name || "未选择任务" }}</strong>
+          <span>{{ selectedTask ? `${templateLabel(selectedTask.template)} · ${selectedTask.source} · ${assigneeLabel(selectedTask)}` : "从左侧表格中选择一个任务" }}</span>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn secondary" @click="openOpsWithSelected">进入运营中心</button>
+          <button class="btn secondary" @click="loadReplay">加载历史回放</button>
+        </div>
+      </article>
+    </section>
+
+    <section v-else-if="adminView === 'replay'" class="admin-workspace-grid admin-replay-grid">
+      <article class="panel">
+        <div class="admin-panel-head">
+          <div>
+            <h2>任务详情与回放</h2>
+            <p class="legend">单独处理回放与告警，避免和任务创建表单混在一起。</p>
+          </div>
+          <div class="btn-row">
+            <button class="btn secondary" @click="loadReplay">加载历史回放</button>
+            <button class="btn secondary" @click="togglePlayback">{{ replay.playing ? "暂停回放" : "播放回放" }}</button>
+          </div>
+        </div>
+
+        <div class="task-meta-grid">
+          <div class="task-meta"><span>任务ID</span><strong>{{ selectedTask?.task_id || "-" }}</strong></div>
+          <div class="task-meta"><span>任务状态</span><strong>{{ selectedTask?.status || "-" }}</strong></div>
+          <div class="task-meta"><span>累计任务数</span><strong>{{ selectedSnapshot?.metrics?.tasks_completed ?? "-" }}</strong></div>
+          <div class="task-meta"><span>告警数</span><strong>{{ selectedSnapshot?.metrics?.alerts ?? "-" }}</strong></div>
+        </div>
+
+        <div class="admin-slider-row">
+          <span>回放进度</span>
+          <input
+            v-model.number="replay.frameIndex"
+            :max="Math.max(0, replay.frames.length - 1)"
+            min="0"
+            type="range"
+            @input="drawReplayFrame"
+          />
+          <strong>{{ replay.frameIndex }}/{{ Math.max(0, replay.frames.length - 1) }}</strong>
+        </div>
+
+        <div class="canvas-wrap" style="margin-top: 10px">
+          <canvas ref="canvasRef" width="920" height="460"></canvas>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="admin-panel-head">
+          <div>
+            <h2>任务告警</h2>
+            <p class="legend">告警列表和当前任务信息分开展示，便于阅读。</p>
+          </div>
+          <button class="btn secondary" @click="adminView = 'tasks'">返回任务列表</button>
+        </div>
+
+        <div class="admin-highlight-card compact">
+          <p>当前任务</p>
+          <strong>{{ selectedTask?.mission_name || "未选择任务" }}</strong>
+          <span>{{ selectedTask ? `${templateLabel(selectedTask.template)} · ${assigneeLabel(selectedTask)}` : "请先在任务列表中选择任务" }}</span>
+        </div>
+
+        <div class="ops-alerts" style="margin-top: 10px">
+          <div v-if="selectedAlerts.length === 0" class="ops-alert-empty">无告警记录</div>
+          <div
+            v-for="alert in selectedAlerts"
+            :key="`${alert.ts}-${alert.code}`"
+            class="ops-alert-item"
+            :class="`level-${alert.level}`"
+          >
+            <span class="ops-alert-code">[{{ alert.code }}]</span>
+            <span>{{ alert.message }}</span>
+            <span class="ops-alert-step">step {{ alert.frame_step }}</span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section v-else class="admin-workspace-grid admin-dispatch-grid">
+      <article class="panel">
+        <div class="admin-panel-head">
+          <div>
+            <h2>创建并分配任务</h2>
+            <p class="legend">这里专门处理任务创建，不再和历史回放混排。</p>
+          </div>
+          <button class="btn secondary" @click="syncAssigneeDisplayName">同步执行者名称</button>
+        </div>
+
+        <div class="field-grid">
+          <label>任务名称 <input v-model="assignForm.mission_name" placeholder="如：night_shift_assign_01" /></label>
+          <label>任务模板
+            <select v-model="assignForm.template">
+              <option value="warehouse">仓储巡检</option>
+              <option value="campus">园区配送</option>
+              <option value="emergency">应急调度</option>
+            </select>
+          </label>
+          <label>执行数据源
+            <select v-model="assignForm.source">
+              <option value="sample">sample</option>
+              <option value="model">model</option>
+            </select>
+          </label>
+          <label>分配执行者
+            <select v-model="assignForm.assignee_user_id" @change="syncAssigneeDisplayName">
+              <option v-for="user in assignees" :key="user.user_id" :value="user.user_id">{{ user.display_name }} ({{ user.username }})</option>
+            </select>
+          </label>
+          <label>地图名称 <input v-model="assignForm.map_name" placeholder="如：warehouse-grid-v1" /></label>
+          <label>无人机数量 <input v-model.number="assignForm.num_agents" min="1" type="number" /></label>
+          <label>最大帧数 <input v-model.number="assignForm.max_frames" min="4" type="number" /></label>
+          <label>节拍(ms) <input v-model.number="assignForm.tick_ms" min="120" step="20" type="number" /></label>
+        </div>
+
+        <div class="btn-row" style="margin-top: 10px">
+          <button class="btn" @click="createAndAssignTask">创建并分配任务</button>
+        </div>
+        <div class="status-chip">{{ assignStatus }}</div>
+      </article>
+
+      <article class="panel">
+        <div class="admin-panel-head">
+          <div>
+            <h2>地图管理</h2>
+            <p class="legend">导入地图、查看最近导入记录，并一键设为当前任务地图。</p>
+          </div>
+        </div>
+
+        <div class="field-grid admin-map-import-grid">
+          <label>导入地图(JSON)
+            <input accept=".json,application/json" type="file" @change="onImportMapFile" />
+          </label>
+        </div>
+
+        <table class="fleet-table" style="margin-top: 8px">
+          <thead>
+            <tr>
+              <th>地图名</th>
+              <th>来源文件</th>
+              <th>导入时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in importedMaps" :key="item.id">
+              <td>{{ item.map_name }}</td>
+              <td>{{ item.file_name }}</td>
+              <td>{{ fmtTime(item.ts) }}</td>
+              <td>
+                <button class="btn secondary" @click="applyImportedMap(item)">设为任务地图</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </article>
+    </section>
+  </section>
+
+  <section v-else class="task-center-grid executor-task-grid">
     <article class="panel">
       <h2>任务中心</h2>
 
@@ -110,69 +457,17 @@
     </article>
 
     <article class="panel">
-      <h2>{{ isAdmin ? "任务分配与地图导入" : "执行者工作台" }}</h2>
-      <template v-if="isAdmin">
-        <div class="field-grid">
-          <label>任务名称 <input v-model="assignForm.mission_name" placeholder="如：night_shift_assign_01" /></label>
-          <label>任务模板
-            <select v-model="assignForm.template">
-              <option value="warehouse">仓储巡检</option>
-              <option value="campus">园区配送</option>
-              <option value="emergency">应急调度</option>
-            </select>
-          </label>
-          <label>执行数据源
-            <select v-model="assignForm.source">
-              <option value="sample">sample</option>
-              <option value="model">model</option>
-            </select>
-          </label>
-          <label>分配执行者
-            <select v-model="assignForm.assignee_user_id" @change="syncAssigneeDisplayName">
-              <option v-for="user in assignees" :key="user.user_id" :value="user.user_id">{{ user.display_name }} ({{ user.username }})</option>
-            </select>
-          </label>
-          <label>地图名称 <input v-model="assignForm.map_name" placeholder="如：warehouse-grid-v1" /></label>
-          <label>无人机数量 <input v-model.number="assignForm.num_agents" min="1" type="number" /></label>
-          <label>最大帧数 <input v-model.number="assignForm.max_frames" min="4" type="number" /></label>
-          <label>节拍(ms) <input v-model.number="assignForm.tick_ms" min="120" step="20" type="number" /></label>
-        </div>
-        <div class="btn-row" style="margin-top: 10px">
-          <button class="btn" @click="createAndAssignTask">创建并分配任务</button>
-        </div>
-        <div class="status-chip">{{ assignStatus }}</div>
-
-        <div class="field-grid" style="margin-top: 12px">
-          <label>导入地图(JSON)
-            <input accept=".json,application/json" type="file" @change="onImportMapFile" />
-          </label>
-        </div>
-
-        <table class="fleet-table" style="margin-top: 8px">
-          <thead>
-            <tr>
-              <th>地图名</th>
-              <th>来源文件</th>
-              <th>导入时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in importedMaps" :key="item.id">
-              <td>{{ item.map_name }}</td>
-              <td>{{ item.file_name }}</td>
-              <td>{{ fmtTime(item.ts) }}</td>
-              <td>
-                <button class="btn secondary" @click="applyImportedMap(item)">设为任务地图</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </template>
-      <template v-else>
-        <p class="legend">执行者仅可执行管理员分配的任务，不能创建任务或导入地图。</p>
-        <div class="status-chip">当前账号：{{ currentUser?.display_name || "-" }}</div>
-      </template>
+      <h2>执行者工作台</h2>
+      <p class="legend">执行者仅可执行管理员分配的任务，不能创建任务或导入地图。</p>
+      <div class="status-chip">当前账号：{{ currentUser?.display_name || "-" }}</div>
+      <div class="admin-highlight-card compact" style="margin-top: 12px">
+        <p>当前权限</p>
+        <strong>仅查看与执行</strong>
+        <span>可以查看分配给自己的任务、载入回放并跳转到运营中心。</span>
+      </div>
+      <div class="btn-row" style="margin-top: 12px">
+        <button class="btn secondary" @click="openOpsWithSelected">进入运营中心</button>
+      </div>
     </article>
   </section>
 </template>
@@ -206,6 +501,7 @@ const assignees = ref([]);
 const importedMaps = ref(loadImportedMaps());
 const replayTimer = ref(null);
 let pollTimer = null;
+const adminView = ref("overview");
 
 const filters = reactive({
   status: "ALL",
@@ -251,6 +547,12 @@ const filteredTasks = computed(() => {
     return task.task_id.toLowerCase().includes(keyword) || String(task.mission_name || "").toLowerCase().includes(keyword);
   });
 });
+
+const adminRecentTasks = computed(() => filteredTasks.value.slice(0, 6));
+const adminTaskStats = computed(() => ({
+  total: tasks.value.length,
+  running: tasks.value.filter((task) => task.status === "RUNNING").length,
+}));
 
 function fmtNumber(value, digits = 2) {
   if (value == null || Number.isNaN(Number(value))) return "-";
