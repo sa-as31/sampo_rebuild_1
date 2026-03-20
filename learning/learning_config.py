@@ -19,6 +19,7 @@ class DMAPFConfig(GridConfig):
 
     num_agents: int = 128
     obs_radius: int = 5
+    height_levels: int = 1
     max_episode_steps: int = 512
     map_name: str = r'mazes-.+'
 

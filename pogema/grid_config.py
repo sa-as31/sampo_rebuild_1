@@ -12,12 +12,14 @@ class GridConfig(BaseModel, ):
     FREE: Literal[0] = 0
     OBSTACLE: Literal[1] = 1
     MOVES: list = [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1], ]
+    MOVES_2P5D: list = [[0, 0, 0], [-1, 0, 0], [1, 0, 0], [0, -1, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]
     on_target: Literal['finish', 'nothing', 'restart'] = 'finish'
     seed: Optional[int] = None
     size: int = 8
     density: float = 0.3
     num_agents: int = 1
     obs_radius: int = 5
+    height_levels: int = 1
     agents_xy: Optional[list] = None
     targets_xy: Optional[list] = None
     collision_system: Literal['block_both', 'priority'] = 'priority'
@@ -56,6 +58,11 @@ class GridConfig(BaseModel, ):
     @validator('obs_radius')
     def obs_radius_must_be_positive(cls, v):
         assert 1 <= v <= 128, "obs_radius must be in [1, 128]"
+        return v
+
+    @validator('height_levels')
+    def height_levels_must_be_positive(cls, v):
+        assert 1 <= v <= 32, "height_levels must be in [1, 32]"
         return v
 
     @validator('map', always=True)
@@ -135,6 +142,14 @@ class GridConfig(BaseModel, ):
 
         assert len(targets_xy) == len(agents_xy)
         return obstacles, agents_xy, targets_xy
+
+    def is_layered(self):
+        return int(self.height_levels) > 1
+
+    def get_action_deltas(self):
+        if self.is_layered():
+            return self.MOVES_2P5D
+        return self.MOVES
 
 
 class PredefinedDifficultyConfig(GridConfig):

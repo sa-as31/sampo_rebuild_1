@@ -44,6 +44,15 @@ class SMAPOWrapper(ObservationWrapper):
         if dx > obs_radius or dx < -obs_radius or dy > obs_radius or dy < -obs_radius:
             return None, None
         return obs_radius - dx, obs_radius - dy
+
+    @staticmethod
+    def get_relative_xyz(x, y, z, tx, ty, tz, obs_radius, height_levels):
+        lx, ly = SMAPOWrapper.get_relative_xy(x, y, tx, ty, obs_radius)
+        if lx is None or ly is None:
+            return None
+        if tz < 0 or tz >= height_levels:
+            return None
+        return int(tz), int(lx), int(ly)
     
     @staticmethod
     def get_rho(pos_k, pos_oth):
@@ -62,7 +71,7 @@ class SMAPOWrapper(ObservationWrapper):
         paths = self.re_plan.get_path()
         new_goals = []  
         intrinsic_rewards = [] 
-        pos_xy = self.grid.positions_xy         
+        pos_xy = self.grid.positions_xy
         obstacle = self.grid.obstacles
 
         ids_oth , relative_xy = self.bfs_obs(pos_xy, obstacle)
@@ -86,13 +95,23 @@ class SMAPOWrapper(ObservationWrapper):
                 new_goals.append(tuple(obs['target_xy']))
             obs['obstacles'][obs['obstacles'] > 0] *= -1
 
-            r = obs['obstacles'].shape[0] // 2
-            for idx, (gx, gy) in enumerate(path):
-                x, y = self.get_relative_xy(*obs['xy'], gx, gy, r)
-                if x is not None and y is not None:
-                    obs['obstacles'][x, y] = 1.0
-                else:
-                    break
+            if obs['obstacles'].ndim == 3:
+                r = obs['obstacles'].shape[-1] // 2
+                height_levels = obs['obstacles'].shape[0]
+                for gx, gy, gz in path:
+                    local_pos = self.get_relative_xyz(*obs['xy'], gx, gy, gz, r, height_levels)
+                    if local_pos is None:
+                        break
+                    lz, lx, ly = local_pos
+                    obs['obstacles'][lz, lx, ly] = 1.0
+            else:
+                r = obs['obstacles'].shape[0] // 2
+                for gx, gy in path:
+                    x, y = self.get_relative_xy(*obs['xy'], gx, gy, r)
+                    if x is not None and y is not None:
+                        obs['obstacles'][x, y] = 1.0
+                    else:
+                        break
     
         for k, _ in enumerate(paths):
             ids_oth_k = np.array(self.Padding(ids_oth[k], 64)).astype(int)
@@ -120,7 +139,7 @@ class SMAPOWrapper(ObservationWrapper):
 
     def reset_state(self):
         self.re_plan.reset_states()
-        self.re_plan._agent.add_grid_obstacles(self.get_global_obstacles(), self.get_global_agents_xy())
+        self.re_plan.add_grid_obstacles(self.get_global_obstacles(), self.get_global_agents_xy())
 
         self.prev_goals = None
         self.intrinsic_reward = None
@@ -131,6 +150,10 @@ class SMAPOWrapper(ObservationWrapper):
         return self.observation(observations)
     
     def bfs_obs(self, id_pos, obstacle, d = 5):
+        if len(id_pos) == 0:
+            return {}, {}
+        if len(id_pos[0]) >= 3:
+            return self.bfs_obs_3d(id_pos, obstacle, d=d)
         num_agents = len(id_pos)
         dx = [0, 1, -1, 0]
         dy = [1, 0, 0, -1]
@@ -158,6 +181,39 @@ class SMAPOWrapper(ObservationWrapper):
                     if tp_nx in pos_id.keys():
                         ids_oth[i].append(pos_id[tp_nx] - i)
                         relative_xy[i].append((nx_x - pos[0], nx_y - pos[1]))
+        return ids_oth, relative_xy
+
+    def bfs_obs_3d(self, id_pos, obstacle, d=5):
+        num_agents = len(id_pos)
+        deltas = [(0, 1, 0), (1, 0, 0), (-1, 0, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)]
+        pos_id = {tuple(pos): i for i, pos in enumerate(id_pos)}
+        ids_oth = dict(zip(range(num_agents), [[] for _ in range(num_agents)]))
+        relative_xy = dict(zip(range(num_agents), [[] for _ in range(num_agents)]))
+        max_z = self.grid.config.height_levels
+        for i in range(num_agents):
+            pos = tuple(id_pos[i])
+            posed = {pos}
+            q = queue.Queue()
+            q.put(pos)
+            while q.empty() == False:
+                x, y, z = q.get()
+                for dx_, dy_, dz_ in deltas:
+                    nx_x, nx_y, nz = x + dx_, y + dy_, z + dz_
+                    tp_nx = (nx_x, nx_y, nz)
+                    man_d = self.manhattan_distance_3d(nx_x, nx_y, nz, pos[0], pos[1], pos[2])
+                    if (
+                        man_d > d
+                        or tp_nx in posed
+                        or nz < 0
+                        or nz >= max_z
+                        or obstacle[nx_x, nx_y] == 1
+                    ):
+                        continue
+                    posed.add(tp_nx)
+                    q.put(tp_nx)
+                    if tp_nx in pos_id.keys():
+                        ids_oth[i].append(pos_id[tp_nx] - i)
+                        relative_xy[i].append((nx_x - pos[0], nx_y - pos[1], nz - pos[2]))
         return ids_oth, relative_xy
     
     @staticmethod
@@ -191,6 +247,10 @@ class SMAPOWrapper(ObservationWrapper):
     def manhattan_distance(x1, y1, x2, y2):
         return abs(x1 - x2) + abs(y1 - y2)
 
+    @staticmethod
+    def manhattan_distance_3d(x1, y1, z1, x2, y2, z2):
+        return abs(x1 - x2) + abs(y1 - y2) + abs(z1 - z2)
+
 
 class CutObservationWrapper(ObservationWrapper):
     def __init__(self, env, target_observation_radius):
@@ -200,9 +260,12 @@ class CutObservationWrapper(ObservationWrapper):
 
         for key, value in self.observation_space.items():
             d = self._initial_obs_radius * 2 + 1
-            if value.shape == (d, d):
+            if value.shape[-2:] == (d, d):
                 r = self._target_obs_radius
-                self.observation_space[key] = Box(0.0, 1.0, shape=(r * 2 + 1, r * 2 + 1))
+                if len(value.shape) == 3:
+                    self.observation_space[key] = Box(0.0, 1.0, shape=(value.shape[0], r * 2 + 1, r * 2 + 1))
+                else:
+                    self.observation_space[key] = Box(0.0, 1.0, shape=(r * 2 + 1, r * 2 + 1))
 
     def observation(self, observations):
         tr = self._target_obs_radius
@@ -211,8 +274,11 @@ class CutObservationWrapper(ObservationWrapper):
 
         for obs in observations:
             for key, value in obs.items():
-                if hasattr(value, 'shape') and value.shape == (d, d):
-                    obs[key] = value[ir - tr:ir + tr + 1, ir - tr:ir + tr + 1]
+                if hasattr(value, 'shape') and value.shape[-2:] == (d, d):
+                    if len(value.shape) == 3:
+                        obs[key] = value[:, ir - tr:ir + tr + 1, ir - tr:ir + tr + 1]
+                    else:
+                        obs[key] = value[ir - tr:ir + tr + 1, ir - tr:ir + tr + 1]
 
         return observations
 
@@ -224,22 +290,31 @@ class ConcatPositionalFeatures(ObservationWrapper):
         self.to_concat = []
 
         observation_space = Dict()
-        full_size = self.env.observation_space['obstacles'].shape[0]
+        full_size = self.env.observation_space['obstacles'].shape[-1]
 
         for key, value in self.observation_space.items():
-            if value.shape == (full_size, full_size):
+            if value.shape[-2:] == (full_size, full_size):
                 self.to_concat.append(key)
             else:
                 observation_space[key] = value
 
-        obs_shape = (len(self.to_concat), full_size, full_size)
+        obs_channels = 0
+        for key in self.to_concat:
+            shape = self.observation_space[key].shape
+            obs_channels += shape[0] if len(shape) == 3 else 1
+
+        obs_shape = (obs_channels, full_size, full_size)
         observation_space['obs'] = Box(0.0, 1.0, shape=obs_shape)
         self.to_concat.sort(key=self.key_comparator)
         self.observation_space = observation_space
 
     def observation(self, observations):
         for agent_idx, obs in enumerate(observations):
-            main_obs = np.concatenate([obs[key][None] for key in self.to_concat])
+            tensors = []
+            for key in self.to_concat:
+                value = obs[key]
+                tensors.append(value if value.ndim == 3 else value[None])
+            main_obs = np.concatenate(tensors)
             for key in self.to_concat:
                 del obs[key]
 

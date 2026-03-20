@@ -17,6 +17,7 @@ class Grid:
     def __init__(self, grid_config: GridConfig, add_artificial_border: bool = True, num_retries=10):
 
         self.config = grid_config
+        self.layered = self.config.is_layered()
         self.conflict = 0
         self.rnd = np.random.default_rng(grid_config.seed)
         if self.config.map is None:
@@ -30,8 +31,8 @@ class Grid:
                 raise IndexError("Can't create task. Please provide agents_xy and targets_xy of the same size.")
             grid_config.num_agents = len(starts_xy)
             for start_xy, finish_xy in zip(starts_xy, finishes_xy):
-                s_x, s_y = start_xy
-                f_x, f_y = finish_xy
+                s_x, s_y = start_xy[:2]
+                f_x, f_y = finish_xy[:2]
                 if self.config.map is not None and obstacles[s_x, s_y] == grid_config.OBSTACLE:
                     warnings.warn(f"There is an obstacle on a start point ({s_x}, {s_y}), replacing with free cell",
                                   Warning, stacklevel=2)
@@ -71,12 +72,20 @@ class Grid:
 
             obstacles = filled_obstacles
 
-            starts_xy = [(x + r, y + r) for x, y in starts_xy]
-            finishes_xy = [(x + r, y + r) for x, y in finishes_xy]
+            starts_xy = [self._add_border_xy(pos, r) for pos in starts_xy]
+            finishes_xy = [self._add_border_xy(pos, r) for pos in finishes_xy]
 
-        filled_positions = np.zeros(obstacles.shape)
-        for x, y in starts_xy:
-            filled_positions[x, y] = 1
+        starts_xy = self._lift_positions_to_layers(starts_xy)
+        finishes_xy = self._lift_positions_to_layers(finishes_xy)
+
+        if self.layered:
+            filled_positions = np.zeros((self.config.height_levels,) + obstacles.shape)
+            for x, y, z in starts_xy:
+                filled_positions[z, x, y] = 1
+        else:
+            filled_positions = np.zeros(obstacles.shape)
+            for x, y in starts_xy:
+                filled_positions[x, y] = 1
 
         self.obstacles = obstacles
         self.positions = filled_positions
@@ -84,6 +93,34 @@ class Grid:
         self.positions_xy = starts_xy
         self._initial_xy = deepcopy(starts_xy)
         self.is_active = {agent_id: True for agent_id in range(self.config.num_agents)}
+
+    def _add_border_xy(self, pos, radius):
+        if len(pos) >= 3:
+            x, y, z = pos
+            return (x + radius, y + radius, z)
+        x, y = pos
+        return (x + radius, y + radius)
+
+    def _lift_positions_to_layers(self, positions):
+        if not self.layered:
+            return [tuple(pos[:2]) if len(pos) >= 2 else tuple(pos) for pos in positions]
+
+        layered_positions = []
+        for pos in positions:
+            if len(pos) >= 3:
+                x, y, z = pos[:3]
+            else:
+                x, y = pos[:2]
+                z = int(self.rnd.integers(self.config.height_levels))
+            layered_positions.append((int(x), int(y), int(np.clip(z, 0, self.config.height_levels - 1))))
+        return layered_positions
+
+    def _split_position(self, pos):
+        if self.layered:
+            x, y, z = pos
+            return int(x), int(y), int(z)
+        x, y = pos
+        return int(x), int(y), 0
 
     def get_obstacles(self, ignore_borders=False):
         gc = self.config
@@ -93,7 +130,15 @@ class Grid:
 
     @staticmethod
     def _cut_borders_xy(positions, obs_radius):
-        return [[x - obs_radius, y - obs_radius] for x, y in positions]
+        result = []
+        for pos in positions:
+            if len(pos) >= 3:
+                x, y, z = pos
+                result.append([x - obs_radius, y - obs_radius, z])
+            else:
+                x, y = pos
+                result.append([x - obs_radius, y - obs_radius])
+        return result
 
     @staticmethod
     def _filter_inactive(pos, active_flags):
@@ -120,9 +165,14 @@ class Grid:
     def to_relative(coordinates, offset):
         result = deepcopy(coordinates)
         for idx, _ in enumerate(result):
-            x, y = result[idx]
-            dx, dy = offset[idx]
-            result[idx] = x - dx, y - dy
+            if len(result[idx]) >= 3:
+                x, y, z = result[idx]
+                dx, dy, dz = offset[idx]
+                result[idx] = x - dx, y - dy, z - dz
+            else:
+                x, y = result[idx]
+                dx, dy = offset[idx]
+                result[idx] = x - dx, y - dy
         return result
 
     def get_agents_xy_relative(self):
@@ -137,7 +187,7 @@ class Grid:
     def _normalize_coordinates(self, coordinates):
         gc = self.config
 
-        x, y = coordinates
+        x, y = coordinates[:2]
 
         x -= gc.obs_radius
         y -= gc.obs_radius
@@ -145,6 +195,10 @@ class Grid:
         x /= gc.size - 1
         y /= gc.size - 1
 
+        if len(coordinates) >= 3:
+            z = coordinates[2]
+            denom = max(gc.height_levels - 1, 1)
+            return x, y, z / denom
         return x, y
 
     def get_state(self, ignore_borders=False, as_dict=False):
@@ -160,37 +214,57 @@ class Grid:
 
     def get_observation_shape(self):
         full_radius = self.config.obs_radius * 2 + 1
+        if self.layered:
+            return self.config.height_levels * 2, full_radius, full_radius
         return 2, full_radius, full_radius
 
     def get_num_actions(self):
         return len(self.config.MOVES)
 
     def get_obstacles_for_agent(self, agent_id):
-        x, y = self.positions_xy[agent_id]
+        x, y, _ = self._split_position(self.positions_xy[agent_id])
         r = self.config.obs_radius
-        return self.obstacles[x - r:x + r + 1, y - r:y + r + 1].astype(np.float32)
+        window = self.obstacles[x - r:x + r + 1, y - r:y + r + 1].astype(np.float32)
+        if self.layered:
+            return np.repeat(window[None], self.config.height_levels, axis=0)
+        return window
 
     def get_positions(self, agent_id):
-        x, y = self.positions_xy[agent_id]
+        x, y, _ = self._split_position(self.positions_xy[agent_id])
         r = self.config.obs_radius
+        if self.layered:
+            return self.positions[:, x - r:x + r + 1, y - r:y + r + 1].astype(np.float32)
         return self.positions[x - r:x + r + 1, y - r:y + r + 1].astype(np.float32)
 
     def get_target(self, agent_id):
 
-        x, y = self.positions_xy[agent_id]
-        fx, fy = self.finishes_xy[agent_id]
-        if x == fx and y == fy:
-            return 0.0, 0.0
-        rx, ry = fx - x, fy - y
-        dist = np.sqrt(rx ** 2 + ry ** 2)
+        x, y, z = self._split_position(self.positions_xy[agent_id])
+        fx, fy, fz = self._split_position(self.finishes_xy[agent_id])
+        if x == fx and y == fy and z == fz:
+            return (0.0, 0.0, 0.0) if self.layered else (0.0, 0.0)
+        rx, ry, rz = fx - x, fy - y, fz - z
+        dist = np.sqrt(rx ** 2 + ry ** 2 + rz ** 2) if self.layered else np.sqrt(rx ** 2 + ry ** 2)
+        if self.layered:
+            return rx / dist, ry / dist, rz / dist
         return rx / dist, ry / dist
 
     def get_square_target(self, agent_id):
         c = self.config
         full_size = self.config.obs_radius * 2 + 1
+        if self.layered:
+            result = np.zeros((c.height_levels, full_size, full_size))
+            x, y, z = self._split_position(self.positions_xy[agent_id])
+            fx, fy, fz = self._split_position(self.finishes_xy[agent_id])
+            dx, dy = x - fx, y - fy
+            dx = min(dx, c.obs_radius) if dx >= 0 else max(dx, -c.obs_radius)
+            dy = min(dy, c.obs_radius) if dy >= 0 else max(dy, -c.obs_radius)
+            target_layer = int(np.clip(fz, 0, c.height_levels - 1))
+            result[target_layer, c.obs_radius - dx, c.obs_radius - dy] = 1
+            return result.astype(np.float32)
+
         result = np.zeros((full_size, full_size))
-        x, y = self.positions_xy[agent_id]
-        fx, fy = self.finishes_xy[agent_id]
+        x, y, _ = self._split_position(self.positions_xy[agent_id])
+        fx, fy, _ = self._split_position(self.finishes_xy[agent_id])
         dx, dy = x - fx, y - fy
 
         dx = min(dx, c.obs_radius) if dx >= 0 else max(dx, -c.obs_radius)
@@ -201,8 +275,18 @@ class Grid:
     def render(self, mode='human'):
         outfile = StringIO() if mode == 'ansi' else sys.stdout
         chars = string.digits + string.ascii_letters + string.punctuation
-        positions_map = {(x, y): id_ for id_, (x, y) in enumerate(self.positions_xy) if self.is_active[id_]}
-        finishes_map = {(x, y): id_ for id_, (x, y) in enumerate(self.finishes_xy) if self.is_active[id_]}
+        positions_map = {}
+        finishes_map = {}
+        for id_, pos in enumerate(self.positions_xy):
+            if not self.is_active[id_]:
+                continue
+            x, y, _ = self._split_position(pos)
+            positions_map[(x, y)] = id_
+        for id_, pos in enumerate(self.finishes_xy):
+            if not self.is_active[id_]:
+                continue
+            x, y, _ = self._split_position(pos)
+            finishes_map[(x, y)] = id_
         for line_index, line in enumerate(self.obstacles):
             out = ''
             for cell_index, cell in enumerate(line):
@@ -228,6 +312,17 @@ class Grid:
                 return outfile.getvalue()
 
     def move_agent_to_cell(self, agent_id, x, y):
+        pos = self.positions_xy[agent_id]
+        if self.layered:
+            z = pos[2]
+            if self.positions[z, pos[0], pos[1]] == self.config.FREE:
+                raise KeyError("Agent {} is not in the map".format(agent_id))
+            self.positions[z, pos[0], pos[1]] = self.config.FREE
+            if self.obstacles[x, y] != self.config.FREE or self.positions[z, x, y] != self.config.FREE:
+                raise ValueError(f"Can't force agent to blocked position {x} {y} on layer {z}")
+            self.positions_xy[agent_id] = (x, y, z)
+            self.positions[z, x, y] = self.config.OBSTACLE
+            return
         if self.positions[self.positions_xy[agent_id]] == self.config.FREE:
             raise KeyError("Agent {} is not in the map".format(agent_id))
         self.positions[self.positions_xy[agent_id]] = self.config.FREE
@@ -238,11 +333,33 @@ class Grid:
 
     def move(self, agent_id, action):
         # if collision: keep still
+        if self.layered:
+            x, y, z = self.positions_xy[agent_id]
+            self.positions[z, x, y] = self.config.FREE
+
+            dx, dy, dz = self.config.get_action_deltas()[action]
+            nx, ny, nz = x + dx, y + dy, z + dz
+            can_move = (
+                0 <= nz < self.config.height_levels
+                and 0 <= nx < self.obstacles.shape[0]
+                and 0 <= ny < self.obstacles.shape[1]
+                and self.obstacles[nx, ny] == self.config.FREE
+                and self.positions[nz, nx, ny] == self.config.FREE
+            )
+            if can_move:
+                x, y, z = nx, ny, nz
+            else:
+                self.conflict += 1
+
+            self.positions_xy[agent_id] = (x, y, z)
+            self.positions[z, x, y] = self.config.OBSTACLE
+            return
+
         x, y = self.positions_xy[agent_id]
 
         self.positions[x, y] = self.config.FREE
 
-        dx, dy = self.config.MOVES[action]
+        dx, dy = self.config.get_action_deltas()[action]
 
         if self.obstacles[x + dx, y + dy] == self.config.FREE and self.positions[x + dx, y + dy] == self.config.FREE:
             x += dx
@@ -264,7 +381,12 @@ class Grid:
             return False
         self.is_active[agent_id] = False
 
-        self.positions[self.positions_xy[agent_id]] = self.config.FREE
+        pos = self.positions_xy[agent_id]
+        if self.layered:
+            x, y, z = pos
+            self.positions[z, x, y] = self.config.FREE
+        else:
+            self.positions[pos] = self.config.FREE
 
         return True
 
@@ -273,9 +395,16 @@ class Grid:
             return False
 
         self.is_active[agent_id] = True
-        if self.positions[self.positions_xy[agent_id]] == self.config.OBSTACLE:
-            raise KeyError("The cell is already occupied")
-        self.positions[self.positions_xy[agent_id]] = self.config.OBSTACLE
+        pos = self.positions_xy[agent_id]
+        if self.layered:
+            x, y, z = pos
+            if self.positions[z, x, y] == self.config.OBSTACLE:
+                raise KeyError("The cell is already occupied")
+            self.positions[z, x, y] = self.config.OBSTACLE
+        else:
+            if self.positions[pos] == self.config.OBSTACLE:
+                raise KeyError("The cell is already occupied")
+            self.positions[pos] = self.config.OBSTACLE
         return True
 
 
@@ -289,12 +418,18 @@ class GridLifeLong(Grid):
 
         for i in range(len(self.positions_xy)):
             position, target = self.positions_xy[i], self.finishes_xy[i]
-            if self.point_to_component[position] != self.point_to_component[target]:
+            position_xy = tuple(position[:2])
+            target_xy = tuple(target[:2])
+            if self.point_to_component[position_xy] != self.point_to_component[target_xy]:
                 warnings.warn(f"The start point ({position[0]}, {position[1]}) and the goal"
                               f" ({target[0]}, {target[1]}) are in different components. The goal is changed.",
                               Warning, stacklevel=2)
-                self.finishes_xy = generate_new_target(grid_config, self.point_to_component,
-                                                       self.component_to_points, position)
+                new_target_xy = generate_new_target(grid_config, self.point_to_component,
+                                                    self.component_to_points, position_xy)
+                if self.layered:
+                    self.finishes_xy[i] = (new_target_xy[0], new_target_xy[1], target[2])
+                else:
+                    self.finishes_xy[i] = new_target_xy
 
 
 class CooperativeGrid(Grid):
@@ -302,8 +437,10 @@ class CooperativeGrid(Grid):
         super().__init__(grid_config, add_artificial_border, num_retries)
 
     def move(self, agent_id, action):
+        if self.layered:
+            return super().move(agent_id, action)
         x, y = self.positions_xy[agent_id]
-        dx, dy = self.config.MOVES[action]
+        dx, dy = self.config.get_action_deltas()[action]
         if self.obstacles[x + dx, y + dy] == self.config.FREE:
             if self.positions[x + dx, y + dy] == self.config.FREE:
                 self.positions[x, y] = self.config.FREE

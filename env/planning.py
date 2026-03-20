@@ -2,6 +2,8 @@ from pogema import GridConfig
 from planner.LB_A.planner import planner
 from pydantic import BaseModel
 from typing import Optional
+import heapq
+import math
 
 try:
     from typing import Literal
@@ -95,10 +97,117 @@ class Planner:
         return results
 
 
+class LayeredPlanner:
+    def __init__(self, cfg: PlannerConfig):
+        self.cfg = cfg
+        self.obstacles = None
+        self.starts = None
+        self.paths = []
+        self.height_levels = 1
+        self.action_deltas = GridConfig().MOVES_2P5D
+
+    def add_grid_obstacles(self, obstacles, starts):
+        self.obstacles = obstacles
+        self.starts = starts
+        if starts and len(starts[0]) >= 3:
+            self.height_levels = max(int(pos[2]) for pos in starts) + 1
+
+    def _in_bounds(self, x, y, z):
+        return (
+            0 <= x < len(self.obstacles)
+            and 0 <= y < len(self.obstacles[0])
+            and 0 <= z < self.height_levels
+        )
+
+    def _is_free(self, x, y, z, blocked):
+        if not self._in_bounds(x, y, z):
+            return False
+        if self.obstacles[x][y] != 0:
+            return False
+        return (x, y, z) not in blocked
+
+    @staticmethod
+    def _manhattan(a, b):
+        return sum(abs(int(x) - int(y)) for x, y in zip(a, b))
+
+    def _register_path(self, path, planned_occupancy):
+        for t, pos in enumerate(path[1:], start=1):
+            planned_occupancy[(pos[0], pos[1], pos[2], t)] = planned_occupancy.get((pos[0], pos[1], pos[2], t), 0) + 1
+
+    def _plan_single(self, start, goal, blocked, planned_occupancy, max_depth=96):
+        if start == goal:
+            return [start]
+
+        open_heap = [(self._manhattan(start, goal), 0.0, start, 0)]
+        g_score = {(start, 0): 0.0}
+        parent = {}
+        best = (start, 0)
+        best_h = self._manhattan(start, goal)
+
+        while open_heap:
+            _, cur_g, pos, t = heapq.heappop(open_heap)
+            if cur_g > g_score.get((pos, t), math.inf):
+                continue
+            h = self._manhattan(pos, goal)
+            if h < best_h:
+                best_h = h
+                best = (pos, t)
+            if pos == goal:
+                best = (pos, t)
+                break
+            if t >= max_depth:
+                continue
+
+            for dx, dy, dz in self.action_deltas:
+                nxt = (pos[0] + dx, pos[1] + dy, pos[2] + dz)
+                if not self._is_free(*nxt, blocked):
+                    continue
+                penalty = planned_occupancy.get((nxt[0], nxt[1], nxt[2], t + 1), 0)
+                new_g = cur_g + 1.0 + self.cfg.plcc_alpha * penalty
+                key = (nxt, t + 1)
+                if new_g >= g_score.get(key, math.inf):
+                    continue
+                g_score[key] = new_g
+                parent[key] = (pos, t)
+                heapq.heappush(open_heap, (new_g + self._manhattan(nxt, goal), new_g, nxt, t + 1))
+
+        states = [best]
+        while states[-1][0] != start:
+            states.append(parent[states[-1]])
+        states.reverse()
+        return [state[0] for state in states]
+
+    def update(self, obs):
+        num_agents = len(obs)
+        if self.starts is None:
+            raise RuntimeError("LayeredPlanner must be initialized with add_grid_obstacles before update().")
+        if obs and hasattr(obs[0].get('agents'), 'shape') and len(obs[0]['agents'].shape) == 3:
+            self.height_levels = int(obs[0]['agents'].shape[0])
+
+        current_positions = [tuple(int(v) for v in obs[i]['xy']) for i in range(num_agents)]
+        target_positions = [tuple(int(v) for v in obs[i]['target_xy']) for i in range(num_agents)]
+        blocked_now = set(current_positions)
+        planned_occupancy = {}
+        self.paths = []
+
+        for i in range(num_agents):
+            if current_positions[i] == target_positions[i]:
+                self.paths.append([current_positions[i]])
+                continue
+            blocked = blocked_now - {current_positions[i]}
+            path = self._plan_single(current_positions[i], target_positions[i], blocked, planned_occupancy)
+            self.paths.append(path)
+            self._register_path(path, planned_occupancy)
+
+    def get_path(self):
+        return self.paths
+
+
 class ResettablePlanner:
     def __init__(self, cfg: PlannerConfig):
         self._cfg = cfg
         self._agent = None
+        self._starts = None
 
     def update(self, observations):
         return self._agent.update(observations)
@@ -108,3 +217,11 @@ class ResettablePlanner:
 
     def reset_states(self, ):
         self._agent = Planner(self._cfg)
+
+    def add_grid_obstacles(self, obstacles, starts):
+        self._starts = starts
+        if starts and len(starts[0]) >= 3:
+            self._agent = LayeredPlanner(self._cfg)
+        elif self._agent is None:
+            self._agent = Planner(self._cfg)
+        self._agent.add_grid_obstacles(obstacles, starts)

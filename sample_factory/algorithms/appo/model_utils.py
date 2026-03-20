@@ -302,16 +302,22 @@ def mlp_encoder(cfg, in_features, out_features):
     Layers.extend([nn.Linear(cfg.hidden_size, out_features)])
     return nn.Sequential(*Layers)
 
-class RelativeEmbedding2D(nn.Module):
-    def __init__(self, hidden_size, num_buget=128):
+class RelativeEmbeddingND(nn.Module):
+    def __init__(self, hidden_size, dims, offset=10):
         super().__init__()
-        self.embeddings = nn.Embedding(num_embeddings=num_buget, embedding_dim = hidden_size)
+        self.dims = dims
+        self.offset = offset
+        self.span = offset * 2 + 1
+        self.embeddings = nn.Embedding(num_embeddings=self.span ** dims, embedding_dim = hidden_size)
         self.to_r = nn.Linear(hidden_size, hidden_size)
     
     def forward(self, x, q):
         q_shape = q.shape
-        x = (x[:,:,0] + 5)*11 + x[:,:,1] + 5
-        x = x.long().clamp(0, self.embeddings.num_embeddings - 1)
+        x = x[..., :self.dims].long().clamp(-self.offset, self.offset) + self.offset
+        index = x[..., 0]
+        for dim in range(1, self.dims):
+            index = index * self.span + x[..., dim]
+        x = index.long().clamp(0, self.embeddings.num_embeddings - 1)
         x = self.embeddings(x)
         x = self.to_r(x)   
         x = x.view(q_shape[0], -1, q_shape[1], q_shape[3]).transpose(1,2) 
@@ -327,7 +333,8 @@ class Attention_cob(EncoderBase):
                   nn.Linear(hidden_size, hidden_size)]
         self.num_heads = getattr(cfg, 'num_heads', 4)
         self.head_dim = hidden_size // self.num_heads
-        self.re2D = RelativeEmbedding2D(hidden_size)
+        self.re2D = RelativeEmbeddingND(hidden_size, dims=2)
+        self.re3D = RelativeEmbeddingND(hidden_size, dims=3)
         self.Q = nn.Linear(hidden_size, hidden_size)
         self.K = nn.Linear(hidden_size, hidden_size)
         self.V = nn.Linear(hidden_size, hidden_size)
@@ -354,7 +361,7 @@ class Attention_cob(EncoderBase):
         k = k.transpose(1,2)
         v = v.transpose(1,2)
         
-        bias = self.re2D(relative_xy, q)
+        bias = self.re3D(relative_xy, q) if relative_xy.shape[-1] >= 3 else self.re2D(relative_xy, q)
         scores = torch.sum(q * k + bias, dim = -1) / self.sqer_len
 
         mask = mask.unsqueeze(1).repeat(1, self.num_heads, 1)
@@ -396,7 +403,7 @@ class ActionEncoder(EncoderBase):
         super().__init__(cfg, timing)
         fc_encoder_layer = cfg.Gfun_hidden_size
         layers = [
-            nn.Linear(5, fc_encoder_layer),
+            nn.LazyLinear(fc_encoder_layer),
             nonlinearity(cfg),
             nn.Linear(fc_encoder_layer, fc_encoder_layer),
             nonlinearity(cfg),

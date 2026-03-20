@@ -47,7 +47,7 @@ class PogemaBase(gym.Env):
         self.grid: Grid = None
         self.grid_config = grid_config
 
-        self.action_space: gym.spaces.Discrete = gym.spaces.Discrete(len(self.grid_config.MOVES))
+        self.action_space: gym.spaces.Discrete = gym.spaces.Discrete(len(self.grid_config.get_action_deltas()))
         self._multi_action_sampler = ActionsSampler(self.action_space.n, seed=self.grid_config.seed)
 
     def _get_agents_obs(self, agent_id=0):
@@ -56,10 +56,15 @@ class PogemaBase(gym.Env):
         :param agent_id:
         :return:
         """
+        obstacles = self.grid.get_obstacles_for_agent(agent_id)
+        positions = self.grid.get_positions(agent_id)
+        target = self.grid.get_square_target(agent_id)
+        if obstacles.ndim == 3:
+            return np.concatenate([obstacles, positions, target], axis=0)
         return np.concatenate([
-            self.grid.get_obstacles_for_agent(agent_id)[None],
-            self.grid.get_positions(agent_id)[None],
-            self.grid.get_square_target(agent_id)[None]
+            obstacles[None],
+            positions[None],
+            target[None]
         ])
 
     def check_reset(self):
@@ -99,25 +104,33 @@ class Pogema(PogemaBase):
         super().__init__(grid_config)
         self.was_on_goal = None
         full_size = self.grid_config.obs_radius * 2 + 1
+        xy_shape = (3,) if self.grid_config.is_layered() else (2,)
+        relative_shape = (64, 3) if self.grid_config.is_layered() else (64, 2)
+        local_grid_shape = (
+            self.grid_config.height_levels,
+            full_size,
+            full_size,
+        ) if self.grid_config.is_layered() else (full_size, full_size)
         if self.grid_config.observation_type == 'default':
-            self.observation_space = gym.spaces.Box(-1.0, 1.0, shape=(3, full_size, full_size))
+            num_channels = 3 * self.grid_config.height_levels if self.grid_config.is_layered() else 3
+            self.observation_space = gym.spaces.Box(-1.0, 1.0, shape=(num_channels, full_size, full_size))
         elif self.grid_config.observation_type == 'POMAPF':
             self.observation_space: gym.spaces.Dict = gym.spaces.Dict(
-                obstacles=gym.spaces.Box(0.0, 1.0, shape=(full_size, full_size)),
-                agents=gym.spaces.Box(0.0, 1.0, shape=(full_size, full_size)),
-                xy=gym.spaces.Box(low=-1024, high=1024, shape=(2,), dtype=int),
-                target_xy=gym.spaces.Box(low=-1024, high=1024, shape=(2,), dtype=int),
+                obstacles=gym.spaces.Box(0.0, 1.0, shape=local_grid_shape),
+                agents=gym.spaces.Box(0.0, 1.0, shape=local_grid_shape),
+                xy=gym.spaces.Box(low=-1024, high=1024, shape=xy_shape, dtype=int),
+                target_xy=gym.spaces.Box(low=-1024, high=1024, shape=xy_shape, dtype=int),
                 attention_mask=gym.spaces.Box(low=-1024, high=1024,shape=(64,),dtype=int),
                 ids_oth   = gym.spaces.Box(low=-1024, high=1024,shape=(64,),dtype=int),
                 id_       = gym.spaces.Box(low=-1024, high=1024,shape=(1,),dtype=int),
-                relative_xy   = gym.spaces.Box(low=-1024, high=1024,shape=(64, 2),dtype=int),
+                relative_xy   = gym.spaces.Box(low=-1024, high=1024,shape=relative_shape,dtype=int),
             )
         elif self.grid_config.observation_type == 'MAPF':
             self.observation_space: gym.spaces.Dict = gym.spaces.Dict(
-                obstacles=gym.spaces.Box(0.0, 1.0, shape=(full_size, full_size)),
-                agents=gym.spaces.Box(0.0, 1.0, shape=(full_size, full_size)),
-                xy=gym.spaces.Box(low=-1024, high=1024, shape=(2,), dtype=int),
-                target_xy=gym.spaces.Box(low=-1024, high=1024, shape=(2,), dtype=int),
+                obstacles=gym.spaces.Box(0.0, 1.0, shape=local_grid_shape),
+                agents=gym.spaces.Box(0.0, 1.0, shape=local_grid_shape),
+                xy=gym.spaces.Box(low=-1024, high=1024, shape=xy_shape, dtype=int),
+                target_xy=gym.spaces.Box(low=-1024, high=1024, shape=xy_shape, dtype=int),
             )
         else:
             raise ValueError(f"Unknown observation type: {self.grid.config.observation_type}")
@@ -192,13 +205,17 @@ class Pogema(PogemaBase):
 
     def _pomapf_obs(self):
         results = []
-        agents_xy_relative = self.grid.get_agents_xy_relative()
-        targets_xy_relative = self.grid.get_targets_xy_relative()
+        if self.grid_config.is_layered():
+            agent_positions = self.grid.get_agents_xy()
+            target_positions = self.grid.get_targets_xy()
+        else:
+            agent_positions = self.grid.get_agents_xy_relative()
+            target_positions = self.grid.get_targets_xy_relative()
         for agent_idx in range(self.grid_config.num_agents):
             result = {'obstacles': self.grid.get_obstacles_for_agent(agent_idx),
                       'agents': self.grid.get_positions(agent_idx),
-                      'xy': agents_xy_relative[agent_idx],
-                      'target_xy': targets_xy_relative[agent_idx]}
+                      'xy': agent_positions[agent_idx],
+                      'target_xy': target_positions[agent_idx]}
             results.append(result)
         return results
 
@@ -216,16 +233,35 @@ class Pogema(PogemaBase):
         elif self.grid.config.collision_system == 'block_both':
             used_cells = {}
             agents_xy = self.grid.get_agents_xy()
-            for agent_idx, (x, y) in enumerate(agents_xy):
+            action_deltas = self.grid_config.get_action_deltas()
+            for agent_idx, pos in enumerate(agents_xy):
                 if self.grid.is_active[agent_idx]:
-                    dx, dy = self.grid_config.MOVES[actions[agent_idx]]
-                    used_cells[x + dx, y + dy] = 'blocked' if (x + dx, y + dy) in used_cells else 'visited'
-                    used_cells[x, y] = 'blocked'
+                    delta = action_deltas[actions[agent_idx]]
+                    if self.grid_config.is_layered():
+                        x, y, z = pos
+                        dx, dy, dz = delta
+                        next_pos = (x + dx, y + dy, z + dz)
+                        used_cells[next_pos] = 'blocked' if next_pos in used_cells else 'visited'
+                        used_cells[(x, y, z)] = 'blocked'
+                    else:
+                        x, y = pos
+                        dx, dy = delta
+                        next_pos = (x + dx, y + dy)
+                        used_cells[next_pos] = 'blocked' if next_pos in used_cells else 'visited'
+                        used_cells[(x, y)] = 'blocked'
             for agent_idx in range(self.grid_config.num_agents):
                 if self.grid.is_active[agent_idx]:
-                    x, y = agents_xy[agent_idx]
-                    dx, dy = self.grid_config.MOVES[actions[agent_idx]]
-                    if used_cells.get((x + dx, y + dy), None) != 'blocked':
+                    delta = action_deltas[actions[agent_idx]]
+                    pos = agents_xy[agent_idx]
+                    if self.grid_config.is_layered():
+                        x, y, z = pos
+                        dx, dy, dz = delta
+                        next_pos = (x + dx, y + dy, z + dz)
+                    else:
+                        x, y = pos
+                        dx, dy = delta
+                        next_pos = (x + dx, y + dy)
+                    if used_cells.get(next_pos, None) != 'blocked':
                         self.grid.move(agent_idx, actions[agent_idx])
         else:
             raise ValueError('Unknown collision system: {}'.format(self.grid.config.collision_system))
@@ -280,10 +316,17 @@ class PogemaLifeLong(Pogema):
                 rewards.append(0.0)
 
             if self.grid.on_goal(agent_idx):
-                self.grid.finishes_xy[agent_idx] = generate_new_target(self.random_generators[agent_idx],
-                                                                       self.grid.point_to_component,
-                                                                       self.grid.component_to_points,
-                                                                       self.grid.positions_xy[agent_idx])
+                new_target_xy = generate_new_target(
+                    self.random_generators[agent_idx],
+                    self.grid.point_to_component,
+                    self.grid.component_to_points,
+                    tuple(self.grid.positions_xy[agent_idx][:2]),
+                )
+                if self.grid_config.is_layered():
+                    z = int(self.random_generators[agent_idx].integers(self.grid_config.height_levels))
+                    self.grid.finishes_xy[agent_idx] = (new_target_xy[0], new_target_xy[1], z)
+                else:
+                    self.grid.finishes_xy[agent_idx] = new_target_xy
 
         for agent_idx in range(self.grid_config.num_agents):
             infos[agent_idx]['is_active'] = self.grid.is_active[agent_idx]
