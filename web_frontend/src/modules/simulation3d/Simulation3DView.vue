@@ -199,6 +199,10 @@ function resetPlaybackCursor() {
 
 function startPreview() {
   if (running.value) return;
+  const max = frameCount.value - 1;
+  if (max >= 0 && frameIndex.value >= max) {
+    resetPlaybackCursor();
+  }
   running.value = true;
   statusText.value = `${sourceLabel.value}回放运行中`;
   lastTs = 0;
