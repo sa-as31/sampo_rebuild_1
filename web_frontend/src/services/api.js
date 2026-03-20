@@ -66,3 +66,17 @@ export async function fetchTaskReplay(taskId) {
   const response = await fetch(`/api/tasks/${taskId}/replay`);
   return parseJsonOrThrow(response);
 }
+
+export async function fetchIdentity() {
+  const response = await fetch("/api/identity");
+  return parseJsonOrThrow(response);
+}
+
+export async function switchIdentity(userId) {
+  const response = await fetch("/api/identity/switch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId }),
+  });
+  return parseJsonOrThrow(response);
+}

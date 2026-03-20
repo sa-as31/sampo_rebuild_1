@@ -43,6 +43,10 @@ class DemoHandler(SimpleHTTPRequestHandler):
             self._send_json(HTTPStatus.OK, self._build_dashboard_summary())
             return
 
+        if route == "/api/identity":
+            self._send_json(HTTPStatus.OK, TASK_RUNTIME.get_identity())
+            return
+
         task_route = self._parse_task_route(route)
         if task_route:
             task_id, action = task_route
@@ -95,6 +99,18 @@ class DemoHandler(SimpleHTTPRequestHandler):
 
         if route == "/api/tasks":
             result = TASK_RUNTIME.create_task(payload)
+            self._send_json(HTTPStatus.OK, result)
+            return
+
+        if route == "/api/identity/switch":
+            user_id = str(payload.get("user_id") or "").strip()
+            if not user_id:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Missing user_id"})
+                return
+            result = TASK_RUNTIME.switch_identity(user_id)
+            if result is None:
+                self._send_json(HTTPStatus.NOT_FOUND, {"error": "User not found"})
+                return
             self._send_json(HTTPStatus.OK, result)
             return
 

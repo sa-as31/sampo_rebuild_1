@@ -1159,3 +1159,56 @@
     - 更容易统一尺寸、障碍率和难度；
     - 更适合作为训练资产；
     - 更便于复现实验与后续调参。
+
+## 50. 账户切换升级：真实用户界面 + 后端数据库持久化
+
+- 文件：`web_demo/task_runtime.py`
+- 主要修改：
+  - 在 SQLite 初始化中新增用户与应用状态表：
+    - `user_accounts`
+    - `app_state`
+  - 新增默认账户自动种子逻辑，首次启动自动写入 3 个账号；
+  - 新增身份接口数据层方法：
+    - `get_identity()`
+    - `switch_identity(user_id)`
+  - 切换账户时更新 `active_user_id` 与 `last_login_at`，实现后端持久化。
+
+- 文件：`web_demo/server.py`
+- 主要修改：
+  - 新增 `GET /api/identity`，返回当前账户 + 可切换账户列表；
+  - 新增 `POST /api/identity/switch`，根据 `user_id` 执行账户切换并返回最新身份上下文；
+  - 增加参数校验与错误返回（缺失 `user_id`、用户不存在）。
+
+- 文件：`web_frontend/src/services/api.js`
+- 主要修改：
+  - 新增前端身份接口封装：
+    - `fetchIdentity()`
+    - `switchIdentity(userId)`
+
+- 文件：`web_frontend/src/App.vue`
+- 主要修改：
+  - 顶栏由“静态身份标签”改为“账户卡片 + 切换按钮”；
+  - 切换弹窗改为真实账户列表（用户名、角色、部门、岗位、最近登录）；
+  - 首屏加载时从后端同步当前账户，切换时调用后端接口并回写界面；
+  - 权限联动保持：
+    - `admin` 显示研究模式；
+    - `executor` 隐藏研究模式。
+
+- 文件：`web_frontend/src/styles.css`
+- 主要修改：
+  - 新增账户卡片、用户列表卡片、角色徽标、错误提示等样式；
+  - 新增切换按钮禁用态样式，避免并发切换操作。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“用户切换如何做成更真实界面，并接入后端数据库”问答；
+  - 记录本次后端表结构、接口、前端交互和权限联动结论。
+
+- 验证结果：
+  - `python3 -m py_compile web_demo/task_runtime.py web_demo/server.py` 通过；
+  - `npm --prefix web_frontend run build` 通过；
+  - Playwright 联调通过：
+    - 可读取后端账户列表；
+    - 切换到管理员后出现“研究模式”入口；
+    - 切回执行者后“研究模式”入口隐藏；
+    - `GET /api/identity` 返回值与当前界面一致。

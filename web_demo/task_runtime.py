@@ -43,6 +43,34 @@ TEMPLATE_CONFIGS = {
     },
 }
 
+DEFAULT_USER_ACCOUNTS = [
+    {
+        "user_id": "u_admin_001",
+        "username": "admin.ops",
+        "display_name": "系统管理员",
+        "role": "admin",
+        "department": "调度中心",
+        "title": "平台运维负责人",
+    },
+    {
+        "user_id": "u_exec_001",
+        "username": "executor.a1",
+        "display_name": "一线执行员A1",
+        "role": "executor",
+        "department": "运营执行组",
+        "title": "无人机调度执行",
+    },
+    {
+        "user_id": "u_exec_002",
+        "username": "executor.b2",
+        "display_name": "一线执行员B2",
+        "role": "executor",
+        "department": "运营执行组",
+        "title": "巡检任务操作员",
+    },
+]
+DEFAULT_ACTIVE_USER_ID = "u_exec_001"
+
 
 def now_ts() -> float:
     return time.time()
@@ -103,6 +131,15 @@ class TaskRuntime:
         self.db = TaskDB(db_path)
         self.tasks: Dict[str, LiveTask] = {}
         self.tasks_lock = threading.RLock()
+
+    def get_identity(self) -> Dict[str, Any]:
+        return self.db.get_identity()
+
+    def switch_identity(self, user_id: str) -> Optional[Dict[str, Any]]:
+        user_id = str(user_id or "").strip()
+        if not user_id:
+            return None
+        return self.db.switch_identity(user_id)
 
     def create_task(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         template = str(payload.get("template") or "warehouse").lower()
@@ -630,8 +667,122 @@ class TaskDB:
                     frame_step INTEGER NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS idx_task_alerts_task_ts ON task_alerts(task_id, ts DESC);
+                CREATE TABLE IF NOT EXISTS user_accounts (
+                    user_id TEXT PRIMARY KEY,
+                    username TEXT NOT NULL UNIQUE,
+                    display_name TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    department TEXT NOT NULL,
+                    title TEXT,
+                    status TEXT NOT NULL DEFAULT 'active',
+                    last_login_at REAL,
+                    created_at REAL NOT NULL,
+                    updated_at REAL NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS app_state (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at REAL NOT NULL
+                );
                 """
             )
+            self._seed_default_users(conn)
+
+    def _seed_default_users(self, conn: sqlite3.Connection):
+        now = now_ts()
+        for account in DEFAULT_USER_ACCOUNTS:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO user_accounts(
+                    user_id, username, display_name, role, department, title, status, last_login_at, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, 'active', NULL, ?, ?)
+                """,
+                (
+                    account["user_id"],
+                    account["username"],
+                    account["display_name"],
+                    account["role"],
+                    account["department"],
+                    account.get("title") or "",
+                    now,
+                    now,
+                ),
+            )
+
+        active_row = conn.execute("SELECT value FROM app_state WHERE key = 'active_user_id'").fetchone()
+        if active_row is None:
+            candidate = DEFAULT_ACTIVE_USER_ID
+            candidate_row = conn.execute("SELECT user_id FROM user_accounts WHERE user_id = ?", (candidate,)).fetchone()
+            if candidate_row is None:
+                fallback_row = conn.execute(
+                    "SELECT user_id FROM user_accounts ORDER BY CASE role WHEN 'admin' THEN 0 ELSE 1 END, created_at ASC LIMIT 1"
+                ).fetchone()
+                if fallback_row is not None:
+                    candidate = str(fallback_row["user_id"])
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO app_state(key, value, updated_at)
+                VALUES ('active_user_id', ?, ?)
+                """,
+                (candidate, now),
+            )
+        conn.commit()
+
+    def get_identity(self) -> Dict[str, Any]:
+        with self._connect() as conn:
+            users = self._load_users(conn)
+            active_user_id = self._load_active_user_id(conn)
+        current = self._pick_current_user(users, active_user_id)
+        return {"current_user": current, "users": users}
+
+    def switch_identity(self, user_id: str) -> Optional[Dict[str, Any]]:
+        now = now_ts()
+        with self._connect() as conn:
+            row = conn.execute("SELECT user_id FROM user_accounts WHERE user_id = ?", (user_id,)).fetchone()
+            if row is None:
+                return None
+            conn.execute(
+                "UPDATE user_accounts SET last_login_at = ?, updated_at = ? WHERE user_id = ?",
+                (now, now, user_id),
+            )
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO app_state(key, value, updated_at)
+                VALUES ('active_user_id', ?, ?)
+                """,
+                (user_id, now),
+            )
+            conn.commit()
+            users = self._load_users(conn)
+        current = self._pick_current_user(users, user_id)
+        return {"current_user": current, "users": users}
+
+    def _load_users(self, conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+        rows = conn.execute(
+            """
+            SELECT user_id, username, display_name, role, department, title, status, last_login_at, created_at, updated_at
+            FROM user_accounts
+            WHERE status = 'active'
+            ORDER BY CASE role WHEN 'admin' THEN 0 ELSE 1 END, updated_at DESC, created_at ASC
+            """
+        ).fetchall()
+        return [self._parse_user_row(row) for row in rows]
+
+    def _load_active_user_id(self, conn: sqlite3.Connection) -> Optional[str]:
+        row = conn.execute("SELECT value FROM app_state WHERE key = 'active_user_id'").fetchone()
+        if row is None:
+            return None
+        return str(row["value"])
+
+    def _pick_current_user(self, users: List[Dict[str, Any]], active_user_id: Optional[str]) -> Optional[Dict[str, Any]]:
+        if not users:
+            return None
+        if active_user_id:
+            for user in users:
+                if user["user_id"] == active_user_id:
+                    return user
+        return users[0]
 
     def insert_task(
         self,
@@ -799,6 +950,22 @@ class TaskDB:
             "created_at": float(row["created_at"]),
             "started_at": row["started_at"],
             "ended_at": row["ended_at"],
+            "updated_at": float(row["updated_at"]),
+        }
+
+    def _parse_user_row(self, row: sqlite3.Row) -> Dict[str, Any]:
+        role = str(row["role"]).lower()
+        normalized_role = "admin" if role == "admin" else "executor"
+        return {
+            "user_id": str(row["user_id"]),
+            "username": str(row["username"]),
+            "display_name": str(row["display_name"]),
+            "role": normalized_role,
+            "department": str(row["department"]),
+            "title": str(row["title"] or ""),
+            "status": str(row["status"]),
+            "last_login_at": float(row["last_login_at"]) if row["last_login_at"] is not None else None,
+            "created_at": float(row["created_at"]),
             "updated_at": float(row["updated_at"]),
         }
 
