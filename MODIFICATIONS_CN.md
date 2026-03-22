@@ -1825,6 +1825,15 @@
     - 运营大屏平均吞吐量：各任务 `metrics.throughput` 的算术平均
   - 补充说明运行中实时快照会使用 `tasks_completed / current_step`，并用 `max(1, step)` 避免除零。
 
+## 70. 截图对应 Vue 文件问答补充
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“这张界面截图对应哪个 Vue 文件”问答；
+  - 明确指出整张截图的外层页面是 `web_frontend/src/modules/taskcenter/TaskCenterView.vue`；
+  - 补充说明其中的联合运行区域实际上由 `OperationsModeView.vue` 嵌入渲染；
+  - 记录答辩时可直接使用的口径：外层是任务中心，内层是联合运行页，执行/反馈/回放都属于任务中心详情态。
+
 ## 70. 优化任务中心日期筛选交互：改为点击弹出日历选择
 
 - 文件：`web_frontend/src/modules/taskcenter/TaskCenterView.vue`
