@@ -650,6 +650,33 @@ body {
   margin: 0 auto;
 }
 
+.history-dual-view-grid {
+  align-items: start;
+}
+
+.history-view-card {
+  min-width: 0;
+}
+
+.history-canvas-wrap {
+  width: 100%;
+}
+
+.history-canvas-wrap-2d {
+  aspect-ratio: 1 / 1;
+  max-height: min(72vh, 680px);
+}
+
+.history-canvas-wrap-3d {
+  aspect-ratio: 16 / 10;
+  max-height: min(72vh, 680px);
+}
+
+.history-view-card .canvas-wrap canvas {
+  width: 100%;
+  height: 100%;
+}
+
 .task-center-grid {
   display: grid;
   grid-template-columns: minmax(360px, 1fr) minmax(560px, 1.4fr) minmax(360px, 1fr);

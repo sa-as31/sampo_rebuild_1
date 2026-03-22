@@ -321,17 +321,17 @@
         </div>
 
         <div class="ops-dual-view-grid history-dual-view-grid" style="margin-top: 10px">
-          <section class="ops-view-card">
+          <section class="ops-view-card history-view-card">
             <h3>2D 历史回放</h3>
             <div class="legend">用于查看俯视轨迹、目标点和障碍布局</div>
-            <div class="canvas-wrap" style="margin-top: 8px">
+            <div class="canvas-wrap history-canvas-wrap history-canvas-wrap-2d" style="margin-top: 8px">
               <canvas ref="historyCanvasRef" width="920" height="460"></canvas>
             </div>
           </section>
-          <section class="ops-view-card">
+          <section class="ops-view-card history-view-card">
             <h3>3D 历史回放</h3>
             <div class="legend">与左侧使用同一任务、同一帧历史数据</div>
-            <div class="canvas-wrap" style="margin-top: 8px">
+            <div class="canvas-wrap history-canvas-wrap history-canvas-wrap-3d" style="margin-top: 8px">
               <canvas ref="history3dCanvasRef" width="920" height="460"></canvas>
             </div>
           </section>
@@ -533,17 +533,17 @@
           </div>
 
           <div class="ops-dual-view-grid history-dual-view-grid" style="margin-top: 10px">
-            <section class="ops-view-card">
+            <section class="ops-view-card history-view-card">
               <h3>2D 历史回放</h3>
               <div class="legend">查看任务轨迹、目标点和障碍分布</div>
-              <div class="canvas-wrap" style="margin-top: 8px">
+              <div class="canvas-wrap history-canvas-wrap history-canvas-wrap-2d" style="margin-top: 8px">
                 <canvas ref="executorHistoryCanvasRef" width="920" height="460"></canvas>
               </div>
             </section>
-            <section class="ops-view-card">
+            <section class="ops-view-card history-view-card">
               <h3>3D 历史回放</h3>
               <div class="legend">与左侧使用同一帧历史任务数据</div>
-              <div class="canvas-wrap" style="margin-top: 8px">
+              <div class="canvas-wrap history-canvas-wrap history-canvas-wrap-3d" style="margin-top: 8px">
                 <canvas ref="executorHistory3dCanvasRef" width="920" height="460"></canvas>
               </div>
             </section>

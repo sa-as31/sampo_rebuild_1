@@ -1880,3 +1880,30 @@
   - `npm --prefix web_frontend run build` 通过；
   - 任务中心中的历史回放区域现在会同步展示 2D 与 3D；
   - 播放历史回放时，两块画布会使用同一历史帧同步更新。
+
+## 72. 调整历史回放画布比例：2D 与 3D 分别按视图类型适配容器
+
+- 文件：`web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+- 主要修改：
+  - 为任务中心中的历史回放视图补充专用类名：
+    - `history-view-card`
+    - `history-canvas-wrap`
+    - `history-canvas-wrap-2d`
+    - `history-canvas-wrap-3d`
+  - 让 2D 与 3D 回放窗口在模板层面具备独立比例控制，而不再共用默认窗口尺寸。
+
+- 文件：`web_frontend/src/styles.css`
+- 主要修改：
+  - 新增 `history-dual-view-grid` 和 `history-view-card` 布局样式；
+  - 将 `2D 历史回放` 容器改为方形比例；
+  - 将 `3D 历史回放` 容器改为更适合空间展示的宽屏比例；
+  - 为历史回放专用画布单独设置 `width: 100%` 与 `height: 100%`，不再沿用通用固定高度。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“为什么历史回放里的 2D 和 3D 画面比例还需要单独适配”问答；
+  - 解释之前的问题是 2D / 3D 共用同一种固定画布比例，导致观感不自然。
+
+- 验证结果：
+  - `npm --prefix web_frontend run build` 通过；
+  - 历史回放页中的 2D 与 3D 现在会分别按更合适的比例展示，不再共用同一固定拉伸规则。
