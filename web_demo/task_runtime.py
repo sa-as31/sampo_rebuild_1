@@ -14,6 +14,7 @@ from typing import Any, Deque, Dict, List, Optional, Tuple
 ALLOWED_TEMPLATES = {"warehouse", "campus", "emergency"}
 ALLOWED_SOURCES = {"sample", "model"}
 FINAL_STATUSES = {"COMPLETED", "FAILED", "STOPPED"}
+RESTORABLE_STATUSES = {"PREPARING", "READY", "RUNNING", "PAUSED"}
 
 TEMPLATE_CONFIGS = {
     "warehouse": {
@@ -218,6 +219,7 @@ class TaskRuntime:
         self.tasks_lock = threading.RLock()
         self.replay_dir = self.db.db_path.parent / "task_replays"
         self.replay_dir.mkdir(parents=True, exist_ok=True)
+        self._restore_live_tasks()
 
     def get_auth_state(self) -> Dict[str, Any]:
         return self.db.get_auth_state()
@@ -804,6 +806,89 @@ class TaskRuntime:
         with self.tasks_lock:
             return self.tasks.get(task_id)
 
+    def _restore_live_tasks(self):
+        for stored in self.db.list_restorable_tasks(limit=300):
+            task_id = str(stored.get("task_id") or "").strip()
+            if not task_id:
+                continue
+            try:
+                playback = self._load_persisted_replay(task_id)
+                if playback and playback.get("available"):
+                    environment = playback.get("environment")
+                    frames = list(playback.get("frames") or [])
+                    metrics = dict(playback.get("metrics") or {})
+                    meta = dict(playback.get("meta") or {})
+                else:
+                    rebuilt = self._build_playback(
+                        source=str(stored.get("source") or "sample"),
+                        template=str(stored.get("template") or "warehouse"),
+                        params=dict(stored.get("params") or {}),
+                    )
+                    environment = rebuilt.get("environment")
+                    frames = list(rebuilt.get("frames") or [])
+                    metrics = dict(rebuilt.get("metrics") or {})
+                    meta = dict(rebuilt.get("meta") or {})
+                    self._persist_replay_payload(
+                        self._build_replay_response(
+                            task_id=task_id,
+                            task=stored,
+                            environment=environment,
+                            frames=frames,
+                            metrics=metrics,
+                            meta=meta,
+                        )
+                    )
+            except Exception:
+                continue
+
+            live_status = str(stored.get("status") or "READY").upper()
+            if live_status == "PREPARING":
+                live_status = "READY"
+            elif live_status == "RUNNING":
+                live_status = "PAUSED"
+
+            live = LiveTask(
+                task_id=task_id,
+                mission_name=str(stored.get("mission_name") or "restored_task"),
+                template=str(stored.get("template") or "warehouse"),
+                source=str(stored.get("source") or "sample"),
+                params=dict(stored.get("params") or {}),
+                status=live_status,
+                created_at=float(stored.get("created_at") or now_ts()),
+                updated_at=float(stored.get("updated_at") or now_ts()),
+                started_at=float(stored["started_at"]) if stored.get("started_at") is not None else None,
+                ended_at=float(stored["ended_at"]) if stored.get("ended_at") is not None else None,
+                error=stored.get("error"),
+                tick_ms=int(stored.get("tick_ms") or 320),
+            )
+            live.environment = environment
+            live.frames = frames
+            live.base_metrics = metrics
+            live.warnings = list(meta.get("warnings") or [])
+
+            if live.frames:
+                max_index = max(0, len(live.frames) - 1)
+                stored_index = int(stored.get("current_frame_index") or 0)
+                live.frame_index = max(0, min(stored_index, max_index))
+                live.runtime_metrics = dict(stored.get("metrics") or {}) or self._calculate_runtime_metrics(
+                    live,
+                    live.frames[live.frame_index],
+                )
+            else:
+                live.frame_index = 0
+                live.runtime_metrics = dict(stored.get("metrics") or {}) or self._blank_runtime_metrics(live)
+
+            alerts = list(reversed(self.db.get_alerts(task_id, limit=120)))
+            live.alerts = alerts
+            live.alert_count = len(alerts)
+
+            with self.tasks_lock:
+                self.tasks[task_id] = live
+
+            if live_status != str(stored.get("status") or "").upper():
+                live.updated_at = now_ts()
+                self._persist_runtime_state(live)
+
     def _replay_path(self, task_id: str) -> Path:
         return self.replay_dir / f"{task_id}.json"
 
@@ -1346,6 +1431,20 @@ class TaskDB:
                 """
                 SELECT *
                 FROM tasks
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [self._parse_task_row(row) for row in rows]
+
+    def list_restorable_tasks(self, limit: int = 100) -> List[Dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT *
+                FROM tasks
+                WHERE status IN ('PREPARING', 'READY', 'RUNNING', 'PAUSED')
                 ORDER BY created_at DESC
                 LIMIT ?
                 """,

@@ -1942,3 +1942,28 @@
 - 验证结果：
   - `npm --prefix web_frontend run build` 通过；
   - 历史回放页现在已按与任务执行页一致的 canvas 尺寸同步规则绘制，比例表现会更接近执行页。
+
+## 74. 修复待执行任务无法启动：服务重启后恢复非终态任务到运行时
+
+- 文件：`web_demo/task_runtime.py`
+- 主要修改：
+  - 新增 `RESTORABLE_STATUSES = {'PREPARING', 'READY', 'RUNNING', 'PAUSED'}`；
+  - 在 `TaskRuntime.__init__()` 中加入 `_restore_live_tasks()`；
+  - 启动服务时会从数据库恢复非终态任务到运行时内存 `self.tasks`；
+  - 新增 `TaskDB.list_restorable_tasks()`，专门读取需要恢复的任务；
+  - 恢复任务时会：
+    - 优先读取已落盘的历史回放；
+    - 若没有回放文件则按任务参数重建；
+    - 还原任务参数、帧索引、运行指标、历史告警；
+    - 将重启前处于 `RUNNING` 的任务恢复为 `PAUSED`，避免服务重启后自动继续执行。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“为什么待执行任务会提示‘开始执行失败：Task not found’”问答；
+  - 说明根因是任务在数据库中存在，但没有恢复成运行时 live task。
+
+- 运行与验证：
+  - `python3 -m py_compile web_demo/task_runtime.py web_demo/server.py` 通过；
+  - 本地验证 `d7d20597684c` 在修复前为“数据库中 READY，但 live task 不存在”；
+  - 修复后，新建演示任务 `6c0b04af4958 / demo_executor01_campus_restore`；
+  - 通过 HTTP 调用 `/api/tasks/6c0b04af4958/control`，已验证能从 `READY` 正常切到 `RUNNING`。
