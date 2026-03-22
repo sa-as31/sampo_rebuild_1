@@ -1801,3 +1801,16 @@
     - `web_frontend/src/modules/shared/renderer.js`
     - `web_frontend/src/services/api.js`
   - 说明一般不太会现场要求重改强化学习训练主流程或底层 C++ 规划器。
+
+## 68. 新增 modules 页面说明文档
+
+- 新增文件：`web_frontend/src/modules/MODULES_UI_OVERVIEW_CN.md`
+- 主要内容：
+  - 逐个介绍 `modules` 目录下各个 `.vue` 文件对应的页面界面；
+  - 说明每个页面的主要职责、适用对象、页面特点；
+  - 补充答辩现场最可能被要求修改的点，便于快速定位代码。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“能否在 `modules` 目录下单独放一份文档，介绍每个 Vue 文件对应的界面”问答；
+  - 说明该文档已生成，并概述其适用场景（答辩复习 / 页面讲解 / 快速定位文件）。
