@@ -2061,6 +2061,16 @@
   - `npm --prefix web_frontend run build` 通过；
   - 后端已重启，`/api/auth/options` 返回的默认账号展示名已变为“监督员01”。
 
+## 79. 补充项目技术介绍说明
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“这个项目的技术介绍应该怎么写”问答；
+  - 按当前仓库真实技术栈整理了一版可直接用于论文或系统说明的技术介绍；
+  - 明确前端采用 `HTML + CSS + JavaScript + Vue.js + Vite + Canvas`；
+  - 明确后端采用 `Python + ThreadingHTTPServer` 的轻量服务结构；
+  - 明确数据存储采用 `SQLite`，而不是 Django/MySQL 方案。
+
 ## 79. 补充文献综述论文检索结果，并建立“章节-论文”映射
 
 - 文件：`文献综述-薛文清-2210720131-修订源.html`
