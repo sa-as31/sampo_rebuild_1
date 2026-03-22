@@ -56,7 +56,7 @@
       </div>
 
       <div v-else-if="!sidebarCollapsed" class="ops-executor-summary">
-        <div class="status-chip">执行者仅查看当前任务，不可在此页修改任务参数。</div>
+        <div class="status-chip">监督员仅查看当前任务，不可在此页修改任务参数。</div>
         <div class="admin-highlight-card compact">
           <p>当前任务</p>
           <strong>{{ runtime.task?.mission_name || "未载入任务" }}</strong>
@@ -326,7 +326,7 @@ async function startOpsRun() {
       return;
     }
     if (!isAdmin.value && (!currentTaskId.value || isTerminalStatus(runtime.task?.status))) {
-      opsStatus.value = "执行者不能新建任务，请在任务中心选择管理员分配的任务后再启动。";
+      opsStatus.value = "监督员不能新建任务，请在任务中心选择管理员分配的任务后再启动。";
       return;
     }
     if (!currentTaskId.value || isTerminalStatus(runtime.task?.status)) {

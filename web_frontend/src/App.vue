@@ -11,7 +11,7 @@
         <h2>系统登录</h2>
         <p class="login-sub">请选择身份并输入账号密码。</p>
         <div class="login-role-row">
-          <button class="role-toggle" :class="{ active: loginRole === 'executor' }" @click="setLoginRole('executor')">执行者</button>
+          <button class="role-toggle" :class="{ active: loginRole === 'executor' }" @click="setLoginRole('executor')">监督员</button>
           <button class="role-toggle" :class="{ active: loginRole === 'admin' }" @click="setLoginRole('admin')">管理员</button>
         </div>
         <p class="login-sub" style="margin-top: 8px">{{ roleHintText }}</p>
@@ -99,13 +99,13 @@ const activeMode = ref("taskCenter");
 
 const currentRole = computed(() => (currentUser.value?.role === "admin" ? "admin" : "executor"));
 const tabs = computed(() => (currentRole.value === "admin" ? adminTabs : executorTabs));
-const roleLabel = computed(() => (currentRole.value === "admin" ? "管理员" : "执行者"));
+const roleLabel = computed(() => (currentRole.value === "admin" ? "管理员" : "监督员"));
 const currentUserName = computed(() => currentUser.value?.display_name || "未登录账户");
 const currentUserDept = computed(() => currentUser.value?.department || "未分配部门");
 const currentUserInitial = computed(() => userInitial(currentUser.value));
 const roleHintText = computed(() => {
   if (loginRole.value === "admin") return "管理员账号示例：admin（可手动输入其他管理员账号）";
-  return "执行者账号示例：executor01（可手动输入其他执行者账号）";
+  return "监督员账号示例：executor01（可手动输入其他监督员账号）";
 });
 
 function normalizeUser(raw) {

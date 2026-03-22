@@ -37,7 +37,7 @@
         <div class="admin-panel-head">
           <div>
             <h2>创建并分配任务</h2>
-            <p class="legend">基于已导入地图选择任务场景，指定执行者与计划执行时间。</p>
+            <p class="legend">基于已导入地图选择任务场景，指定监督员与计划执行时间。</p>
           </div>
           <button class="btn" @click="refreshTasks">刷新任务状态</button>
         </div>
@@ -59,7 +59,7 @@
               <option value="model">model</option>
             </select>
           </label>
-          <label>分配执行者
+          <label>分配监督员
             <select v-model="assignForm.assignee_user_id" @change="syncAssigneeDisplayName">
               <option v-for="user in assignees" :key="user.user_id" :value="user.user_id">{{ user.display_name }} ({{ user.username }})</option>
             </select>
@@ -162,7 +162,7 @@
 
         <label class="admin-search">
           <span>搜索任务</span>
-          <input v-model="adminFilters.activeKeyword" placeholder="任务名 / task_id / 执行者" />
+          <input v-model="adminFilters.activeKeyword" placeholder="任务名 / task_id / 监督员" />
         </label>
         <label class="admin-search">
           <span>按日期筛选</span>
@@ -245,14 +245,14 @@
         <div class="admin-panel-head">
           <div>
             <h2>已完成任务</h2>
-            <p class="legend">查看已完成、失败或停止的任务，并追踪告警和执行者反馈。</p>
+            <p class="legend">查看已完成、失败或停止的任务，并追踪告警和监督员反馈。</p>
           </div>
           <button class="btn" @click="refreshTasks">刷新历史</button>
         </div>
 
         <label class="admin-search">
           <span>搜索任务</span>
-          <input v-model="adminFilters.completedKeyword" placeholder="任务名 / task_id / 执行者" />
+          <input v-model="adminFilters.completedKeyword" placeholder="任务名 / task_id / 监督员" />
         </label>
         <label class="admin-search">
           <span>按日期筛选</span>
@@ -292,7 +292,7 @@
         <div class="admin-panel-head">
           <div>
             <h2>复盘与问题记录</h2>
-            <p class="legend">系统告警和执行者反馈分开展示，便于毕业设计中的问题复盘。</p>
+            <p class="legend">系统告警和监督员反馈分开展示，便于毕业设计中的问题复盘。</p>
           </div>
           <div class="btn-row">
             <button class="btn secondary" @click="loadReplay">加载历史回放</button>
@@ -305,7 +305,7 @@
           <div class="task-meta"><span>任务ID</span><strong>{{ selectedTask?.task_id || "-" }}</strong></div>
           <div class="task-meta"><span>任务状态</span><strong>{{ selectedTask?.status || "-" }}</strong></div>
           <div class="task-meta"><span>累计任务数</span><strong>{{ selectedSnapshot?.metrics?.tasks_completed ?? selectedTask?.metrics?.tasks_completed ?? "-" }}</strong></div>
-          <div class="task-meta"><span>执行者反馈</span><strong>{{ selectedFeedback.length }}</strong></div>
+          <div class="task-meta"><span>监督员反馈</span><strong>{{ selectedFeedback.length }}</strong></div>
         </div>
 
         <div class="admin-slider-row">
@@ -354,8 +354,8 @@
           </div>
 
           <div class="ops-alerts">
-            <h3>执行者反馈</h3>
-            <div v-if="selectedFeedback.length === 0" class="ops-alert-empty">当前没有执行者反馈。</div>
+            <h3>监督员反馈</h3>
+            <div v-if="selectedFeedback.length === 0" class="ops-alert-empty">当前没有监督员反馈。</div>
             <div v-for="item in selectedFeedback" :key="`${item.created_at}-${item.username}-${item.message}`" class="feedback-item">
               <div class="feedback-head">
                 <strong>{{ item.display_name || item.username || "未知用户" }}</strong>
@@ -375,7 +375,7 @@
       <div class="admin-panel-head">
         <div>
           <h2>任务中心</h2>
-          <p class="legend">这里只显示分配给当前执行者的任务，选中后再进入任务执行页。</p>
+          <p class="legend">这里只显示分配给当前监督员的任务，选中后再进入任务执行页。</p>
         </div>
         <button class="btn" @click="refreshTasks">刷新列表</button>
       </div>
@@ -623,8 +623,8 @@ const executorDateInputRef = ref(null);
 const adminActiveDateInputRef = ref(null);
 const adminCompletedDateInputRef = ref(null);
 const status = ref("任务中心初始化中...");
-const assignStatus = ref("管理员可创建任务并分配给执行者。");
-const feedbackStatus = ref("执行者可以提交现场问题与备注。");
+const assignStatus = ref("管理员可创建任务并分配给监督员。");
+const feedbackStatus = ref("监督员可以提交现场问题与备注。");
 const tasks = ref([]);
 const selectedTaskId = ref("");
 const selectedTask = ref(null);
@@ -718,7 +718,7 @@ const availableMapChoices = computed(() => {
 
 const selectedAssigneeLabel = computed(() => {
   const target = assignees.value.find((item) => item.user_id === assignForm.assignee_user_id);
-  return target ? `${target.display_name}（${target.username}）` : "未指定执行者";
+  return target ? `${target.display_name}（${target.username}）` : "未指定监督员";
 });
 
 const scheduledPreviewText = computed(() => {
@@ -931,7 +931,7 @@ async function refreshAssignees() {
       assignForm.assignee_display_name = assignees.value[0].display_name;
     }
   } catch (error) {
-    assignStatus.value = `执行者列表加载失败：${error.message}`;
+    assignStatus.value = `监督员列表加载失败：${error.message}`;
   }
 }
 
@@ -1159,7 +1159,7 @@ function exportReport() {
     `- 模板: ${templateLabel(task.template)}`,
     `- 数据源: ${task.source}`,
     `- 状态: ${task.status}`,
-    `- 执行者: ${assigneeLabel(task)}`,
+    `- 监督员: ${assigneeLabel(task)}`,
     `- 地图: ${task.params?.map_name || "-"}`,
     `- 计划开始: ${fmtDateTime(task.params?.scheduled_start_at)}`,
     `- 创建时间: ${fmtDateTime(task.created_at)}`,
@@ -1181,7 +1181,7 @@ function exportReport() {
       lines.push(`- [${alert.level}] ${alert.code} | step ${alert.frame_step} | ${alert.message}`);
     });
   }
-  lines.push("", "## 执行者反馈");
+  lines.push("", "## 监督员反馈");
   if (!selectedFeedback.value.length) {
     lines.push("- 无反馈");
   } else {
@@ -1211,7 +1211,7 @@ async function createAndAssignTask() {
     return;
   }
   if (!assignForm.assignee_user_id) {
-    assignStatus.value = "请先选择执行者";
+    assignStatus.value = "请先选择监督员";
     return;
   }
   const scheduledStartAt = parseScheduledInput(assignForm.scheduled_start_input);

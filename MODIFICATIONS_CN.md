@@ -2022,3 +2022,41 @@
   - 说明项目训练日志接入的是 `Weights & Biases (wandb)`；
   - 说明 `training_run.py` 中使用了 `wandb.init(..., sync_tensorboard=True)`；
   - 同时标注当前默认训练参数为 `use_wandb=False`，因此当前训练默认不会上传在线曲线。
+
+## 78. 角色展示名称统一：将“执行者”改为“监督员”
+
+- 文件：`web_frontend/src/App.vue`
+- 主要修改：
+  - 登录页身份按钮从“执行者”改为“监督员”；
+  - 顶部身份标签改为“管理员 / 监督员”；
+  - 登录提示文案改为“监督员账号示例”。
+
+- 文件：`web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+- 主要修改：
+  - 管理员创建任务、搜索、反馈、报告导出等区域中的“执行者”统一改为“监督员”；
+  - “分配执行者”改成“分配监督员”；
+  - “执行者反馈”改成“监督员反馈”；
+  - 执行侧任务中心说明改为“分配给当前监督员的任务”；
+  - 相关状态提示也同步替换。
+
+- 文件：`web_frontend/src/modules/operations/OperationsModeView.vue`
+- 主要修改：
+  - 只读说明改为“监督员仅查看当前任务”；
+  - 启动限制提示改为“监督员不能新建任务”。
+
+- 文件：`web_demo/task_runtime.py`
+- 主要修改：
+  - 默认账号展示名从“执行操作员01~10”改为“监督员01~10”；
+  - 默认部门从“运营执行组”改为“运营监督组”；
+  - 默认岗位从“无人机调度执行”改为“无人机运行监督”；
+  - 提交未分配任务反馈时的报错文案改为“当前监督员不能提交...”。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“为什么把‘执行者’统一改成‘监督员’”问答；
+  - 说明这次只改对外展示名称，不修改底层 `executor` 角色值。
+
+- 验证结果：
+  - `python3 -m py_compile web_demo/task_runtime.py` 通过；
+  - `npm --prefix web_frontend run build` 通过；
+  - 后端已重启，`/api/auth/options` 返回的默认账号展示名已变为“监督员01”。
