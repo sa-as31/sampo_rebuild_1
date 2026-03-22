@@ -61,90 +61,96 @@
     <p>学号：2210720131</p>
   </div>
 
-  <p class="abstract"><span class="label">【内容摘要】：</span>本文围绕基于多智能体协同的无人机动态路径规划系统的设计与实现开展文献综述。结合国内外在多智能体路径规划、终身多智能体路径规划、多智能体强化学习和混合式协同优化方向上的研究进展，系统梳理了该领域的研究背景、技术演进和代表性成果。综述表明，传统搜索方法在全局路径质量和可解释性方面具有优势，学习方法在局部实时决策和分布式部署方面具有潜力，而融合搜索与学习的混合式方法更适合满足无人机集群场景下对实时性、吞吐量和安全性的综合要求。本文的分析为本课题采用“全局规划 + 局部强化学习 + 可视化调度系统”的实现思路提供了理论依据。</p>
+  <p class="abstract"><span class="label">【内容摘要】：</span>本文围绕基于多智能体协同的无人机动态路径规划系统的设计与实现开展文献综述。结合国内外在多智能体路径规划、终身多智能体路径规划、多智能体强化学习以及搜索与学习融合方法方面的研究进展，系统梳理了该领域的问题背景、研究脉络、核心理论和工程启示。研究表明，传统搜索方法在全局约束处理和解质量方面具有优势，学习方法在在线推理速度与分布式决策方面更具潜力，而将全局规划与局部学习结合的混合式路线更契合多无人机动态调度场景对实时性、安全性和长期吞吐量的综合要求。本文的分析为本课题采用“全局规划 + 局部强化学习 + 可视化调度系统”的总体方案提供了理论基础。</p>
 
-  <p class="keywords"><span class="label">【关键词】：</span>无人机集群；多智能体路径规划；终身多智能体路径规划；强化学习；协同优化</p>
+  <p class="keywords"><span class="label">【关键词】：</span>无人机集群；多智能体路径规划；终身多智能体路径规划；多智能体强化学习；协同优化</p>
 
   <h2>导言</h2>
 
-  <p>随着低空经济、智慧物流和智能巡检等应用场景的快速发展，无人机系统正在由单机自主运行逐步走向多机协同运行。与传统单机路径规划相比，多无人机协同路径规划不仅要求每架无人机能够到达目标位置，还要求系统在共享空域中持续处理多机冲突规避、任务动态分配、局部拥堵缓解和整体效率优化等问题。因此，该领域的研究重点已经从“单次求解一条可行路径”转向“在动态任务场景下实现长期稳定、高效协同的路径规划与调度”。</p>
+  <p>随着低空经济、智慧物流、园区巡检和应急搜救等应用场景的不断拓展，无人机系统正在由单机自主作业逐渐走向多机协同作业。相较于传统单机路径规划问题，多无人机协同路径规划不仅要求每架无人机能够安全到达目标位置，还要求系统在共享空域中持续处理多机冲突规避、任务动态分配、局部拥堵缓解和整体效率优化等问题。这意味着研究对象已经从单次求解一条可行路径，转向在连续任务场景下实现多机长期、稳定、高效协同的路径规划与调度。</p>
 
-  <p>从学术研究视角看，这一问题通常被归纳为多智能体路径规划（Multi-Agent Path Finding, MAPF）及其面向持续任务场景的终身多智能体路径规划（Lifelong MAPF, LMAPF）。前者主要关注给定起点和终点条件下的无冲突路径求解，后者则进一步考虑任务持续到达、在线重分配以及系统长期吞吐量等更贴近真实应用的因素。也正因为如此，近年来相关研究逐渐形成了三类主流技术路线：以 A*、CBS 为代表的基于搜索的方法，以多智能体强化学习为代表的基于学习的方法，以及将全局规划与局部决策结合的混合式方法。不同路线在路径质量、实时性、可解释性和工程适应性方面各有优劣，仍有较大的研究和应用空间。</p>
+  <p>从学术定义上看，上述问题通常被归纳为多智能体路径规划（Multi-Agent Path Finding, MAPF）及其面向持续任务场景的终身多智能体路径规划（Lifelong MAPF, LMAPF）。王祥丰等的综述指出，MAPF 已经成为多智能体系统中的核心基础问题之一，其难点在于多个智能体需要同时沿路径运动且不能发生碰撞[1]。而在真实工程环境中，任务往往持续到达、环境状态不断变化，系统还必须兼顾整体吞吐量和实时重规划能力，这使研究重点自然延伸到了 LMAPF 及其相关在线调度问题[2][3][4]。</p>
 
-  <p>为系统把握这一领域的发展脉络，本文以中国知网、Google Scholar、Web of Science、ACM Digital Library、arXiv 以及 AAAI、ICAPS、IROS、AAMAS 等数据库和会议论文库为主要检索来源，围绕“Multi-Agent Path Finding”“Lifelong MAPF”“multi-drone cooperative path planning”“reinforcement learning pathfinding”“hybrid planning and learning”等关键词进行组合检索。经初步检索、去重和筛选后，最终选取 15 篇与本课题联系较为紧密的代表性论文作为分析对象。在此基础上，本文将从研究背景及意义、国内外研究现状、相关理论以及系统架构设计启示等方面展开综述，为本课题后续的算法选择与系统实现提供文献依据。</p>
+  <p>为较全面地把握这一领域的发展脉络，本文以中国知网、Google Scholar、Web of Science、ACM Digital Library、arXiv 以及 AAAI、ICAPS、IROS、AAMAS 等数据库和会议论文库为主要检索来源，围绕“Multi-Agent Path Finding”“Lifelong MAPF”“multi-drone cooperative path planning”“reinforcement learning pathfinding”“hybrid planning and learning”等关键词进行组合检索。经过初步检索、去重和内容筛选后，最终选取 15 篇与本课题联系较为紧密的代表性文献作为分析对象。在此基础上，本文将按照“研究背景及意义、国内外研究现状、相关理论介绍、系统架构设计及技术介绍、总结”的结构展开综述，以期为本课题后续的算法选择与系统实现提供较为系统的文献依据。</p>
 
   <h2>研究背景及意义</h2>
 
-  <p>目前，随着无人机平台、感知设备和低空应用场景的不断发展，多无人机协同系统已经成为智慧物流、智能巡检和应急响应中的重要技术形态。与传统单机路径规划相比，多无人机协同路径规划不仅需要解决个体绕障和目标到达问题，还要同时兼顾多机冲突规避、任务持续分配、局部拥堵缓解和整体吞吐量提升。特别是在真实工程环境中，任务并非一次性全部给出，而是会持续到达、不断变化，这使得路径规划逐渐从经典 MAPF 问题扩展到更加贴近实际的 LMAPF 问题[4][5][6]。</p>
+  <p>无人机集群协同运行已逐渐成为智能交通、仓储物流和无人系统调度等领域的重要研究方向。对于单架无人机而言，路径规划主要关注避障和目标到达；而在多无人机场景中，系统需要同时面对多个智能体在有限空间内的时空耦合问题。若缺少有效的协同规划机制，即使每架无人机都能找到局部可行路径，整体系统仍可能出现对冲、阻塞、死锁或局部拥堵等现象，进而影响任务执行安全和资源利用效率。这也是 MAPF 与 LMAPF 问题受到持续关注的根本原因。</p>
 
-  <p>从系统设计角度看，该问题至少包含三方面现实意义。第一，安全意义。多机共享空域时，如果缺乏有效的协同规划机制，容易出现对冲、阻塞和局部拥堵，进而影响任务执行安全。第二，效率意义。在物流配送与巡检场景中，系统是否能够持续产生高吞吐量的无冲突路径，直接决定了整体任务完成效率。第三，工程意义。当前很多算法仅关注求解精度，却忽略了真实系统对实时性、可部署性和可视化监控能力的要求，因此有必要将算法研究与系统实现结合起来，形成面向工程落地的完整方案。基于这些考虑，对多智能体协同路径规划的相关研究进行系统综述，不仅可以为本课题的算法选择提供依据，也能为后续系统架构设计提供明确方向。</p>
+  <p>从应用价值看，该问题至少具有三方面现实意义。第一，安全意义。在共享空域中，多机路径之间存在显著耦合关系，冲突消解与碰撞规避是系统可靠运行的前提。第二，效率意义。在物流配送、广域巡检和持续侦察等场景中，系统是否能够在有限时间内持续产生高质量、无冲突的路径方案，直接决定整体任务完成效率和系统吞吐量。第三，工程意义。柴蓉等在多机协同自主任务规划综述中指出，真实系统中的多机协同并不只涉及单一航迹规划，还涉及任务调度、资源适配与系统级协同控制[5]。因此，仅研究算法性能本身还不够，还需要把算法能力落到可执行、可监控、可回放的系统原型中。基于这些背景，对多智能体协同路径规划相关文献进行系统综述，不仅能够为本课题的技术路线选择提供理论支撑，也有助于明确系统实现中各模块的设计边界与相互关系。</p>
 
   <h2>国内外研究现状</h2>
 
+  <p>围绕多智能体协同路径规划问题，国内外研究大体形成了三条主要技术路线：一是以 A*、CBS 等为代表的搜索方法，二是以多智能体强化学习、模仿学习为代表的学习方法，三是将全局规划与局部学习、规则或启发式机制结合起来的混合式方法。三类方法各有优势，也各有明显局限，因此当前研究并未收敛到某一种单一路线，而是在算法性能、实时性和工程适应性之间不断寻找更合理的平衡。</p>
+
   <h3>2.1 国内研究现状</h3>
 
-  <p>国内在多智能体路径规划与无人机协同调度方向的研究，近年来越来越重视实时性、通信协作和工程部署问题。一部分工作沿着传统搜索方法展开，重点研究在有限时间内给出更稳定的路径结果；另一部分工作则引入强化学习或模仿学习，希望利用模型推理速度快、易于分布式部署的特点解决大规模协同问题。随着任务复杂度不断上升，国内研究也开始关注长期任务场景下的吞吐量、局部拥堵以及动态重规划等问题。</p>
+  <p>国内关于多智能体路径规划的研究近年来增长较快，研究重心逐步从传统规则设计向“经典规划 + 机器学习赋能”演进。王祥丰等在综述中系统梳理了机器学习驱动的 MAPF 研究脉络，指出当前研究已经从单纯利用学习方法替代传统搜索，发展到用学习策略辅助节点选择、算法选择与局部决策优化等更深层次的结合形式[1]。这一判断说明，国内研究对 MAPF 的认识已不再停留在“求一条无碰撞路径”的层面，而是开始关注大规模场景下的实时性和长期效率问题。</p>
 
-  <p>从方法趋势看，国内研究并不再满足于单一技术路线，而是逐步转向“启发式搜索 + 学习优化”的思路。例如，在学习方法上，研究者开始关注如何通过局部观测、通信机制和优先级信息提升多智能体之间的协调能力；在系统层面，越来越多研究强调算法结果需要与任务调度、可视化展示和运行监控结合，才能真正体现工程价值。这种趋势与本课题希望实现的“算法训练、任务调度、可视化回放一体化系统”具有较强一致性。</p>
+  <p>在无人机与多机协同应用层面，国内研究更加突出任务规划和系统集成导向。柴蓉等从知识表示、任务调度和航迹规划等角度总结了多机协同自主任务规划系统的关键技术，说明国内研究越来越重视任务层与路径层的协同设计，而非孤立地讨论某一个单点算法[5]。总体来看，国内研究的特点是应用牵引较强，强调算法的场景适配性与系统可落地性；但相对不足也较为明显，即在严格意义上的 LMAPF 建模、统一 benchmark 验证以及搜索与学习混合策略的系统化比较方面，仍有进一步深化的空间。</p>
 
   <h3>2.2 国外研究现状</h3>
 
-  <p>相比之下，国外在 MAPF 与 LMAPF 方向上的研究起步更早，理论体系和代表性工作也更为成熟。早期研究主要围绕 A*、CBS 等搜索求解器展开，强调完备性、最优性和冲突消解机制[1][2][3]。随后，随着问题规模扩大和实时性要求提升，研究者开始探索更适合在线运行的求解方式，例如滚动时间窗求解、规则式优先级分配以及增量式冲突缓解等[5][12]。这些工作为理解搜索方法的能力边界提供了重要基础。</p>
+  <p>国外在 MAPF 与 LMAPF 方向上的研究起步较早，理论体系和代表性算法也更为成熟。早期工作主要围绕启发式搜索和冲突消解机制展开。Hart 等提出的 A* 算法为后续路径规划研究奠定了启发式搜索基础[6]；Sharon 等提出的 CBS 则成为多智能体最优路径规划中的代表性方法[7]；Felner 等进一步对搜索型 MAPF 求解器进行了总结，指出此类方法在解质量和可解释性上具有显著优势，但在规模扩大时容易遭遇计算开销快速上升的问题[8]。这些研究构成了 MAPF 领域最核心的理论基础。</p>
 
-  <p>在学习方法方面，国外代表性工作包括 PRIMAL、PRIMAL2、DHC、PICO 和 SCRIMP 等[7][8][9][10][11]。这些研究从强化学习、模仿学习、图通信机制和启发信息注入等角度，尝试提升多智能体在局部复杂交互场景下的协作能力。进一步地，最新研究开始明显转向混合式方法，如在学习策略上叠加启发式搜索、将优先级和专家规则纳入推理框架，或在规划阶段就把潜在拥堵和协同关系编码进初始路径生成过程[13][14][15]。这说明国际研究主流正在从“搜索或学习二选一”逐步转向“全局规划与局部学习融合”的综合路线。</p>
+  <p>随着应用场景从静态单次求解转向持续任务执行，研究者进一步提出了面向在线调度的 LMAPF 模型。Ma 等给出了在线取送任务场景下的终身多智能体路径规划模型[2]；Li 等提出 RHCR 框架，将长期问题分解为一系列滚动时间窗内的局部求解问题，从而兼顾实时性和路径质量[3]；Jiang 等则从更真实场景出发，总结了 LMAPF 在高密度、有限规划时间和现实运动约束下所面临的三类关键挑战[4]。这类工作标志着研究对象已经从经典 MAPF 逐步扩展到更贴近真实无人机系统需求的持续运行问题。</p>
+
+  <p>在学习方法方面，国外研究形成了较清晰的发展链条。Sartoretti 等提出的 PRIMAL 证明了“强化学习 + 模仿学习”在分布式 MAPF 中的可行性[9]；Damani 等进一步提出 PRIMAL2，将该思路扩展到更适合高密度、持续任务场景的 LMAPF 问题[10]。在此基础上，Ma 等提出 DHC，将图通信和启发式信息结合到学习框架中[11]；Li 等提出 PICO，将优先级信息融入通信拓扑以降低冲突率[12]；Wang 等提出 SCRIMP，进一步提升了通信型学习方法在复杂环境下的可扩展性[13]。不过，这类方法大多依赖局部观测和训练分布，在复杂地形、高密度场景以及分布外环境中仍存在短视、死锁和泛化不足的问题。</p>
+
+  <p>正因如此，近期国际研究开始明显转向混合式方法。Tang 等提出 EPH，在学习推理阶段引入单智能体专家引导、优先级冲突处理和集成机制，以提升学习策略在复杂场景中的执行稳定性[14]；Veerapaneni 等则进一步表明，可以利用启发式搜索对学习得到的局部策略进行后处理，从而显著改善成功率和拥堵场景下的可扩展性[15]。这一趋势说明，单纯依赖搜索或单纯依赖学习都难以完全满足工程需求，如何实现全局规划能力与局部快速决策能力的协同融合，已经成为该领域更有代表性的研究方向。</p>
 
   <h2>相关理论介绍</h2>
 
   <h3>3.1 多智能体路径规划理论</h3>
 
-  <p>多智能体路径规划（MAPF）通常指在给定地图、起点和目标点的条件下，为多个智能体规划无冲突路径的问题。该问题的经典形式以时间离散网格为基础，要求智能体在每个时间步执行移动或等待动作，并避免顶点冲突和边冲突[2][3]。随着问题研究的深入，MAPF 的目标不再局限于单次求解最短路，而是逐步扩展到最小化总代价、最短完工时间以及提升整体协同效率等多种指标。</p>
+  <p>多智能体路径规划（MAPF）通常定义为：在给定离散图或栅格地图、多个智能体起点与目标点的条件下，为所有智能体规划一组无冲突路径，使其从各自起点到达目标位置。经典 MAPF 研究一般假设时间离散，智能体在每个时间步只能执行移动或等待动作，并要求避免顶点冲突和边冲突[7][8]。该问题本质上属于高维组合优化问题，随着智能体数量增加，其状态空间和冲突组合会迅速膨胀，因此求解难度显著上升。</p>
 
-  <p>在真实无人机场景中，任务往往具有持续到达和动态分配特征，因此需要进一步考虑终身多智能体路径规划（LMAPF）。与经典 MAPF 相比，LMAPF 更关注系统在长期运行中的吞吐量、在线重规划能力和对拥堵的抑制能力[4][5][6]。这类问题决定了仅靠一次性离线求解难以满足实际需求，必须结合滚动规划、局部修正和持续调度机制，才能适应复杂动态环境。</p>
+  <p>在工程场景中，系统优化目标也并非只有“找到一组可行路径”这么简单。常见指标包括路径总代价、完工时间、冲突数量以及长期吞吐量等。对于传统 MAPF 而言，更强调一次性求解的全局质量；而对 LMAPF 而言，系统则需要在任务持续到达的前提下反复进行局部重规划与任务重分配，更关注长期平均效率与系统持续可用性[2][3][4]。因此，从经典 MAPF 到 LMAPF 的演进，反映的并不仅是任务形式变化，更是优化目标从“单次最优”走向“长期高效”的研究思路变化。</p>
 
-  <h3>3.2 强化学习与混合规划理论</h3>
+  <h3>3.2 搜索、强化学习与混合规划理论</h3>
 
-  <p>强化学习在多智能体路径规划中的应用，核心在于让智能体依据局部观测直接输出动作，从而将复杂的在线搜索过程转化为快速推理过程。PRIMAL 与 PRIMAL2 证明了“强化学习 + 模仿学习”框架在分布式 MAPF 和 LMAPF 中具有可行性[7][8]；DHC、PICO 与 SCRIMP 则进一步说明，通信机制、启发式信息和局部交互建模是提高学习策略稳定性的重要补充[9][10][11]。</p>
+  <p>从求解机制看，当前相关理论大致可以概括为三类。第一类是基于搜索的方法，其核心思想是通过启发式函数、冲突约束树或优先级规则显式地处理全局时空冲突。这类方法的优势在于路径质量高、求解过程透明、结果可解释性强，但在高密度和长期在线场景下往往面临计算开销大的问题[3][6][7][8]。第二类是基于学习的方法，即通过强化学习、模仿学习或通信网络，让智能体依据局部观测直接输出动作。其优势在于在线推理速度快、易于分布式部署，但缺点也很明显，即容易受限于局部视野和训练分布，出现短视、死锁或跨场景泛化不足等问题[9][10][11][12][13]。</p>
 
-  <p>然而，纯学习方法通常依赖局部观测，缺乏全局路径结构信息，因此在复杂地图和高密度场景中容易出现短视、死锁和泛化不足等问题。基于这一认识，混合式方法逐渐成为重要理论方向。其核心思想是利用搜索方法提供全局约束和基础路径，再由学习模型负责局部冲突修正与实时决策[13][14][15]。这类理论为本课题采用“全局规划 + 局部强化学习”方案提供了直接支撑。</p>
+  <p>第三类是混合式方法。其理论出发点是：搜索方法擅长处理全局结构，学习方法擅长处理局部快速反应，如果能够将二者在不同层次上协同起来，就可能同时兼顾路径质量和实时性[14][15]。对于本课题而言，这一思路具有直接启发意义。多无人机动态路径规划系统既需要全局基础路径来约束整体流量分布，又需要在局部动态变化和多机交互中进行快速动作修正，因此“全局规划 + 局部强化学习”的总体方案在理论上具备较强合理性。</p>
 
   <h2>系统架构设计及技术介绍</h2>
 
   <h3>4.1 系统架构设计</h3>
 
-  <p>结合上述文献可知，本课题更适合采用面向工程落地的分层系统架构。系统整体可划分为算法训练层、路径规划与环境仿真层、后端服务层以及前端可视化交互层。算法训练层基于 Sample Factory 与 Pogema 构建多智能体强化学习训练环境，用于生成局部协同决策模型；路径规划与环境仿真层引入传统规划器，为智能体提供具备拥堵规避意识的基础路径；后端服务层负责任务创建、调度执行、回放、告警和统计接口；前端可视化交互层则承担任务中心、运营大屏以及 2D/3D 联合运行视图的展示与交互功能。</p>
+  <p>基于前述文献分析可以看出，本课题不宜简单复现某一种已有算法，而更适合采用面向工程落地的分层系统架构。具体而言，系统可划分为算法训练层、路径规划与环境仿真层、后端服务层以及前端可视化交互层。算法训练层负责构建多智能体强化学习训练环境，学习局部协同决策策略；路径规划与环境仿真层负责生成基础路径、模拟多机运行过程，并为学习模型提供状态反馈；后端服务层负责调度控制、任务回放、统计分析和告警接口；前端层负责任务中心、运营大屏和 2D/3D 联合运行视图等界面展示。这样的分层不是单纯的工程划分，而是与文献中“全局规划负责结构性约束、局部学习负责快速反应”的结论保持一致。</p>
 
-  <p>这样的系统架构并不是简单地把多个模块拼接在一起，而是与文献中的混合式方法结论保持一致。全局规划负责“看得远”，局部强化学习负责“反应快”，系统服务与可视化负责“看得清、控得住”。因此，文献综述不仅说明了为何要采用搜索与学习结合的路径规划方案，也进一步说明了为什么本课题必须把算法、任务管理和展示系统做成一个闭环原型。</p>
+  <p>从系统逻辑上看，路径规划算法、运行调度逻辑和可视化交互界面三者之间存在明显的依赖关系。如果没有全局路径作为基础，局部学习策略容易陷入短视；如果没有局部动态修正能力，传统规划器又难以应对持续任务与实时交互；如果没有任务管理与可视化展示模块，则算法能力难以在完整系统中得到验证。因此，本课题将算法研究与系统原型实现结合起来，是对现有文献结论的进一步工程化落实，而不是脱离文献基础的独立设计。</p>
 
   <h3>4.2 技术介绍</h3>
 
-  <p>从算法技术看，本课题主要依托三类能力：第一类是 A*、CBS 及其延伸方法所代表的经典搜索能力，用于生成高质量初始路径并提供可解释的全局约束[1][2][3]；第二类是 PRIMAL2、DHC、PICO、SCRIMP 等所代表的多智能体强化学习与通信协作能力，用于处理局部冲突和动态调整[8][9][10][11]；第三类是启发式搜索与学习策略融合的混合式能力，用于提升复杂场景下的整体稳定性和吞吐量[13][14][15]。</p>
+  <p>从算法技术路线看，本课题主要依托三类能力。第一类是以 A*、CBS 及其延伸机制为代表的经典搜索能力，用于生成高质量基础路径并提供全局约束[6][7][8]；第二类是以 PRIMAL2、DHC、PICO、SCRIMP 为代表的多智能体强化学习与通信协作能力，用于处理局部冲突、动态调整和策略泛化[10][11][12][13]；第三类是以 EPH 和“学习策略 + 启发式搜索后处理”为代表的混合式能力，用于提升高拥堵场景下的稳定性与成功率[14][15]。这三类能力共同构成了本课题技术路线的理论来源。</p>
 
-  <p>从系统实现技术看，当前项目已经形成较为明确的技术栈：后端以 Python 服务为主，负责推理、任务控制和统计接口；前端采用 Vite + Vue 3 构建单页应用，负责登录、任务中心、运营大屏与 2D/3D 联合运行视图；共享渲染模块负责 2D 地图绘制与回放展示。上述技术选择与文献调研结论是一致的，即本课题并非只追求某一算法指标，而是希望把路径规划能力真正落到可运行、可验证、可展示的系统原型中。</p>
+  <p>从项目实现技术看，当前系统已经形成与上述文献结论相对应的工程方案：在训练侧，基于 Sample Factory 与 Pogema 构建多智能体强化学习训练链路；在规划侧，保留传统规划器模块生成基础路径；在服务侧，通过 Python 后端实现推理、任务控制、回放和统计接口；在展示侧，采用 Vite + Vue 3 构建任务中心、运营大屏及 2D/3D 联合运行视图。由此可见，本课题并非只追求某个算法指标，而是希望通过完整的系统闭环验证“规划算法 + 强化学习 + 可视化调度”这一综合方案的有效性。</p>
 
   <h2>总结</h2>
 
-  <p>本文参考相关文献，对多智能体协同的无人机动态路径规划系统的研究背景、现实意义、国内外研究现状、相关理论以及系统实现启示进行了梳理。总体来看，随着问题从静态 MAPF 向动态 LMAPF 演进，路径规划研究越来越强调实时性、长期吞吐量和工程适应性。传统搜索方法仍然是全局规划的重要基础，强化学习方法则在局部决策和分布式部署方面展现出明显优势，但单一路线都存在局限，混合式方法因此成为当前更值得关注的发展方向。</p>
+  <p>通过对国内外相关文献的梳理可以看出，多智能体协同路径规划已经从早期强调一次性最优求解的 MAPF 问题，逐步发展为更加关注持续任务、动态环境和长期吞吐量的 LMAPF 问题。围绕这一问题，学术界形成了搜索、学习和混合式三条主要技术路线。搜索方法在全局可解释性和解质量方面优势突出，但在高密度、强实时场景下面临计算压力；学习方法在推理速度和分布式决策方面表现良好，但受限于局部观测和训练分布，稳定性和泛化能力仍然存在不足；混合式方法则更有希望兼顾两者优势，因而成为当前更符合工程落地需求的发展方向。</p>
 
-  <p>基于上述认识，本课题采用“全局规划 + 局部强化学习 + 可视化调度系统”的整体方案是合理的。一方面，它符合当前文献中搜索与学习融合的发展趋势；另一方面，它也更契合无人机协同调度场景对安全性、实时性和系统可用性的综合要求。后续工作将在现有基础上继续优化路径规划策略、训练效果和系统展示能力，为毕业设计的系统实现与论文撰写提供支撑。</p>
+  <p>就本课题而言，文献调研的价值不在于简单罗列算法名称，而在于说明为什么无人机动态路径规划系统更适合采用“全局规划 + 局部强化学习 + 可视化调度系统”的整体方案。现有文献已经较充分地表明，全局规划能够提供基础约束与流量引导，局部学习能够提升在线反应能力，而系统化实现则可以把算法研究真正落到任务执行、状态监控和回放分析之中。后续工作将在此基础上继续完善路径规划策略、训练效果与系统展示能力，为毕业设计的系统实现和论文撰写提供支撑。</p>
 
   <h2>参考文献</h2>
 
   <ol>
-    <li>Hart P E, Nilsson N J, Raphael B. A formal basis for the heuristic determination of minimum cost paths[J]. IEEE Transactions on Systems Science and Cybernetics, 1968, 4(2): 100-107.</li>
-    <li>Sharon G, Stern R, Felner A, Sturtevant N R. Conflict-based search for optimal multi-agent pathfinding[J]. Artificial Intelligence, 2015, 219: 40-66.</li>
-    <li>Felner A, Stern R, Shimony S E, Boyarski E, Goldenberg M, Sharon G, Sturtevant N R, Wagner G, Surynek P. Search-based optimal solvers for the multi-agent pathfinding problem: Summary and challenges[C]//Proceedings of the Tenth Annual Symposium on Combinatorial Search. 2017.</li>
+    <li>王祥丰, 李文浩. 机器学习驱动的多智能体路径搜寻算法综述[J]. 运筹学学报, 2023, 27(4): 106-135.</li>
     <li>Ma H, Li J, Kumar T K S, Koenig S. Lifelong Multi-Agent Path Finding for Online Pickup and Delivery Tasks[C]//Proceedings of the 16th International Conference on Autonomous Agents and Multiagent Systems. 2017: 837-845.</li>
     <li>Li J, Tinka A, Kiesel S, Durham J W, Kumar T K S, Koenig S. Lifelong Multi-Agent Path Finding in Large-Scale Warehouses[C]//Proceedings of the AAAI Conference on Artificial Intelligence. 2021, 35(12): 11272-11281.</li>
     <li>Jiang H, Zhang Y, Veerapaneni R, Li J. Scaling Lifelong Multi-Agent Path Finding to More Realistic Settings: Research Challenges and Opportunities[C]//Proceedings of the Symposium on Combinatorial Search. 2024.</li>
+    <li>柴蓉, 杨泞渝, 段晓芳, 艾新雨, 陈前斌. 多机协同自主任务规划系统研究综述[J]. 重庆邮电大学学报(自然科学版), 2024, 36(4): 647-660.</li>
+    <li>Hart P E, Nilsson N J, Raphael B. A formal basis for the heuristic determination of minimum cost paths[J]. IEEE Transactions on Systems Science and Cybernetics, 1968, 4(2): 100-107.</li>
+    <li>Sharon G, Stern R, Felner A, Sturtevant N R. Conflict-based search for optimal multi-agent pathfinding[J]. Artificial Intelligence, 2015, 219: 40-66.</li>
+    <li>Felner A, Stern R, Shimony S E, Boyarski E, Goldenberg M, Sharon G, Sturtevant N R, Wagner G, Surynek P. Search-based optimal solvers for the multi-agent pathfinding problem: Summary and challenges[C]//Proceedings of the Tenth Annual Symposium on Combinatorial Search. 2017.</li>
     <li>Sartoretti G, Kerr J, Shi Y, Wagner G, Kumar T K S, Koenig S, Choset H. PRIMAL: Pathfinding via Reinforcement and Imitation Multi-Agent Learning[EB/OL]. arXiv:1809.03531, 2018.</li>
-    <li>Damani M, Luo Z, Wenzel E, Sartoretti G. PRIMAL2: Pathfinding via Reinforcement and Imitation Multi-Agent Learning--Lifelong[EB/OL]. arXiv:2010.08184, 2020.</li>
-    <li>Ma Z, Luo Y, Ma H. Distributed Heuristic Multi-Agent Path Finding with Communication[C]//2021 IEEE International Conference on Robotics and Automation. 2021.</li>
-    <li>Li W, Chen H, Jin B, Tan W, Zha H, Wang X. Multi-Agent Path Finding with Prioritized Communication Learning[C]//2022 IEEE International Conference on Robotics and Automation. 2022.</li>
-    <li>Wang Y, Xiang B, Huang S, Sartoretti G. SCRIMP: Scalable Communication for Reinforcement- and Imitation-Learning-Based Multi-Agent Pathfinding[C]//2023 IEEE/RSJ International Conference on Intelligent Robots and Systems. 2023.</li>
-    <li>Okumura K, Machida M, Défago X, Tamura Y. Priority Inheritance with Backtracking for Iterative Multi-Agent Path Finding[EB/OL]. arXiv:1901.11282, 2019.</li>
-    <li>Veerapaneni R, Wang Q, Ren K, Jakobsson A, Li J, Likhachev M. Improving Learnt Local MAPF Policies with Heuristic Search[C]//Proceedings of the International Conference on Automated Planning and Scheduling. 2024, 34: 597-606.</li>
-    <li>Tang H, Berto F, Park J. Ensembling Prioritized Hybrid Policies for Multi-agent Pathfinding[C]//2024 IEEE/RSJ International Conference on Intelligent Robots and Systems. 2024: 8047-8054.</li>
-    <li>Li J, Ma Z, Huang T, Gong Y J. Learn to Refine: Synergistic Multi-Agent Path Optimization for Lifelong Conflict-Free Navigation of Autonomous Vehicles[C]//Proceedings of the 31st ACM SIGKDD Conference on Knowledge Discovery and Data Mining. 2025.</li>
+    <li>Damani M, Luo Z, Wenzel E, Sartoretti G. PRIMAL2: Pathfinding via Reinforcement and Imitation Multi-Agent Learning-Lifelong[J]. IEEE Robotics and Automation Letters, 2021, 6(2): 2666-2673.</li>
+    <li>Ma Z, Luo Y, Ma H. Distributed Heuristic Multi-Agent Path Finding with Communication[C]//2021 IEEE International Conference on Robotics and Automation. 2021: 8699-8705.</li>
+    <li>Li W, Chen H, Jin B, Tan W, Zha H, Wang X. Multi-Agent Path Finding with Prioritized Communication Learning[C]//2022 IEEE International Conference on Robotics and Automation. 2022: 5080-5086.</li>
+    <li>Wang Y, Xiang B, Huang S, Sartoretti G. SCRIMP: Scalable communication for reinforcement- and imitation-learning-based multi-agent pathfinding[EB/OL]. arXiv:2303.00605, 2023.</li>
+    <li>Tang H, Berto F, Park J. Ensembling Prioritized Hybrid Policies for Multi-agent Pathfinding[EB/OL]. arXiv:2403.07559, 2024.</li>
+    <li>Veerapaneni R, Wang Q, Ren K, Jakobsson A, Li J, Likhachev M. Improving Learnt Local MAPF Policies with Heuristic Search[C]//Proceedings of the International Conference on Automated Planning and Scheduling. 2024, 34(1): 597-606.</li>
   </ol>
 </body>
 </html>
