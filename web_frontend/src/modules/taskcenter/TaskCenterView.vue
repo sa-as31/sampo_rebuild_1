@@ -166,7 +166,17 @@
         </label>
         <label class="admin-search">
           <span>按日期筛选</span>
-          <input v-model="adminFilters.activeDate" type="date" />
+          <div class="date-picker-trigger" @click="openDatePicker(adminActiveDateInputRef)">
+            <input
+              ref="adminActiveDateInputRef"
+              v-model="adminFilters.activeDate"
+              class="date-picker-input"
+              type="date"
+              @keydown.prevent
+              @beforeinput.prevent
+            />
+            <button class="date-picker-button" type="button" @click.stop="openDatePicker(adminActiveDateInputRef)">选择日期</button>
+          </div>
         </label>
 
         <div class="admin-overview-list">
@@ -246,7 +256,17 @@
         </label>
         <label class="admin-search">
           <span>按日期筛选</span>
-          <input v-model="adminFilters.completedDate" type="date" />
+          <div class="date-picker-trigger" @click="openDatePicker(adminCompletedDateInputRef)">
+            <input
+              ref="adminCompletedDateInputRef"
+              v-model="adminFilters.completedDate"
+              class="date-picker-input"
+              type="date"
+              @keydown.prevent
+              @beforeinput.prevent
+            />
+            <button class="date-picker-button" type="button" @click.stop="openDatePicker(adminCompletedDateInputRef)">选择日期</button>
+          </div>
         </label>
 
         <div class="admin-overview-list">
@@ -372,7 +392,17 @@
           <input v-model="filters.keyword" placeholder="任务名 / task_id" />
         </label>
         <label>按日期筛选
-          <input v-model="filters.date" type="date" />
+          <div class="date-picker-trigger" @click="openDatePicker(executorDateInputRef)">
+            <input
+              ref="executorDateInputRef"
+              v-model="filters.date"
+              class="date-picker-input"
+              type="date"
+              @keydown.prevent
+              @beforeinput.prevent
+            />
+            <button class="date-picker-button" type="button" @click.stop="openDatePicker(executorDateInputRef)">选择日期</button>
+          </div>
         </label>
       </div>
 
@@ -560,6 +590,9 @@ const props = defineProps({
 const renderer = createRenderer();
 const liveCanvasRef = ref(null);
 const historyCanvasRef = ref(null);
+const executorDateInputRef = ref(null);
+const adminActiveDateInputRef = ref(null);
+const adminCompletedDateInputRef = ref(null);
 const status = ref("任务中心初始化中...");
 const assignStatus = ref("管理员可创建任务并分配给执行者。");
 const feedbackStatus = ref("执行者可以提交现场问题与备注。");
@@ -796,6 +829,17 @@ function formatDateOnly(ts) {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+function openDatePicker(inputRef) {
+  const input = inputRef?.value;
+  if (!input) return;
+  if (typeof input.showPicker === "function") {
+    input.showPicker();
+    return;
+  }
+  input.focus();
+  input.click();
 }
 
 function ensureVersionedMapName(baseName) {

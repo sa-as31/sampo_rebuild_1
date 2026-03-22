@@ -1824,3 +1824,28 @@
     - 单任务吞吐量：`tasks_completed / total_steps`
     - 运营大屏平均吞吐量：各任务 `metrics.throughput` 的算术平均
   - 补充说明运行中实时快照会使用 `tasks_completed / current_step`，并用 `max(1, step)` 避免除零。
+
+## 70. 优化任务中心日期筛选交互：改为点击弹出日历选择
+
+- 文件：`web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+- 主要修改：
+  - 将执行者任务中心、管理员执行中任务、管理员已完成任务这 3 处日期筛选统一改为“点击弹出日历”的交互；
+  - 为 3 个日期筛选输入框分别增加 `ref`，并新增 `openDatePicker()`：
+    - 优先使用浏览器原生 `showPicker()` 打开日历；
+    - 不支持时回退到 `focus() + click()`；
+  - 在日期输入框上拦截 `keydown` 与 `beforeinput`，避免用户把日期框当作纯文本输入框手动键入。
+
+- 文件：`web_frontend/src/styles.css`
+- 主要修改：
+  - 新增 `date-picker-trigger`、`date-picker-input`、`date-picker-button` 样式；
+  - 将日期筛选区域整理为“日期框 + 选择日期按钮”的清晰结构；
+  - 强化可点击感，让筛选控件更像正式业务系统里的日历筛选器。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“为什么把任务中心的日期筛选改成弹出式日历选择”问答；
+  - 说明修改原因是避免看起来像普通文本框、减少手动输入日期。
+
+- 验证结果：
+  - `npm --prefix web_frontend run build` 通过；
+  - 日期筛选现在会通过点击输入框或按钮弹出原生日历，而不是依赖手动输入。

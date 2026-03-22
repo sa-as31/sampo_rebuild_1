@@ -900,6 +900,40 @@ body {
   font-size: 14px;
 }
 
+.date-picker-trigger {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.date-picker-input {
+  border: 1px solid rgba(122, 170, 235, 0.24);
+  background: #051226;
+  color: #e8efff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-height: 42px;
+  width: 100%;
+  cursor: pointer;
+}
+
+.date-picker-button {
+  border: 1px solid rgba(151, 205, 255, 0.28);
+  background: rgba(16, 53, 95, 0.95);
+  color: #d8ecff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-height: 42px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.date-picker-button:hover {
+  border-color: rgba(151, 205, 255, 0.5);
+  background: rgba(25, 80, 140, 0.95);
+}
+
 .admin-subsection {
   margin-top: 16px;
   display: grid;
