@@ -591,7 +591,7 @@ import {
   getOpsTask,
   submitTaskFeedback,
 } from "../../services/api";
-import { createRenderer, drawScene3D } from "../shared/renderer";
+import { createRenderer, drawScene3D, resizeCanvasToDisplaySize } from "../shared/renderer";
 
 const TEMPLATE_MAP_OPTIONS = [
   { value: "warehouse-grid-v1", label: "仓储巡检默认地图", source: "template" },
@@ -900,6 +900,7 @@ function saveImportedMaps() {
 
 function drawEmptyCanvas(canvas, message) {
   if (!canvas) return;
+  resizeCanvasToDisplaySize(canvas);
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -913,6 +914,7 @@ function drawEmptyCanvas(canvas, message) {
 
 function drawTaskSnapshotTo(canvas) {
   if (selectedSnapshot.value?.environment && selectedSnapshot.value?.frame && canvas) {
+    resizeCanvasToDisplaySize(canvas);
     renderer.draw(canvas, selectedSnapshot.value.environment, selectedSnapshot.value.frame);
     return;
   }
@@ -1053,7 +1055,10 @@ function drawReplayFrame() {
   if (replay.available && replay.environment && replay.frames.length) {
     const frame = replay.frames[Math.min(replay.frameIndex, replay.frames.length - 1)];
     syncReplaySelectedDrone(frame);
-    if (canvases.canvas2d) renderer.draw(canvases.canvas2d, replay.environment, frame);
+    if (canvases.canvas2d) {
+      resizeCanvasToDisplaySize(canvases.canvas2d);
+      renderer.draw(canvases.canvas2d, replay.environment, frame);
+    }
     if (canvases.canvas3d) {
       drawScene3D(canvases.canvas3d, replay.environment, frame, {
         cameraMode: "orbit",
@@ -1066,7 +1071,10 @@ function drawReplayFrame() {
   }
   if (selectedSnapshot.value?.environment && selectedSnapshot.value?.frame) {
     syncReplaySelectedDrone(selectedSnapshot.value.frame);
-    if (canvases.canvas2d) renderer.draw(canvases.canvas2d, selectedSnapshot.value.environment, selectedSnapshot.value.frame);
+    if (canvases.canvas2d) {
+      resizeCanvasToDisplaySize(canvases.canvas2d);
+      renderer.draw(canvases.canvas2d, selectedSnapshot.value.environment, selectedSnapshot.value.frame);
+    }
     if (canvases.canvas3d) {
       drawScene3D(canvases.canvas3d, selectedSnapshot.value.environment, selectedSnapshot.value.frame, {
         cameraMode: "orbit",

@@ -1907,3 +1907,29 @@
 - 验证结果：
   - `npm --prefix web_frontend run build` 通过；
   - 历史回放页中的 2D 与 3D 现在会分别按更合适的比例展示，不再共用同一固定拉伸规则。
+
+## 73. 修正历史回放绘制尺寸：与任务执行页对齐 canvas resize 逻辑
+
+- 文件：`web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+- 主要修改：
+  - 引入共享工具 `resizeCanvasToDisplaySize`；
+  - 在以下场景绘制前，先同步 canvas 内部像素尺寸：
+    - `drawEmptyCanvas()`
+    - `drawTaskSnapshotTo()`
+    - `drawReplayFrame()` 中的 2D 历史回放绘制
+  - 让历史回放页的 2D 画布与任务执行页使用同样的尺寸同步逻辑。
+
+- 文件：`web_frontend/src/styles.css`
+- 主要修改：
+  - 取消历史回放区之前单独设置的特殊 `aspect-ratio`；
+  - 将历史回放画布高度重新对齐到任务执行页一致的 `500px`；
+  - 避免“CSS 尺寸改了，但 canvas 内部像素尺寸还停留在旧值”的错位感。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“为什么任务执行页正常，但历史回放页看起来还是比例不对”问答；
+  - 说明根因是历史回放页没有完整对齐执行页的 canvas resize 机制。
+
+- 验证结果：
+  - `npm --prefix web_frontend run build` 通过；
+  - 历史回放页现在已按与任务执行页一致的 canvas 尺寸同步规则绘制，比例表现会更接近执行页。
