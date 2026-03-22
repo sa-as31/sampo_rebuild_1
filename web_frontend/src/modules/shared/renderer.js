@@ -1,4 +1,5 @@
 const palette = ["#6ad5ff", "#59f0c2", "#ffd36c", "#ff7d7d", "#8ec5ff", "#df8cff", "#72d5c8", "#f5abff"];
+const CELL_SIZE_3D = 1.2;
 
 const TEMPLATE_CONFIGS = {
   warehouse: {
@@ -121,6 +122,49 @@ export function createRenderer() {
   }
 
   return { draw };
+}
+
+export function drawScene3D(canvas, environment, frame, options = {}) {
+  if (!canvas || !environment || !frame) return;
+  resizeCanvasToDisplaySize(canvas);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, "#091a33");
+  gradient.addColorStop(1, "#050d1d");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (!environment.width || !environment.height) return;
+
+  const selectedDroneId = Number(options.selectedDroneId || 0);
+  const leadAgent = frame.agents?.find((agent) => agent.id === selectedDroneId) || frame.agents?.[0];
+  const lead = leadAgent ? gridToWorld(leadAgent.x, leadAgent.y, environment) : { x: 0, z: 0 };
+  const radius = Math.max((environment.height - 1) * CELL_SIZE_3D, (environment.width - 1) * CELL_SIZE_3D) * 0.95 + 6;
+  const camera = build3DCamera(
+    String(options.cameraMode || "orbit"),
+    lead,
+    radius,
+    Number(options.orbitAngle || 0)
+  );
+  const zoomScale = Number(options.zoomScale || 1);
+
+  drawGrid3D(ctx, canvas, camera, environment, zoomScale);
+  drawObstacles3D(ctx, canvas, camera, environment, zoomScale);
+  drawAgents3D(ctx, canvas, camera, environment, frame, zoomScale);
+}
+
+export function resizeCanvasToDisplaySize(canvas) {
+  if (!canvas) return false;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const targetWidth = Math.max(1, Math.round(rect.width * dpr));
+  const targetHeight = Math.max(1, Math.round(rect.height * dpr));
+  if (canvas.width === targetWidth && canvas.height === targetHeight) return false;
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  return true;
 }
 
 export function buildSampleRun(template = "warehouse") {
@@ -338,4 +382,167 @@ function toKey(x, y) {
 
 function fromKey(key) {
   return key.split(",").map((v) => Number(v));
+}
+
+function build3DCamera(mode, lead, radius, orbitAngle) {
+  if (mode === "overview") {
+    return lookAtCamera({ x: 0, y: radius * 0.9, z: radius * 0.5 }, { x: 0, y: 0.3, z: 0 });
+  }
+  if (mode === "follow") {
+    return lookAtCamera(
+      { x: lead.x - radius * 0.16, y: radius * 0.28, z: lead.z + radius * 0.23 },
+      { x: lead.x, y: 0.4, z: lead.z }
+    );
+  }
+  return lookAtCamera(
+    { x: Math.cos(orbitAngle) * radius, y: radius * 0.45, z: Math.sin(orbitAngle) * radius },
+    { x: 0, y: 0.3, z: 0 }
+  );
+}
+
+function drawGrid3D(ctx, canvas, camera, environment, zoomScale) {
+  const halfX = ((environment.height - 1) * CELL_SIZE_3D) / 2;
+  const halfZ = ((environment.width - 1) * CELL_SIZE_3D) / 2;
+  for (let row = 0; row < environment.height; row += 1) {
+    const x = row * CELL_SIZE_3D - halfX;
+    drawLine3D(ctx, canvas, camera, { x, y: 0, z: -halfZ }, { x, y: 0, z: halfZ }, "rgba(145,180,230,0.16)", 1, zoomScale);
+  }
+  for (let col = 0; col < environment.width; col += 1) {
+    const z = col * CELL_SIZE_3D - halfZ;
+    drawLine3D(ctx, canvas, camera, { x: -halfX, y: 0, z }, { x: halfX, y: 0, z }, "rgba(145,180,230,0.16)", 1, zoomScale);
+  }
+}
+
+function drawObstacles3D(ctx, canvas, camera, environment, zoomScale) {
+  for (let row = 0; row < environment.height; row += 1) {
+    for (let col = 0; col < environment.width; col += 1) {
+      if (environment.obstacles?.[row]?.[col] !== 1) continue;
+      const p = gridToWorld(row, col, environment);
+      const block = { x: p.x - CELL_SIZE_3D * 0.45, z: p.z - CELL_SIZE_3D * 0.45, w: CELL_SIZE_3D * 0.9, d: CELL_SIZE_3D * 0.9, h: 0.9 };
+      drawBoxWire(ctx, canvas, camera, block, "rgba(145,160,182,0.95)", zoomScale);
+    }
+  }
+}
+
+function drawAgents3D(ctx, canvas, camera, environment, frame, zoomScale) {
+  frame.agents?.forEach((agent) => {
+    const color = palette[agent.id % palette.length];
+    const bodyPos = gridToWorld(agent.x, agent.y, environment);
+    const targetPos = gridToWorld(agent.target_x, agent.target_y, environment);
+    const body = projectPoint(canvas, camera, bodyPos.x, 0.72, bodyPos.z, zoomScale);
+    const ground = projectPoint(canvas, camera, bodyPos.x, 0.03, bodyPos.z, zoomScale);
+    const target = projectPoint(canvas, camera, targetPos.x, 0.08, targetPos.z, zoomScale);
+    if (!body || !ground) return;
+
+    if (target) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(target.x, target.y, Math.max(5, target.scale * 7), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = "rgba(175,209,255,0.35)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(body.x, body.y);
+    ctx.lineTo(ground.x, ground.y);
+    ctx.stroke();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(body.x, body.y, Math.max(3.2, body.scale * 4.6), 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function gridToWorld(row, col, environment) {
+  const halfX = ((environment.height - 1) * CELL_SIZE_3D) / 2;
+  const halfZ = ((environment.width - 1) * CELL_SIZE_3D) / 2;
+  return { x: row * CELL_SIZE_3D - halfX, z: col * CELL_SIZE_3D - halfZ };
+}
+
+function drawBoxWire(ctx, canvas, camera, block, color, zoomScale) {
+  const x1 = block.x;
+  const x2 = block.x + block.w;
+  const y1 = 0;
+  const y2 = block.h;
+  const z1 = block.z;
+  const z2 = block.z + block.d;
+  const corners = [
+    [x1, y1, z1],
+    [x2, y1, z1],
+    [x2, y1, z2],
+    [x1, y1, z2],
+    [x1, y2, z1],
+    [x2, y2, z1],
+    [x2, y2, z2],
+    [x1, y2, z2],
+  ];
+  const edges = [
+    [0, 1], [1, 2], [2, 3], [3, 0],
+    [4, 5], [5, 6], [6, 7], [7, 4],
+    [0, 4], [1, 5], [2, 6], [3, 7],
+  ];
+  edges.forEach(([a, b]) => {
+    const pa = corners[a];
+    const pb = corners[b];
+    drawLine3D(
+      ctx,
+      canvas,
+      camera,
+      { x: pa[0], y: pa[1], z: pa[2] },
+      { x: pb[0], y: pb[1], z: pb[2] },
+      color,
+      1.5,
+      zoomScale
+    );
+  });
+}
+
+function drawLine3D(ctx, canvas, camera, a, b, color, width, zoomScale) {
+  const pa = projectPoint(canvas, camera, a.x, a.y, a.z, zoomScale);
+  const pb = projectPoint(canvas, camera, b.x, b.y, b.z, zoomScale);
+  if (!pa || !pb) return;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  ctx.moveTo(pa.x, pa.y);
+  ctx.lineTo(pb.x, pb.y);
+  ctx.stroke();
+}
+
+function projectPoint(canvas, camera, x, y, z, zoomScale) {
+  const dx = x - camera.x;
+  const dy = y - camera.y;
+  const dz = z - camera.z;
+
+  const cosYaw = Math.cos(-camera.yaw);
+  const sinYaw = Math.sin(-camera.yaw);
+  const x1 = dx * cosYaw - dz * sinYaw;
+  const z1 = dx * sinYaw + dz * cosYaw;
+
+  const cosPitch = Math.cos(-camera.pitch);
+  const sinPitch = Math.sin(-camera.pitch);
+  const y2 = dy * cosPitch - z1 * sinPitch;
+  const z2 = dy * sinPitch + z1 * cosPitch;
+  if (z2 <= 0.25) return null;
+
+  const focal = 620 * Number(zoomScale || 1);
+  const scale = focal / z2;
+  return {
+    x: canvas.width * 0.5 + x1 * scale,
+    y: canvas.height * 0.52 - y2 * scale,
+    scale: Math.max(0.3, Math.min(2.2, scale / 120)),
+  };
+}
+
+function lookAtCamera(position, target) {
+  const dx = target.x - position.x;
+  const dy = target.y - position.y;
+  const dz = target.z - position.z;
+  const yaw = -Math.atan2(dx, dz);
+  const distXZ = Math.hypot(dx, dz);
+  const pitch = -Math.atan2(dy, distXZ);
+  return { x: position.x, y: position.y, z: position.z, yaw, pitch };
 }

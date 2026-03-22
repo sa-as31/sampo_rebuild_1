@@ -1849,3 +1849,34 @@
 - 验证结果：
   - `npm --prefix web_frontend run build` 通过；
   - 日期筛选现在会通过点击输入框或按钮弹出原生日历，而不是依赖手动输入。
+
+## 71. 补全任务历史回放视图：回放页改为 2D + 3D 双视图
+
+- 文件：`web_frontend/src/modules/shared/renderer.js`
+- 主要修改：
+  - 新增共享的 `drawScene3D()`；
+  - 将 3D 网格、障碍物、目标点、无人机投影绘制能力沉淀到共享渲染模块；
+  - 新增 `resizeCanvasToDisplaySize()` 供 3D 画布自适应使用。
+
+- 文件：`web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+- 主要修改：
+  - 管理员“已完成任务”中的历史回放区域，从单一 2D 画布改为：
+    - `2D 历史回放`
+    - `3D 历史回放`
+  - 执行者任务页中的“回放与告警”区域，同样改为 2D + 3D 双视图；
+  - 历史回放绘制逻辑改为同时驱动两块画布，确保同一帧下 2D 与 3D 同步播放；
+  - 新增回放视图状态 `replayViewState.selectedDroneId`，用于 3D 相机聚焦；
+  - 新增 `getReplayCanvasTargets()` 与 `syncReplaySelectedDrone()`，分别处理：
+    - 当前应绘制到哪一组回放画布；
+    - 选中无人机不存在时自动回退到首个无人机；
+  - 切换到执行者“回放与告警”页签时，会自动重绘当前历史回放。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“为什么任务回放页不应该只有 2D 视图”问答；
+  - 说明回放页已经统一为和联合运行页一致的 2D + 3D 双视图复盘方式。
+
+- 验证结果：
+  - `npm --prefix web_frontend run build` 通过；
+  - 任务中心中的历史回放区域现在会同步展示 2D 与 3D；
+  - 播放历史回放时，两块画布会使用同一历史帧同步更新。

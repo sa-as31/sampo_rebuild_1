@@ -320,8 +320,21 @@
           <strong>{{ replay.frameIndex }}/{{ Math.max(0, replay.frames.length - 1) }}</strong>
         </div>
 
-        <div class="canvas-wrap" style="margin-top: 10px">
-          <canvas ref="historyCanvasRef" width="920" height="460"></canvas>
+        <div class="ops-dual-view-grid history-dual-view-grid" style="margin-top: 10px">
+          <section class="ops-view-card">
+            <h3>2D 历史回放</h3>
+            <div class="legend">用于查看俯视轨迹、目标点和障碍布局</div>
+            <div class="canvas-wrap" style="margin-top: 8px">
+              <canvas ref="historyCanvasRef" width="920" height="460"></canvas>
+            </div>
+          </section>
+          <section class="ops-view-card">
+            <h3>3D 历史回放</h3>
+            <div class="legend">与左侧使用同一任务、同一帧历史数据</div>
+            <div class="canvas-wrap" style="margin-top: 8px">
+              <canvas ref="history3dCanvasRef" width="920" height="460"></canvas>
+            </div>
+          </section>
         </div>
 
         <div class="admin-recap-grid">
@@ -519,8 +532,21 @@
             />
           </div>
 
-          <div class="canvas-wrap" style="margin-top: 10px">
-            <canvas ref="liveCanvasRef" width="920" height="460"></canvas>
+          <div class="ops-dual-view-grid history-dual-view-grid" style="margin-top: 10px">
+            <section class="ops-view-card">
+              <h3>2D 历史回放</h3>
+              <div class="legend">查看任务轨迹、目标点和障碍分布</div>
+              <div class="canvas-wrap" style="margin-top: 8px">
+                <canvas ref="executorHistoryCanvasRef" width="920" height="460"></canvas>
+              </div>
+            </section>
+            <section class="ops-view-card">
+              <h3>3D 历史回放</h3>
+              <div class="legend">与左侧使用同一帧历史任务数据</div>
+              <div class="canvas-wrap" style="margin-top: 8px">
+                <canvas ref="executorHistory3dCanvasRef" width="920" height="460"></canvas>
+              </div>
+            </section>
           </div>
 
           <div class="ops-alerts" style="margin-top: 10px">
@@ -565,7 +591,7 @@ import {
   getOpsTask,
   submitTaskFeedback,
 } from "../../services/api";
-import { createRenderer } from "../shared/renderer";
+import { createRenderer, drawScene3D } from "../shared/renderer";
 
 const TEMPLATE_MAP_OPTIONS = [
   { value: "warehouse-grid-v1", label: "仓储巡检默认地图", source: "template" },
@@ -590,6 +616,9 @@ const props = defineProps({
 const renderer = createRenderer();
 const liveCanvasRef = ref(null);
 const historyCanvasRef = ref(null);
+const history3dCanvasRef = ref(null);
+const executorHistoryCanvasRef = ref(null);
+const executorHistory3dCanvasRef = ref(null);
 const executorDateInputRef = ref(null);
 const adminActiveDateInputRef = ref(null);
 const adminCompletedDateInputRef = ref(null);
@@ -648,6 +677,10 @@ const replay = reactive({
   frameIndex: 0,
   playing: false,
   reason: "",
+});
+
+const replayViewState = reactive({
+  selectedDroneId: 0,
 });
 
 const isAdmin = computed(() => props.role === "admin");
@@ -960,6 +993,8 @@ function closeExecutorDetail() {
   selectedFeedback.value = [];
   stopReplayTimer();
   drawEmptyCanvas(liveCanvasRef.value, "请选择左侧任务以展开执行详情");
+  drawEmptyCanvas(executorHistoryCanvasRef.value, "请选择左侧任务以查看历史回放");
+  drawEmptyCanvas(executorHistory3dCanvasRef.value, "请选择左侧任务以查看历史回放");
   status.value = `任务列表已更新，可见 ${filteredTasks.value.length} 条（总 ${tasks.value.length} 条）`;
 }
 
@@ -1014,18 +1049,60 @@ async function loadReplay(options = {}) {
 }
 
 function drawReplayFrame() {
-  const canvas = isAdmin.value ? historyCanvasRef.value || liveCanvasRef.value : liveCanvasRef.value;
-  if (!canvas) return;
+  const canvases = getReplayCanvasTargets();
   if (replay.available && replay.environment && replay.frames.length) {
     const frame = replay.frames[Math.min(replay.frameIndex, replay.frames.length - 1)];
-    renderer.draw(canvas, replay.environment, frame);
+    syncReplaySelectedDrone(frame);
+    if (canvases.canvas2d) renderer.draw(canvases.canvas2d, replay.environment, frame);
+    if (canvases.canvas3d) {
+      drawScene3D(canvases.canvas3d, replay.environment, frame, {
+        cameraMode: "orbit",
+        zoomScale: 1,
+        orbitAngle: replay.frameIndex * 0.14,
+        selectedDroneId: replayViewState.selectedDroneId,
+      });
+    }
     return;
   }
   if (selectedSnapshot.value?.environment && selectedSnapshot.value?.frame) {
-    renderer.draw(canvas, selectedSnapshot.value.environment, selectedSnapshot.value.frame);
+    syncReplaySelectedDrone(selectedSnapshot.value.frame);
+    if (canvases.canvas2d) renderer.draw(canvases.canvas2d, selectedSnapshot.value.environment, selectedSnapshot.value.frame);
+    if (canvases.canvas3d) {
+      drawScene3D(canvases.canvas3d, selectedSnapshot.value.environment, selectedSnapshot.value.frame, {
+        cameraMode: "orbit",
+        zoomScale: 1,
+        orbitAngle: 0.2,
+        selectedDroneId: replayViewState.selectedDroneId,
+      });
+    }
     return;
   }
-  drawEmptyCanvas(canvas, "暂无可展示回放");
+  if (canvases.canvas2d) drawEmptyCanvas(canvases.canvas2d, "暂无可展示回放");
+  if (canvases.canvas3d) drawEmptyCanvas(canvases.canvas3d, "暂无可展示回放");
+}
+
+function getReplayCanvasTargets() {
+  if (isAdmin.value) {
+    return {
+      canvas2d: historyCanvasRef.value || liveCanvasRef.value,
+      canvas3d: history3dCanvasRef.value || null,
+    };
+  }
+  return {
+    canvas2d: executorHistoryCanvasRef.value || liveCanvasRef.value,
+    canvas3d: executorHistory3dCanvasRef.value || null,
+  };
+}
+
+function syncReplaySelectedDrone(frame) {
+  const agents = frame?.agents || [];
+  if (!agents.length) {
+    replayViewState.selectedDroneId = 0;
+    return;
+  }
+  if (!agents.some((agent) => agent.id === replayViewState.selectedDroneId)) {
+    replayViewState.selectedDroneId = agents[0].id;
+  }
 }
 
 async function togglePlayback() {
@@ -1293,12 +1370,22 @@ watch(adminSection, async (section) => {
   }
   drawEmptyCanvas(liveCanvasRef.value, "暂无实时任务画面");
   drawEmptyCanvas(historyCanvasRef.value, "暂无可展示回放");
+  drawEmptyCanvas(history3dCanvasRef.value, "暂无可展示回放");
+});
+
+watch(executorView, async (view) => {
+  if (isAdmin.value || view !== "history") return;
+  await nextTick();
+  drawReplayFrame();
 });
 
 onMounted(async () => {
   await refreshAssignees();
   await refreshTasks();
   pollTimer = window.setInterval(() => refreshTasks(), 3200);
+  drawEmptyCanvas(executorHistoryCanvasRef.value, "请选择左侧任务以查看历史回放");
+  drawEmptyCanvas(executorHistory3dCanvasRef.value, "请选择左侧任务以查看历史回放");
+  drawEmptyCanvas(history3dCanvasRef.value, "暂无可展示回放");
 });
 
 onUnmounted(() => {
