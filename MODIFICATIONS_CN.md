@@ -2013,3 +2013,12 @@
 - 验证结果：
   - `npm --prefix web_frontend run build` 通过；
   - Playwright 在桌面全屏下复测管理员“执行中任务”页，右侧详情已回到容器内，不再横向溢出。
+
+## 77. 补充训练损失曲线查看位置说明
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“模型训练时损失曲线的图片是在哪个网站看”问答；
+  - 说明项目训练日志接入的是 `Weights & Biases (wandb)`；
+  - 说明 `training_run.py` 中使用了 `wandb.init(..., sync_tensorboard=True)`；
+  - 同时标注当前默认训练参数为 `use_wandb=False`，因此当前训练默认不会上传在线曲线。
