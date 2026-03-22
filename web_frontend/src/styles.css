@@ -784,6 +784,10 @@ body {
   gap: 16px;
 }
 
+.admin-workspace-grid > .panel {
+  min-width: 0;
+}
+
 .admin-overview-grid,
 .admin-list-grid,
 .admin-dispatch-grid,
@@ -982,6 +986,7 @@ body {
 .admin-active-embedded {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .admin-active-embedded .ops-main-panel {
@@ -989,6 +994,7 @@ body {
   padding: 0;
   border: none;
   background: transparent;
+  min-width: 0;
 }
 
 .admin-active-embedded .ops-main-head {
@@ -997,6 +1003,35 @@ body {
 
 .admin-active-embedded .status-cards {
   margin-top: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-active-embedded .ops-integrated-layout,
+.admin-active-embedded .ops-dual-view-grid,
+.admin-active-embedded .ops-view-card,
+.admin-active-embedded .canvas-wrap,
+.admin-active-embedded .fleet-table {
+  min-width: 0;
+}
+
+.admin-active-embedded .ops-dual-view-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-active-embedded .fleet-table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.admin-active-embedded .fleet-table thead,
+.admin-active-embedded .fleet-table tbody,
+.admin-active-embedded .fleet-table tr {
+  width: 100%;
+}
+
+.admin-active-embedded .ops-view-card .canvas-wrap canvas {
+  height: 420px;
 }
 
 .feedback-item {
