@@ -377,6 +377,7 @@
       </div>
 
       <div class="status-chip">{{ status }}</div>
+      <p class="legend">日期筛选规则：待执行看计划时间，执行中看计划/开始时间，已完成优先看完成时间。</p>
 
       <div class="executor-task-stack">
         <button
@@ -766,13 +767,35 @@ function filterAdminTasks(list, keyword, dateValue) {
 
 function matchTaskDate(task, dateValue) {
   if (!dateValue) return true;
-  const candidate = Number(task?.params?.scheduled_start_at || task?.created_at || 0);
-  if (!candidate) return false;
-  const d = new Date(candidate * 1000);
+  const candidates = collectTaskDateCandidates(task);
+  return candidates.some((candidate) => formatDateOnly(candidate) === dateValue);
+}
+
+function collectTaskDateCandidates(task) {
+  const status = String(task?.status || "").toUpperCase();
+  const params = task?.params || {};
+  const rawCandidates = [];
+
+  if (["COMPLETED", "FAILED", "STOPPED"].includes(status)) {
+    rawCandidates.push(task?.ended_at, task?.updated_at, params?.scheduled_start_at, task?.created_at);
+  } else if (["RUNNING", "PAUSED"].includes(status)) {
+    rawCandidates.push(params?.scheduled_start_at, task?.started_at, task?.created_at, task?.updated_at);
+  } else {
+    rawCandidates.push(params?.scheduled_start_at, task?.created_at, task?.updated_at);
+  }
+
+  return rawCandidates
+    .map((value) => Number(value || 0))
+    .filter((value, index, list) => value > 0 && list.indexOf(value) === index);
+}
+
+function formatDateOnly(ts) {
+  if (!ts) return "";
+  const d = new Date(Number(ts) * 1000);
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}` === dateValue;
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function ensureVersionedMapName(baseName) {
