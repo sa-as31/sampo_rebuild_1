@@ -1785,3 +1785,19 @@
 - 主要修改：
   - 新增“能否直接给出这套中期汇报 PPT 的每一页正文内容”问答；
   - 说明正文稿已整理完成，并记录其适用用途（手工制作 / PPT AI 生成 / 后续改稿）。
+
+## 67. 答辩现场“小改代码”问答补充
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“答辩时老师可能会让我现场改什么代码”问答；
+  - 结合当前项目结构，判断答辩现场更可能出现的是：
+    - 前端页面文案、默认值、筛选逻辑、指标展示、模板选项、2D/3D 显示行为等小改动；
+  - 明确列出最值得提前熟悉的文件：
+    - `web_frontend/src/App.vue`
+    - `web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+    - `web_frontend/src/modules/dashboard/OpsDashboardView.vue`
+    - `web_frontend/src/modules/operations/OperationsModeView.vue`
+    - `web_frontend/src/modules/shared/renderer.js`
+    - `web_frontend/src/services/api.js`
+  - 说明一般不太会现场要求重改强化学习训练主流程或底层 C++ 规划器。
