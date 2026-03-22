@@ -216,6 +216,8 @@ class TaskRuntime:
         self.db = TaskDB(db_path)
         self.tasks: Dict[str, LiveTask] = {}
         self.tasks_lock = threading.RLock()
+        self.replay_dir = self.db.db_path.parent / "task_replays"
+        self.replay_dir.mkdir(parents=True, exist_ok=True)
 
     def get_auth_state(self) -> Dict[str, Any]:
         return self.db.get_auth_state()
@@ -367,21 +369,30 @@ class TaskRuntime:
             stored = self.db.get_task(task_id)
             if stored is None:
                 return None
+            persisted = self._load_persisted_replay(task_id)
+            if persisted is not None:
+                persisted["task"] = stored
+                return persisted
+            rebuilt = self._rebuild_historical_replay(stored)
+            if rebuilt is not None:
+                return rebuilt
             return {
                 "task_id": task_id,
                 "available": False,
-                "reason": "Task exists in history DB, but replay frames are not kept after runtime restart.",
+                "reason": "未找到该任务的历史回放文件，且按任务参数重建回放失败。",
                 "task": stored,
             }
         with live.lock:
-            return {
-                "task_id": task_id,
-                "available": True,
-                "task": self._task_brief(live),
-                "environment": live.environment,
-                "frames": live.frames,
-                "metrics": live.base_metrics,
-            }
+            payload = self._build_replay_response(
+                task_id=task_id,
+                task=self._task_brief(live),
+                environment=live.environment,
+                frames=live.frames,
+                metrics=live.base_metrics,
+                meta={"warnings": list(live.warnings or [])},
+            )
+        self._persist_replay_payload(payload)
+        return payload
 
     def control_task(self, task_id: str, action: str) -> Optional[Dict[str, Any]]:
         action = str(action or "").lower()
@@ -496,18 +507,32 @@ class TaskRuntime:
                 for warning in live.warnings:
                     self._emit_alert(live, "warning", "MODEL_RUNTIME_WARNING", warning, frame_step=0)
 
+            replay_payload = self._build_replay_response(
+                task_id=live.task_id,
+                task=self._task_brief(live),
+                environment=live.environment,
+                frames=live.frames,
+                metrics=live.base_metrics,
+                meta=playback.get("meta") or {},
+            )
+
+        self._persist_replay_payload(replay_payload)
+
     def _load_playback(self, live: LiveTask) -> Dict[str, Any]:
-        if live.source == "model":
+        return self._build_playback(source=live.source, template=live.template, params=live.params)
+
+    def _build_playback(self, source: str, template: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        if source == "model":
             try:
                 from web_demo.inference import build_rollout
 
-                return build_rollout(live.params)
+                return build_rollout(params)
             except Exception as exc:
-                fallback = build_sample_rollout(live.template, live.params)
+                fallback = build_sample_rollout(template, params)
                 fallback.setdefault("meta", {}).setdefault("warnings", [])
                 fallback["meta"]["warnings"].append(f"Model playback failed, fallback to sample: {exc}")
                 return fallback
-        return build_sample_rollout(live.template, live.params)
+        return build_sample_rollout(template, params)
 
     def _run_task_loop(self, task_id: str):
         live = self._get_live_task(task_id)
@@ -778,6 +803,93 @@ class TaskRuntime:
     def _get_live_task(self, task_id: str) -> Optional[LiveTask]:
         with self.tasks_lock:
             return self.tasks.get(task_id)
+
+    def _replay_path(self, task_id: str) -> Path:
+        return self.replay_dir / f"{task_id}.json"
+
+    def _build_replay_response(
+        self,
+        task_id: str,
+        task: Dict[str, Any],
+        environment: Optional[Dict[str, Any]],
+        frames: Optional[List[Dict[str, Any]]],
+        metrics: Optional[Dict[str, Any]],
+        meta: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        normalized_frames = list(frames or [])
+        return {
+            "task_id": task_id,
+            "available": bool(environment and normalized_frames),
+            "task": task,
+            "environment": environment,
+            "frames": normalized_frames,
+            "metrics": dict(metrics or {}),
+            "meta": dict(meta or {}),
+            "reason": "" if environment and normalized_frames else "历史回放帧为空",
+        }
+
+    def _persist_replay_payload(self, payload: Dict[str, Any]):
+        task_id = str(payload.get("task_id") or "").strip()
+        if not task_id:
+            return
+        path = self._replay_path(task_id)
+        artifact = {
+            "task_id": task_id,
+            "environment": payload.get("environment"),
+            "frames": payload.get("frames") or [],
+            "metrics": payload.get("metrics") or {},
+            "meta": payload.get("meta") or {},
+            "saved_at": now_ts(),
+        }
+        tmp_path = path.with_suffix(".json.tmp")
+        tmp_path.write_text(json.dumps(artifact, ensure_ascii=False), encoding="utf-8")
+        tmp_path.replace(path)
+
+    def _load_persisted_replay(self, task_id: str) -> Optional[Dict[str, Any]]:
+        path = self._replay_path(task_id)
+        if not path.exists():
+            return None
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        return self._build_replay_response(
+            task_id=task_id,
+            task={},
+            environment=payload.get("environment"),
+            frames=payload.get("frames"),
+            metrics=payload.get("metrics"),
+            meta=payload.get("meta"),
+        )
+
+    def _rebuild_historical_replay(self, stored: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        task_id = str(stored.get("task_id") or "").strip()
+        if not task_id:
+            return None
+        try:
+            playback = self._build_playback(
+                source=str(stored.get("source") or "sample"),
+                template=str(stored.get("template") or "warehouse"),
+                params=dict(stored.get("params") or {}),
+            )
+        except Exception as exc:
+            return {
+                "task_id": task_id,
+                "available": False,
+                "reason": f"历史任务回放重建失败：{exc}",
+                "task": stored,
+            }
+
+        payload = self._build_replay_response(
+            task_id=task_id,
+            task=stored,
+            environment=playback.get("environment"),
+            frames=playback.get("frames"),
+            metrics=playback.get("metrics"),
+            meta=playback.get("meta"),
+        )
+        self._persist_replay_payload(payload)
+        return payload
 
 
 class TaskDB:

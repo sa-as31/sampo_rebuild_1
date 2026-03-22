@@ -896,6 +896,12 @@ function ensureSelectedTask() {
 }
 
 async function selectTask(taskId) {
+  stopReplayTimer();
+  replay.available = false;
+  replay.frames = [];
+  replay.environment = null;
+  replay.frameIndex = 0;
+  replay.reason = "";
   selectedTaskId.value = taskId;
   if (!isAdmin.value) executorView.value = "execute";
   await loadTaskDetail(taskId, true);
@@ -927,15 +933,19 @@ async function loadTaskDetail(taskId, withStatusText) {
     if (withStatusText) status.value = `已加载任务：${taskId}`;
     await nextTick();
     drawTaskSnapshotTo(liveCanvasRef.value);
-    if (adminSection.value === "completed") drawReplayFrame();
+    if (isAdmin.value && adminSection.value === "completed") {
+      await loadReplay({ silent: true });
+      drawReplayFrame();
+    }
   } catch (error) {
     status.value = `加载任务失败：${error.message}`;
   }
 }
 
-async function loadReplay() {
+async function loadReplay(options = {}) {
+  const { silent = false } = options;
   if (!selectedTaskId.value) {
-    status.value = "请先选择一个任务";
+    if (!silent) status.value = "请先选择一个任务";
     return;
   }
   stopReplayTimer();
@@ -948,14 +958,14 @@ async function loadReplay() {
     replay.reason = payload.reason || "";
     await nextTick();
     if (!replay.available || !replay.frames.length || !replay.environment) {
-      status.value = replay.reason || "当前任务无法提供历史回放";
+      if (!silent) status.value = replay.reason || "当前任务无法提供历史回放";
       drawReplayFrame();
       return;
     }
-    status.value = `历史回放已加载，帧数 ${replay.frames.length}`;
+    if (!silent) status.value = `历史回放已加载，帧数 ${replay.frames.length}`;
     drawReplayFrame();
   } catch (error) {
-    status.value = `加载回放失败：${error.message}`;
+    if (!silent) status.value = `加载回放失败：${error.message}`;
   }
 }
 
@@ -974,14 +984,17 @@ function drawReplayFrame() {
   drawEmptyCanvas(canvas, "暂无可展示回放");
 }
 
-function togglePlayback() {
-  if (!replay.available || !replay.frames.length) {
-    status.value = "请先加载历史回放";
-    return;
-  }
+async function togglePlayback() {
   if (replay.playing) {
     stopReplayTimer();
     return;
+  }
+  if (!replay.available || !replay.frames.length) {
+    await loadReplay({ silent: true });
+    if (!replay.available || !replay.frames.length) {
+      status.value = replay.reason || "请先加载历史回放";
+      return;
+    }
   }
   replay.playing = true;
   replayTimer.value = window.setInterval(() => {

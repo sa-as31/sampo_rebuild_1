@@ -1711,7 +1711,43 @@
   - `npm --prefix web_frontend run build` 通过；
   - 日期筛选已从“单字段比较”改为“按任务阶段匹配不同时间语义”。
 
-## 64. 中期汇报 PPT 提示词问答补充
+## 64. 补全管理员历史回放：支持已完成任务加载并播放 2D 回放
+
+- 文件：`web_demo/task_runtime.py`
+- 主要修改：
+  - 新增历史回放持久化目录：`results/mac_eval/task_replays/`；
+  - 任务在 `READY` 阶段完成回放准备后，会把 `environment / frames / metrics / meta` 写入对应的 JSON 文件；
+  - 重写 `get_replay()`：
+    - 当前内存中的任务继续直接返回实时回放帧；
+    - 历史任务优先读取落盘的回放文件；
+    - 若旧任务没有回放文件，则按任务参数重新构建回放并自动补存；
+  - 抽出 `_build_playback()`，统一处理：
+    - `model` 源优先真实推理；
+    - 推理失败时回退到 sample 回放；
+    - `sample` 源直接使用模板回放。
+
+- 文件：`web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+- 主要修改：
+  - 执行者 / 管理员切换任务时会先重置旧回放状态，避免沿用上一条任务的帧；
+  - 管理员在“已完成任务”页选中任务后，会自动尝试加载历史回放；
+  - `播放回放` 按钮改为：
+    - 若还未加载回放，先自动请求历史回放；
+    - 加载成功后直接开始播放；
+  - 保留静默加载模式，避免自动加载时不断覆盖状态提示。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“为什么管理员里的‘播放回放’之前看起来没做出来”说明；
+  - 解释之前 `0/0` 的根因是历史帧未持久化；
+  - 说明现在已支持历史任务落盘回放与旧任务补建回放。
+
+- 验证结果：
+  - `python3 -m py_compile web_demo/task_runtime.py web_demo/server.py` 通过；
+  - `npm --prefix web_frontend run build` 通过；
+  - `python3` 直接调用 `TaskRuntime.get_replay('4511d2d0c5d6')` 与 `TaskRuntime.get_replay('d7d20597684c')` 均返回可用回放；
+  - `curl http://127.0.0.1:8080/api/tasks/4511d2d0c5d6/replay` 已确认返回 `available=True` 且带有历史帧。
+
+## 65. 中期汇报 PPT 提示词问答补充
 
 - 文件：`解疑.md`
 - 主要修改：
