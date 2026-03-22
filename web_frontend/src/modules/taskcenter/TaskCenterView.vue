@@ -234,9 +234,9 @@
           </div>
         </div>
 
-        <div class="canvas-wrap" style="margin-top: 10px">
-          <canvas ref="liveCanvasRef" width="920" height="460"></canvas>
-        </div>
+        <section class="admin-active-embedded" style="margin-top: 12px">
+          <OperationsModeView embedded :current-user="currentUser" :focus-task-id="selectedTaskId" :role="props.role" />
+        </section>
       </article>
     </section>
 

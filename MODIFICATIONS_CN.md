@@ -1967,3 +1967,28 @@
   - 本地验证 `d7d20597684c` 在修复前为“数据库中 READY，但 live task 不存在”；
   - 修复后，新建演示任务 `6c0b04af4958 / demo_executor01_campus_restore`；
   - 通过 HTTP 调用 `/api/tasks/6c0b04af4958/control`，已验证能从 `READY` 正常切到 `RUNNING`。
+
+## 75. 修复管理员“执行中任务”详情显示：改为嵌入式联合运行视图
+
+- 文件：`web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+- 主要修改：
+  - 管理员“执行中任务”右侧详情区，不再单独渲染一块静态 canvas；
+  - 改为直接嵌入 `OperationsModeView` 的 `embedded` 版本；
+  - 任务焦点继续由当前 `selectedTaskId` 驱动。
+
+- 文件：`web_frontend/src/styles.css`
+- 主要修改：
+  - 新增 `admin-active-embedded` 样式；
+  - 对嵌入式联合运行视图做管理员页适配：
+    - 去掉重复的外层 panel 边框和背景；
+    - 隐藏内部重复标题；
+    - 保持状态卡片与当前管理员详情布局自然衔接。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“为什么管理员‘执行中任务’里的任务详情显示要改成嵌入式联合运行视图”问答；
+  - 说明之前管理员和执行者展示不一致，而且单独 canvas 更容易出空白问题。
+
+- 验证结果：
+  - `npm --prefix web_frontend run build` 通过；
+  - 管理员任务详情现在与执行者使用同一套联合运行视图展示逻辑。
