@@ -20,14 +20,14 @@
           <strong>{{ adminTaskStats.completed }}</strong>
         </div>
         <div class="status-card">
-          <p>待执行计划</p>
-          <strong>{{ adminTaskStats.scheduled }}</strong>
+          <p>待审核申请</p>
+          <strong>{{ adminTaskStats.pending }}</strong>
         </div>
       </div>
     </article>
 
     <nav class="admin-workspace-tabs">
-      <button class="tab-btn" :class="{ active: adminSection === 'create' }" @click="adminSection = 'create'">创建任务</button>
+      <button class="tab-btn" :class="{ active: adminSection === 'create' }" @click="adminSection = 'create'">申请审核</button>
       <button class="tab-btn" :class="{ active: adminSection === 'active' }" @click="adminSection = 'active'">执行中任务</button>
       <button class="tab-btn" :class="{ active: adminSection === 'completed' }" @click="adminSection = 'completed'">已完成任务</button>
     </nav>
@@ -36,104 +36,15 @@
       <article class="panel">
         <div class="admin-panel-head">
           <div>
-            <h2>创建并分配任务</h2>
-            <p class="legend">基于已导入地图选择任务场景，指定监督员与计划执行时间。</p>
+            <h2>待审核任务申请</h2>
+            <p class="legend">申请人提交指定时间、地点和任务类型后，由管理员在此审核并指派飞手。</p>
           </div>
           <button class="btn" @click="refreshTasks">刷新任务状态</button>
         </div>
 
-        <div class="field-grid">
-          <label>任务名称
-            <input v-model="assignForm.mission_name" placeholder="如：night_shift_assign_01" />
-          </label>
-          <label>任务模板
-            <select v-model="assignForm.template">
-              <option value="warehouse">仓储巡检</option>
-              <option value="campus">园区配送</option>
-              <option value="emergency">应急调度</option>
-            </select>
-          </label>
-          <label>执行数据源
-            <select v-model="assignForm.source">
-              <option value="sample">sample</option>
-              <option value="model">model</option>
-            </select>
-          </label>
-          <label>分配监督员
-            <select v-model="assignForm.assignee_user_id" @change="syncAssigneeDisplayName">
-              <option v-for="user in assignees" :key="user.user_id" :value="user.user_id">{{ user.display_name }} ({{ user.username }})</option>
-            </select>
-          </label>
-          <label>使用地图
-            <select v-model="assignForm.map_name">
-              <option v-for="item in availableMapChoices" :key="item.value" :value="item.value">{{ item.label }}</option>
-            </select>
-          </label>
-          <label>计划执行时间
-            <input v-model="assignForm.scheduled_start_input" type="datetime-local" />
-          </label>
-          <label>无人机数量
-            <input v-model.number="assignForm.num_agents" min="1" type="number" />
-          </label>
-          <label>最大帧数
-            <input v-model.number="assignForm.max_frames" min="4" type="number" />
-          </label>
-          <label>节拍(ms)
-            <input v-model.number="assignForm.tick_ms" min="120" step="20" type="number" />
-          </label>
-        </div>
-
-        <div class="admin-highlight-card">
-          <p>创建预览</p>
-          <strong>{{ assignForm.mission_name }}</strong>
-          <span>{{ templateLabel(assignForm.template) }} · {{ selectedAssigneeLabel }} · {{ assignForm.map_name || "未选地图" }}</span>
-          <span>计划开始：{{ scheduledPreviewText }}</span>
-        </div>
-
-        <div class="btn-row" style="margin-top: 12px">
-          <button class="btn" @click="createAndAssignTask">创建并分配任务</button>
-        </div>
-        <div class="status-chip">{{ assignStatus }}</div>
-      </article>
-
-      <article class="panel">
-        <div class="admin-panel-head">
-          <div>
-            <h2>地图与待执行计划</h2>
-            <p class="legend">地图导入记录与未来待执行任务放在同一侧，方便创建时快速复用。</p>
-          </div>
-        </div>
-
-        <div class="field-grid admin-map-import-grid">
-          <label>导入地图(JSON)
-            <input accept=".json,application/json" type="file" @change="onImportMapFile" />
-          </label>
-        </div>
-
-        <div class="admin-subsection">
-          <h3>已导入地图</h3>
-          <div v-if="importedMaps.length === 0" class="ops-alert-empty">暂无导入地图，将默认使用模板地图。</div>
+        <div class="admin-overview-list">
           <button
-            v-for="item in importedMaps"
-            :key="item.id"
-            class="admin-task-card"
-            :class="{ active: assignForm.map_name === item.map_name }"
-            @click="applyImportedMap(item)"
-          >
-            <span class="admin-task-card-top">
-              <strong>{{ item.map_name }}</strong>
-              <em>导入</em>
-            </span>
-            <span class="admin-task-card-meta">{{ item.file_name }}</span>
-            <span class="admin-task-card-meta">{{ fmtDateTime(item.ts) }}</span>
-          </button>
-        </div>
-
-        <div class="admin-subsection">
-          <h3>待执行任务</h3>
-          <div v-if="scheduledTasks.length === 0" class="ops-alert-empty">当前没有已排期但尚未开始的任务。</div>
-          <button
-            v-for="task in scheduledTasks"
+            v-for="task in pendingReviewTasks"
             :key="task.task_id"
             class="admin-task-card"
             :class="{ active: task.task_id === selectedTaskId }"
@@ -141,12 +52,86 @@
           >
             <span class="admin-task-card-top">
               <strong>{{ task.mission_name }}</strong>
-              <em>{{ taskStageLabel(task.status) }}</em>
+              <em>{{ taskCategoryLabel(task.params?.task_category) }}</em>
             </span>
-            <span class="admin-task-card-meta">{{ assigneeLabel(task) }} · {{ task.params?.map_name || "-" }}</span>
-            <span class="admin-task-card-meta">计划开始 {{ fmtDateTime(task.params?.scheduled_start_at) }}</span>
+            <span class="admin-task-card-meta">{{ requesterLabel(task) }} · {{ task.params?.requested_location || task.params?.map_name || "-" }}</span>
+            <span class="admin-task-card-meta">申请时间 {{ fmtDateTime(task.created_at) }} · 期望执行 {{ fmtDateTime(task.params?.scheduled_start_at) }}</span>
           </button>
+          <div v-if="pendingReviewTasks.length === 0" class="ops-alert-empty">当前没有待审核申请。</div>
         </div>
+      </article>
+
+      <article class="panel">
+        <div class="admin-panel-head">
+          <div>
+            <h2>审核与飞手指派</h2>
+            <p class="legend">管理员审核申请后，选择飞手并确认执行参数，任务才会进入待执行。</p>
+          </div>
+        </div>
+
+        <template v-if="selectedTask && selectedTask.status === 'PENDING_REVIEW'">
+          <div class="task-meta-grid">
+            <div class="task-meta"><span>申请人</span><strong>{{ requesterLabel(selectedTask) }}</strong></div>
+            <div class="task-meta"><span>任务类别</span><strong>{{ taskCategoryLabel(selectedTask.params?.task_category) }}</strong></div>
+            <div class="task-meta"><span>申请地点</span><strong>{{ selectedTask.params?.requested_location || "-" }}</strong></div>
+            <div class="task-meta"><span>申请时间</span><strong>{{ fmtDateTime(selectedTask.params?.scheduled_start_at) }}</strong></div>
+          </div>
+
+          <div class="field-grid">
+            <label>分配飞手
+              <select v-model="assignForm.assignee_user_id" @change="syncAssigneeDisplayName">
+                <option value="">请选择飞手</option>
+                <option v-for="user in assignees" :key="user.user_id" :value="user.user_id">{{ user.display_name }} ({{ user.username }})</option>
+              </select>
+            </label>
+            <label>执行数据源
+              <select v-model="assignForm.source">
+                <option value="sample">sample</option>
+                <option value="model">model</option>
+              </select>
+            </label>
+            <label>使用地图
+              <select v-model="assignForm.map_name">
+                <option v-for="item in availableMapChoices" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
+            </label>
+            <label>执行时间
+              <input v-model="assignForm.scheduled_start_input" type="datetime-local" />
+            </label>
+            <label>无人机数量
+              <input v-model.number="assignForm.num_agents" min="1" type="number" />
+            </label>
+            <label>最大帧数
+              <input v-model.number="assignForm.max_frames" min="4" type="number" />
+            </label>
+            <label>节拍(ms)
+              <input v-model.number="assignForm.tick_ms" min="120" step="20" type="number" />
+            </label>
+            <label>审核备注
+              <input v-model="assignForm.review_note" placeholder="可填写审核意见" />
+            </label>
+          </div>
+
+          <div class="field-grid admin-map-import-grid">
+            <label>导入地图(JSON)
+              <input accept=".json,application/json" type="file" @change="onImportMapFile" />
+            </label>
+          </div>
+
+          <div class="admin-highlight-card">
+            <p>审核结果预览</p>
+            <strong>{{ selectedTask.mission_name }}</strong>
+            <span>{{ taskCategoryLabel(selectedTask.params?.task_category) }} · {{ selectedAssigneeLabel }} · {{ assignForm.map_name || "未选地图" }}</span>
+            <span>计划开始：{{ scheduledPreviewText }}</span>
+          </div>
+
+          <div class="btn-row" style="margin-top: 12px">
+            <button class="btn" @click="approveTaskRequest">审核通过并分配飞手</button>
+            <button class="btn secondary" @click="rejectTaskRequest">驳回申请</button>
+          </div>
+          <div class="status-chip">{{ assignStatus }}</div>
+        </template>
+        <div v-else class="ops-alert-empty">请先从左侧选择一条待审核任务申请。</div>
       </article>
     </section>
 
@@ -162,7 +147,7 @@
 
         <label class="admin-search">
           <span>搜索任务</span>
-          <input v-model="adminFilters.activeKeyword" placeholder="任务名 / task_id / 监督员" />
+          <input v-model="adminFilters.activeKeyword" placeholder="任务名 / task_id / 飞手" />
         </label>
         <label class="admin-search">
           <span>按日期筛选</span>
@@ -245,14 +230,14 @@
         <div class="admin-panel-head">
           <div>
             <h2>已完成任务</h2>
-            <p class="legend">查看已完成、失败或停止的任务，并追踪告警和监督员反馈。</p>
+            <p class="legend">查看已完成、失败或停止的任务，并追踪告警和飞手反馈。</p>
           </div>
           <button class="btn" @click="refreshTasks">刷新历史</button>
         </div>
 
         <label class="admin-search">
           <span>搜索任务</span>
-          <input v-model="adminFilters.completedKeyword" placeholder="任务名 / task_id / 监督员" />
+          <input v-model="adminFilters.completedKeyword" placeholder="任务名 / task_id / 飞手" />
         </label>
         <label class="admin-search">
           <span>按日期筛选</span>
@@ -292,7 +277,7 @@
         <div class="admin-panel-head">
           <div>
             <h2>复盘与问题记录</h2>
-            <p class="legend">系统告警和监督员反馈分开展示，便于毕业设计中的问题复盘。</p>
+            <p class="legend">系统告警和飞手反馈分开展示，便于毕业设计中的问题复盘。</p>
           </div>
           <div class="btn-row">
             <button class="btn secondary" @click="loadReplay">加载历史回放</button>
@@ -305,7 +290,7 @@
           <div class="task-meta"><span>任务ID</span><strong>{{ selectedTask?.task_id || "-" }}</strong></div>
           <div class="task-meta"><span>任务状态</span><strong>{{ selectedTask?.status || "-" }}</strong></div>
           <div class="task-meta"><span>累计任务数</span><strong>{{ selectedSnapshot?.metrics?.tasks_completed ?? selectedTask?.metrics?.tasks_completed ?? "-" }}</strong></div>
-          <div class="task-meta"><span>监督员反馈</span><strong>{{ selectedFeedback.length }}</strong></div>
+          <div class="task-meta"><span>飞手反馈</span><strong>{{ selectedFeedback.length }}</strong></div>
         </div>
 
         <div class="admin-slider-row">
@@ -354,8 +339,8 @@
           </div>
 
           <div class="ops-alerts">
-            <h3>监督员反馈</h3>
-            <div v-if="selectedFeedback.length === 0" class="ops-alert-empty">当前没有监督员反馈。</div>
+            <h3>飞手反馈</h3>
+            <div v-if="selectedFeedback.length === 0" class="ops-alert-empty">当前没有飞手反馈。</div>
             <div v-for="item in selectedFeedback" :key="`${item.created_at}-${item.username}-${item.message}`" class="feedback-item">
               <div class="feedback-head">
                 <strong>{{ item.display_name || item.username || "未知用户" }}</strong>
@@ -370,12 +355,110 @@
     </section>
   </section>
 
+  <section v-else-if="isRequester" class="admin-task-shell">
+    <article class="panel admin-task-hero">
+      <div>
+        <p class="section-kicker">REQUEST WORKSPACE</p>
+        <h2>任务申请中心</h2>
+        <p class="legend">申请人提交指定时间、地点和任务类型的无人机任务申请，等待管理员审核与飞手指派。</p>
+      </div>
+      <div class="admin-summary-row">
+        <div class="status-card">
+          <p>我的申请</p>
+          <strong>{{ requesterTaskStats.total }}</strong>
+        </div>
+        <div class="status-card">
+          <p>待审核</p>
+          <strong>{{ requesterTaskStats.pending }}</strong>
+        </div>
+        <div class="status-card">
+          <p>已通过</p>
+          <strong>{{ requesterTaskStats.approved }}</strong>
+        </div>
+        <div class="status-card">
+          <p>已驳回</p>
+          <strong>{{ requesterTaskStats.rejected }}</strong>
+        </div>
+      </div>
+    </article>
+
+    <section class="admin-workspace-grid admin-dispatch-grid">
+      <article class="panel">
+        <div class="admin-panel-head">
+          <div>
+            <h2>提交无人机任务申请</h2>
+            <p class="legend">填写任务名称、类别、地点和执行时间。提交后交由管理员审核。</p>
+          </div>
+        </div>
+
+        <div class="field-grid">
+          <label>任务名称
+            <input v-model="requestForm.mission_name" placeholder="如：north_zone_patrol_request" />
+          </label>
+          <label>任务类别
+            <select v-model="requestForm.task_category">
+              <option value="patrol">巡逻</option>
+              <option value="show">表演</option>
+              <option value="transport">运输</option>
+            </select>
+          </label>
+          <label>执行地点
+            <input v-model="requestForm.requested_location" placeholder="如：北区 3 号楼天台 / 仓库 A 区" />
+          </label>
+          <label>申请执行时间
+            <input v-model="requestForm.scheduled_start_input" type="datetime-local" />
+          </label>
+        </div>
+
+        <div class="admin-highlight-card">
+          <p>申请预览</p>
+          <strong>{{ requestForm.mission_name }}</strong>
+          <span>{{ taskCategoryLabel(requestForm.task_category) }} · {{ requestForm.requested_location || "未填写地点" }}</span>
+          <span>申请执行时间：{{ requesterScheduledPreview }}</span>
+        </div>
+
+        <div class="btn-row" style="margin-top: 12px">
+          <button class="btn" @click="submitTaskRequest">提交任务申请</button>
+        </div>
+        <div class="status-chip">{{ requestStatus }}</div>
+      </article>
+
+      <article class="panel">
+        <div class="admin-panel-head">
+          <div>
+            <h2>我的申请记录</h2>
+            <p class="legend">查看管理员审核状态、飞手指派情况和任务执行进展。</p>
+          </div>
+          <button class="btn" @click="refreshTasks">刷新列表</button>
+        </div>
+
+        <div class="admin-overview-list">
+          <button
+            v-for="task in requesterTasks"
+            :key="task.task_id"
+            class="admin-task-card"
+            :class="{ active: task.task_id === selectedTaskId }"
+            @click="selectTask(task.task_id)"
+          >
+            <span class="admin-task-card-top">
+              <strong>{{ task.mission_name }}</strong>
+              <em>{{ taskStageLabel(task.status) }}</em>
+            </span>
+            <span class="admin-task-card-meta">{{ taskCategoryLabel(task.params?.task_category) }} · {{ task.params?.requested_location || "-" }}</span>
+            <span class="admin-task-card-meta">飞手：{{ assigneeLabel(task) }} · 时间 {{ fmtDateTime(task.params?.scheduled_start_at) }}</span>
+          </button>
+          <div v-if="requesterTasks.length === 0" class="ops-alert-empty">当前还没有提交任务申请。</div>
+        </div>
+      </article>
+    </section>
+  </section>
+
   <section v-else class="executor-task-shell" :class="{ 'detail-open': hasExecutorSelection }">
     <article class="panel executor-task-list">
       <div class="admin-panel-head">
         <div>
           <h2>任务中心</h2>
-          <p class="legend">这里只显示分配给当前监督员的任务，选中后再进入任务执行页。</p>
+          <p class="legend">这里只显示分配给当前飞手的任务，选中后再进入任务执行页。</p>
         </div>
         <button class="btn" @click="refreshTasks">刷新列表</button>
       </div>
@@ -600,7 +683,7 @@ const TEMPLATE_MAP_OPTIONS = [
 ];
 
 const ACTIVE_STATUSES = new Set(["PREPARING", "READY", "RUNNING", "PAUSED"]);
-const FINAL_STATUSES = new Set(["COMPLETED", "FAILED", "STOPPED"]);
+const FINAL_STATUSES = new Set(["COMPLETED", "FAILED", "STOPPED", "REJECTED"]);
 
 const props = defineProps({
   role: {
@@ -623,8 +706,9 @@ const executorDateInputRef = ref(null);
 const adminActiveDateInputRef = ref(null);
 const adminCompletedDateInputRef = ref(null);
 const status = ref("任务中心初始化中...");
-const assignStatus = ref("管理员可创建任务并分配给监督员。");
-const feedbackStatus = ref("监督员可以提交现场问题与备注。");
+const assignStatus = ref("管理员可审核任务申请并分配飞手。");
+const feedbackStatus = ref("飞手可以提交现场问题与备注。");
+const requestStatus = ref("请填写任务时间、地点和类别后提交申请。");
 const tasks = ref([]);
 const selectedTaskId = ref("");
 const selectedTask = ref(null);
@@ -662,6 +746,14 @@ const assignForm = reactive({
   max_frames: 64,
   tick_ms: 320,
   scheduled_start_input: buildDefaultScheduleInput(),
+  review_note: "",
+});
+
+const requestForm = reactive({
+  mission_name: "north_zone_patrol_request",
+  task_category: "patrol",
+  requested_location: "北区 3 号楼天台",
+  scheduled_start_input: buildDefaultScheduleInput(),
 });
 
 const feedbackForm = reactive({
@@ -684,6 +776,7 @@ const replayViewState = reactive({
 });
 
 const isAdmin = computed(() => props.role === "admin");
+const isRequester = computed(() => props.role === "requester");
 const currentUserId = computed(() => props.currentUser?.user_id || "");
 const currentUser = computed(() => props.currentUser);
 const hasExecutorSelection = computed(() => !isAdmin.value && !!selectedTaskId.value && !!selectedTask.value);
@@ -718,21 +811,23 @@ const availableMapChoices = computed(() => {
 
 const selectedAssigneeLabel = computed(() => {
   const target = assignees.value.find((item) => item.user_id === assignForm.assignee_user_id);
-  return target ? `${target.display_name}（${target.username}）` : "未指定监督员";
+  return target ? `${target.display_name}（${target.username}）` : "未指定飞手";
 });
 
 const scheduledPreviewText = computed(() => {
   const ts = parseScheduledInput(assignForm.scheduled_start_input);
   return ts ? fmtDateTime(ts) : "未设置";
 });
+const requesterScheduledPreview = computed(() => {
+  const ts = parseScheduledInput(requestForm.scheduled_start_input);
+  return ts ? fmtDateTime(ts) : "未设置";
+});
 
+const pendingReviewTasks = computed(() => tasks.value.filter((task) => task.status === "PENDING_REVIEW"));
 const activeTasks = computed(() => tasks.value.filter((task) => ACTIVE_STATUSES.has(task.status)));
 const completedTasks = computed(() => tasks.value.filter((task) => FINAL_STATUSES.has(task.status)));
-const scheduledTasks = computed(() =>
-  activeTasks.value.filter((task) => {
-    const ts = Number(task?.params?.scheduled_start_at || 0);
-    return task.status === "READY" && ts > Date.now() / 1000;
-  }),
+const requesterTasks = computed(() =>
+  tasks.value.filter((task) => String(task?.params?.requester_user_id || "") === currentUserId.value),
 );
 
 const filteredActiveTasks = computed(() => filterAdminTasks(activeTasks.value, adminFilters.activeKeyword, adminFilters.activeDate));
@@ -742,7 +837,13 @@ const adminTaskStats = computed(() => ({
   total: tasks.value.length,
   active: activeTasks.value.length,
   completed: completedTasks.value.length,
-  scheduled: scheduledTasks.value.length,
+  pending: pendingReviewTasks.value.length,
+}));
+const requesterTaskStats = computed(() => ({
+  total: requesterTasks.value.length,
+  pending: requesterTasks.value.filter((task) => task.status === "PENDING_REVIEW").length,
+  approved: requesterTasks.value.filter((task) => ACTIVE_STATUSES.has(task.status) || task.status === "COMPLETED").length,
+  rejected: requesterTasks.value.filter((task) => task.status === "REJECTED").length,
 }));
 
 function fmtNumber(value, digits = 2) {
@@ -785,15 +886,38 @@ function parseScheduledInput(value) {
   return Math.floor(parsed.getTime() / 1000);
 }
 
+function buildDateTimeLocalInput(ts) {
+  if (!ts) return "";
+  const d = new Date(Number(ts) * 1000);
+  if (Number.isNaN(d.getTime())) return "";
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+}
+
 function templateLabel(key) {
   if (key === "campus") return "园区配送";
   if (key === "emergency") return "应急调度";
   return "仓储巡检";
 }
 
+function taskCategoryLabel(value) {
+  if (value === "show") return "表演";
+  if (value === "transport") return "运输";
+  return "巡逻";
+}
+
 function assigneeLabel(task) {
   const params = task?.params || {};
-  return params.assignee_display_name || params.assignee_user_id || "-";
+  return params.assignee_display_name || params.assignee_user_id || "待分配";
+}
+
+function requesterLabel(task) {
+  const params = task?.params || {};
+  return params.requester_display_name || params.requester_username || "-";
 }
 
 function feedbackCategoryLabel(category) {
@@ -806,6 +930,8 @@ function feedbackCategoryLabel(category) {
 
 function taskStageLabel(status) {
   const value = String(status || "").toUpperCase();
+  if (value === "PENDING_REVIEW") return "待审核";
+  if (value === "REJECTED") return "已驳回";
   if (["PREPARING", "READY"].includes(value)) return "待执行";
   if (["RUNNING", "PAUSED"].includes(value)) return "执行中";
   return "已完成";
@@ -931,7 +1057,7 @@ async function refreshAssignees() {
       assignForm.assignee_display_name = assignees.value[0].display_name;
     }
   } catch (error) {
-    assignStatus.value = `监督员列表加载失败：${error.message}`;
+    assignStatus.value = `飞手列表加载失败：${error.message}`;
   }
 }
 
@@ -949,7 +1075,9 @@ async function refreshTasks() {
       selectedFeedback.value = [];
     }
     if (isAdmin.value) {
-      status.value = `任务已刷新：执行中 ${activeTasks.value.length}，已完成 ${completedTasks.value.length}`;
+      status.value = `任务已刷新：待审核 ${pendingReviewTasks.value.length}，执行中 ${activeTasks.value.length}，已完成 ${completedTasks.value.length}`;
+    } else if (isRequester.value) {
+      status.value = `申请列表已更新：待审核 ${requesterTaskStats.value.pending}，已通过 ${requesterTaskStats.value.approved}`;
     } else {
       status.value = `任务列表已更新，可见 ${filteredTasks.value.length} 条（总 ${tasks.value.length} 条）`;
     }
@@ -959,10 +1087,19 @@ async function refreshTasks() {
 }
 
 function ensureSelectedTask() {
-  const pool = isAdmin.value ? tasks.value : filteredTasks.value;
+  const pool = isAdmin.value ? tasks.value : isRequester.value ? requesterTasks.value : filteredTasks.value;
   if (pool.some((task) => task.task_id === selectedTaskId.value)) return;
   if (isAdmin.value) {
-    selectedTaskId.value = activeTasks.value[0]?.task_id || completedTasks.value[0]?.task_id || tasks.value[0]?.task_id || "";
+    selectedTaskId.value =
+      pendingReviewTasks.value[0]?.task_id ||
+      activeTasks.value[0]?.task_id ||
+      completedTasks.value[0]?.task_id ||
+      tasks.value[0]?.task_id ||
+      "";
+    return;
+  }
+  if (isRequester.value) {
+    selectedTaskId.value = requesterTasks.value[0]?.task_id || "";
     return;
   }
   selectedTaskId.value = "";
@@ -1011,6 +1148,9 @@ async function loadTaskDetail(taskId, withStatusText) {
     selectedSnapshot.value = detail.snapshot || null;
     selectedAlerts.value = alerts.alerts || [];
     selectedFeedback.value = feedback.feedback || [];
+    if (isAdmin.value && adminSection.value === "create" && selectedTask.value?.status === "PENDING_REVIEW") {
+      syncReviewFormFromTask(selectedTask.value);
+    }
     if (withStatusText) status.value = `已加载任务：${taskId}`;
     await nextTick();
     drawTaskSnapshotTo(liveCanvasRef.value);
@@ -1159,7 +1299,7 @@ function exportReport() {
     `- 模板: ${templateLabel(task.template)}`,
     `- 数据源: ${task.source}`,
     `- 状态: ${task.status}`,
-    `- 监督员: ${assigneeLabel(task)}`,
+    `- 飞手: ${assigneeLabel(task)}`,
     `- 地图: ${task.params?.map_name || "-"}`,
     `- 计划开始: ${fmtDateTime(task.params?.scheduled_start_at)}`,
     `- 创建时间: ${fmtDateTime(task.created_at)}`,
@@ -1181,7 +1321,7 @@ function exportReport() {
       lines.push(`- [${alert.level}] ${alert.code} | step ${alert.frame_step} | ${alert.message}`);
     });
   }
-  lines.push("", "## 监督员反馈");
+  lines.push("", "## 飞手反馈");
   if (!selectedFeedback.value.length) {
     lines.push("- 无反馈");
   } else {
@@ -1205,13 +1345,26 @@ function syncAssigneeDisplayName() {
   assignForm.assignee_display_name = target?.display_name || "";
 }
 
+function syncReviewFormFromTask(task) {
+  const params = task?.params || {};
+  assignForm.assignee_user_id = String(params.assignee_user_id || "");
+  syncAssigneeDisplayName();
+  assignForm.source = task?.source || "sample";
+  assignForm.map_name = String(params.map_name || params.requested_location || "warehouse-grid-v1");
+  assignForm.num_agents = Number(params.num_agents || 16);
+  assignForm.max_frames = Number(params.max_frames || 64);
+  assignForm.tick_ms = Number(task?.tick_ms || 320);
+  assignForm.scheduled_start_input = buildDateTimeLocalInput(params.scheduled_start_at) || buildDefaultScheduleInput();
+  assignForm.review_note = String(params.review_note || "");
+}
+
 async function createAndAssignTask() {
   if (!isAdmin.value) {
     assignStatus.value = "仅管理员可创建和分配任务";
     return;
   }
   if (!assignForm.assignee_user_id) {
-    assignStatus.value = "请先选择监督员";
+    assignStatus.value = "请先选择飞手";
     return;
   }
   const scheduledStartAt = parseScheduledInput(assignForm.scheduled_start_input);
@@ -1239,6 +1392,54 @@ async function createAndAssignTask() {
     assignStatus.value = `任务已分配给 ${assignForm.assignee_display_name}，计划于 ${fmtDateTime(scheduledStartAt)} 执行`;
   } catch (error) {
     assignStatus.value = `任务创建失败：${error.message}`;
+  }
+}
+
+async function approveTaskRequest() {
+  if (!selectedTaskId.value || selectedTask.value?.status !== "PENDING_REVIEW") {
+    assignStatus.value = "请先选择待审核申请";
+    return;
+  }
+  if (!assignForm.assignee_user_id) {
+    assignStatus.value = "请先选择飞手";
+    return;
+  }
+  const scheduledStartAt = parseScheduledInput(assignForm.scheduled_start_input);
+  syncAssigneeDisplayName();
+  try {
+    await controlOpsTask(selectedTaskId.value, "approve", {
+      assignee_user_id: assignForm.assignee_user_id,
+      assignee_display_name: assignForm.assignee_display_name,
+      source: assignForm.source,
+      map_name: assignForm.map_name,
+      num_agents: assignForm.num_agents,
+      max_frames: assignForm.max_frames,
+      tick_ms: assignForm.tick_ms,
+      scheduled_start_at: scheduledStartAt,
+      scheduled_start_label: scheduledStartAt ? fmtDateTime(scheduledStartAt) : "",
+      review_note: assignForm.review_note,
+    });
+    await refreshTasks();
+    assignStatus.value = `审核通过，已为 ${selectedTask.value?.mission_name || "该任务"} 指派飞手 ${assignForm.assignee_display_name}`;
+    adminSection.value = "active";
+  } catch (error) {
+    assignStatus.value = `审核通过失败：${error.message}`;
+  }
+}
+
+async function rejectTaskRequest() {
+  if (!selectedTaskId.value || selectedTask.value?.status !== "PENDING_REVIEW") {
+    assignStatus.value = "请先选择待审核申请";
+    return;
+  }
+  try {
+    await controlOpsTask(selectedTaskId.value, "reject", {
+      review_note: assignForm.review_note,
+    });
+    await refreshTasks();
+    assignStatus.value = "申请已驳回。";
+  } catch (error) {
+    assignStatus.value = `驳回失败：${error.message}`;
   }
 }
 
@@ -1362,9 +1563,42 @@ async function startAssignedTask() {
   }
 }
 
+async function submitTaskRequest() {
+  const scheduledStartAt = parseScheduledInput(requestForm.scheduled_start_input);
+  if (!requestForm.mission_name.trim()) {
+    requestStatus.value = "请填写任务名称";
+    return;
+  }
+  if (!requestForm.requested_location.trim()) {
+    requestStatus.value = "请填写执行地点";
+    return;
+  }
+  if (!scheduledStartAt) {
+    requestStatus.value = "请填写有效的执行时间";
+    return;
+  }
+  try {
+    const created = await createOpsTask({
+      mission_name: requestForm.mission_name.trim(),
+      task_category: requestForm.task_category,
+      requested_location: requestForm.requested_location.trim(),
+      scheduled_start_at: scheduledStartAt,
+      scheduled_start_label: fmtDateTime(scheduledStartAt),
+    });
+    selectedTaskId.value = created?.task?.task_id || "";
+    requestStatus.value = `申请已提交，等待管理员审核。申请编号 ${selectedTaskId.value}`;
+    await refreshTasks();
+  } catch (error) {
+    requestStatus.value = `提交申请失败：${error.message}`;
+  }
+}
+
 watch(adminSection, async (section) => {
   if (!isAdmin.value) return;
   stopReplayTimer();
+  if (section === "create" && !pendingReviewTasks.value.some((task) => task.task_id === selectedTaskId.value)) {
+    selectedTaskId.value = pendingReviewTasks.value[0]?.task_id || "";
+  }
   if (section === "active" && !filteredActiveTasks.value.some((task) => task.task_id === selectedTaskId.value)) {
     selectedTaskId.value = filteredActiveTasks.value[0]?.task_id || "";
   }

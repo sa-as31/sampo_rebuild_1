@@ -15,6 +15,27 @@ ALLOWED_TEMPLATES = {"warehouse", "campus", "emergency"}
 ALLOWED_SOURCES = {"sample", "model"}
 FINAL_STATUSES = {"COMPLETED", "FAILED", "STOPPED"}
 RESTORABLE_STATUSES = {"PREPARING", "READY", "RUNNING", "PAUSED"}
+REVIEW_STATUSES = {"PENDING_REVIEW", "REJECTED"}
+
+ROLE_PRIORITY = {"admin": 0, "requester": 1, "executor": 2}
+
+TASK_CATEGORY_CONFIGS = {
+    "patrol": {
+        "label": "巡逻",
+        "template": "warehouse",
+        "default_mission_name": "patrol_request",
+    },
+    "show": {
+        "label": "表演",
+        "template": "campus",
+        "default_mission_name": "show_request",
+    },
+    "transport": {
+        "label": "运输",
+        "template": "emergency",
+        "default_mission_name": "transport_request",
+    },
+}
 
 TEMPLATE_CONFIGS = {
     "warehouse": {
@@ -57,93 +78,102 @@ DEFAULT_USER_ACCOUNTS = [
         "password": "admin123",
     },
     {
+        "user_id": "u_req_001",
+        "username": "requester01",
+        "display_name": "申请人01",
+        "role": "requester",
+        "department": "任务申请组",
+        "title": "飞行任务申请员",
+        "password": "req01@123",
+    },
+    {
         "user_id": "u_exec_001",
         "username": "executor01",
-        "display_name": "监督员01",
+        "display_name": "飞手01",
         "role": "executor",
-        "department": "运营监督组",
-        "title": "无人机运行监督",
+        "department": "运营飞行组",
+        "title": "无人机飞手",
         "password": "exec01@123",
     },
     {
         "user_id": "u_exec_002",
         "username": "executor02",
-        "display_name": "监督员02",
+        "display_name": "飞手02",
         "role": "executor",
-        "department": "运营监督组",
-        "title": "无人机运行监督",
+        "department": "运营飞行组",
+        "title": "无人机飞手",
         "password": "exec02@123",
     },
     {
         "user_id": "u_exec_003",
         "username": "executor03",
-        "display_name": "监督员03",
+        "display_name": "飞手03",
         "role": "executor",
-        "department": "运营监督组",
-        "title": "无人机运行监督",
+        "department": "运营飞行组",
+        "title": "无人机飞手",
         "password": "exec03@123",
     },
     {
         "user_id": "u_exec_004",
         "username": "executor04",
-        "display_name": "监督员04",
+        "display_name": "飞手04",
         "role": "executor",
-        "department": "运营监督组",
-        "title": "无人机运行监督",
+        "department": "运营飞行组",
+        "title": "无人机飞手",
         "password": "exec04@123",
     },
     {
         "user_id": "u_exec_005",
         "username": "executor05",
-        "display_name": "监督员05",
+        "display_name": "飞手05",
         "role": "executor",
-        "department": "运营监督组",
-        "title": "无人机运行监督",
+        "department": "运营飞行组",
+        "title": "无人机飞手",
         "password": "exec05@123",
     },
     {
         "user_id": "u_exec_006",
         "username": "executor06",
-        "display_name": "监督员06",
+        "display_name": "飞手06",
         "role": "executor",
-        "department": "运营监督组",
-        "title": "无人机运行监督",
+        "department": "运营飞行组",
+        "title": "无人机飞手",
         "password": "exec06@123",
     },
     {
         "user_id": "u_exec_007",
         "username": "executor07",
-        "display_name": "监督员07",
+        "display_name": "飞手07",
         "role": "executor",
-        "department": "运营监督组",
-        "title": "无人机运行监督",
+        "department": "运营飞行组",
+        "title": "无人机飞手",
         "password": "exec07@123",
     },
     {
         "user_id": "u_exec_008",
         "username": "executor08",
-        "display_name": "监督员08",
+        "display_name": "飞手08",
         "role": "executor",
-        "department": "运营监督组",
-        "title": "无人机运行监督",
+        "department": "运营飞行组",
+        "title": "无人机飞手",
         "password": "exec08@123",
     },
     {
         "user_id": "u_exec_009",
         "username": "executor09",
-        "display_name": "监督员09",
+        "display_name": "飞手09",
         "role": "executor",
-        "department": "运营监督组",
-        "title": "无人机运行监督",
+        "department": "运营飞行组",
+        "title": "无人机飞手",
         "password": "exec09@123",
     },
     {
         "user_id": "u_exec_010",
         "username": "executor10",
-        "display_name": "监督员10",
+        "display_name": "飞手10",
         "role": "executor",
-        "department": "运营监督组",
-        "title": "无人机运行监督",
+        "department": "运营飞行组",
+        "title": "无人机飞手",
         "password": "exec10@123",
     },
 ]
@@ -164,6 +194,27 @@ def clamp_int(value: Any, default: int, lower: int, upper: int) -> int:
 
 def normalize_username(value: Any) -> str:
     return str(value or "").strip().lower()
+
+
+def normalize_role(value: Any) -> str:
+    role = str(value or "").strip().lower()
+    if role == "admin":
+        return "admin"
+    if role == "requester":
+        return "requester"
+    return "executor"
+
+
+def normalize_task_category(value: Any) -> str:
+    raw = str(value or "").strip().lower()
+    if raw in TASK_CATEGORY_CONFIGS:
+        return raw
+    alias_map = {
+        "巡逻": "patrol",
+        "表演": "show",
+        "运输": "transport",
+    }
+    return alias_map.get(raw, "patrol")
 
 
 def hash_password(raw: str) -> str:
@@ -243,6 +294,12 @@ class TaskRuntime:
         return self.db.switch_identity(user_id)
 
     def create_task(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        current = self.db.get_current_user()
+        if current and current.get("role") == "requester":
+            return self._create_task_request(payload, current)
+        return self._create_dispatch_task(payload)
+
+    def _create_dispatch_task(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         template = str(payload.get("template") or "warehouse").lower()
         if template not in ALLOWED_TEMPLATES:
             template = "warehouse"
@@ -287,6 +344,68 @@ class TaskRuntime:
             "task": self._task_brief(live),
             "last_event_seq": live.next_seq - 1,
         }
+
+    def _create_task_request(self, payload: Dict[str, Any], current_user: Dict[str, Any]) -> Dict[str, Any]:
+        task_category = normalize_task_category(payload.get("task_category"))
+        category_config = TASK_CATEGORY_CONFIGS[task_category]
+        mission_name = str(payload.get("mission_name") or category_config["default_mission_name"]).strip() or category_config["default_mission_name"]
+        requested_location = str(payload.get("requested_location") or payload.get("location") or "").strip() or "待管理员确认地点"
+        requested_ts = None
+        try:
+            requested_ts = float(payload.get("scheduled_start_at") or 0) or None
+        except (TypeError, ValueError):
+            requested_ts = None
+        requested_label = str(payload.get("scheduled_start_label") or "").strip()
+        if requested_ts and not requested_label:
+            requested_label = time.strftime("%Y-%m-%d %H:%M", time.localtime(requested_ts))
+
+        params = normalize_task_payload(
+            {
+                "task_origin": "request",
+                "review_status": "pending",
+                "task_category": task_category,
+                "task_category_label": category_config["label"],
+                "requested_location": requested_location,
+                "requester_user_id": str(current_user.get("user_id") or ""),
+                "requester_username": str(current_user.get("username") or ""),
+                "requester_display_name": str(current_user.get("display_name") or ""),
+                "scheduled_start_at": requested_ts,
+                "scheduled_start_label": requested_label,
+                "map_name": requested_location or TEMPLATE_CONFIGS[category_config["template"]]["map_name"],
+            },
+            template=category_config["template"],
+        )
+        task_id = uuid.uuid4().hex[:12]
+        created_at = now_ts()
+        task_payload = {
+            "task_id": task_id,
+            "mission_name": mission_name,
+            "template": category_config["template"],
+            "source": "sample",
+            "status": "PENDING_REVIEW",
+            "tick_ms": clamp_int(payload.get("tick_ms"), 320, 120, 2000),
+            "params": params,
+            "metrics": {},
+            "error": None,
+            "total_frames": 0,
+            "current_frame_index": 0,
+            "created_at": created_at,
+            "started_at": None,
+            "ended_at": None,
+            "updated_at": created_at,
+        }
+        self.db.insert_task(
+            task_id=task_id,
+            mission_name=mission_name,
+            template=category_config["template"],
+            source="sample",
+            status="PENDING_REVIEW",
+            params=params,
+            created_at=created_at,
+            updated_at=created_at,
+            tick_ms=task_payload["tick_ms"],
+        )
+        return {"task": task_payload, "request_submitted": True}
 
     def list_tasks(self, limit: int = 30) -> Dict[str, Any]:
         limit = max(1, min(int(limit), 200))
@@ -346,7 +465,7 @@ class TaskRuntime:
         params = task_payload.get("params") or {}
         assignee_user_id = str(params.get("assignee_user_id") or "")
         if current.get("role") == "executor" and assignee_user_id and assignee_user_id != current.get("user_id"):
-            return {"error": "当前监督员不能提交未分配给自己的任务反馈"}
+            return {"error": "当前飞手不能提交未分配给自己的任务反馈"}
 
         feedback = {
             "task_id": task_id,
@@ -396,8 +515,11 @@ class TaskRuntime:
         self._persist_replay_payload(payload)
         return payload
 
-    def control_task(self, task_id: str, action: str) -> Optional[Dict[str, Any]]:
+    def control_task(self, task_id: str, action: str, payload: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         action = str(action or "").lower()
+        payload = dict(payload or {})
+        if action in {"approve", "reject"}:
+            return self._review_task_request(task_id, action, payload)
         live = self._get_live_task(task_id)
         if live is None:
             return None
@@ -440,6 +562,91 @@ class TaskRuntime:
                 return {"error": f"Unsupported action: {action}"}
 
             return {"task": self._task_brief(live)}
+
+    def _review_task_request(self, task_id: str, action: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        stored = self.db.get_task(task_id)
+        if stored is None:
+            return None
+        current = self.db.get_current_user()
+        if not current or current.get("role") != "admin":
+            return {"error": "仅管理员可审核任务申请"}
+        if stored.get("status") != "PENDING_REVIEW":
+            return {"error": "当前任务申请不处于待审核状态"}
+
+        params = dict(stored.get("params") or {})
+        review_note = str(payload.get("review_note") or "").strip()
+        if review_note:
+            params["review_note"] = review_note
+        params["reviewed_by_user_id"] = str(current.get("user_id") or "")
+        params["reviewed_by_display_name"] = str(current.get("display_name") or "")
+        params["reviewed_at"] = now_ts()
+
+        if action == "reject":
+            params["review_status"] = "rejected"
+            updated = self.db.update_task_definition(
+                task_id=task_id,
+                mission_name=stored["mission_name"],
+                template=stored["template"],
+                source=stored["source"],
+                status="REJECTED",
+                params=params,
+                tick_ms=int(stored.get("tick_ms") or 320),
+                updated_at=now_ts(),
+            )
+            return {"task": updated, "review_action": "rejected"}
+
+        assignee_user_id = str(payload.get("assignee_user_id") or "").strip()
+        assignee_display_name = str(payload.get("assignee_display_name") or "").strip()
+        if not assignee_user_id:
+            return {"error": "审核通过前请先指定飞手"}
+        params["assignee_user_id"] = assignee_user_id
+        params["assignee_display_name"] = assignee_display_name or assignee_user_id
+        params["review_status"] = "approved"
+
+        merged = normalize_task_payload(
+            {
+                **params,
+                "map_name": payload.get("map_name") or params.get("map_name"),
+                "source": payload.get("source") or stored.get("source") or "sample",
+                "num_agents": payload.get("num_agents") or params.get("num_agents"),
+                "max_frames": payload.get("max_frames") or params.get("max_frames"),
+                "tick_ms": payload.get("tick_ms") or stored.get("tick_ms") or 320,
+                "scheduled_start_at": payload.get("scheduled_start_at") if payload.get("scheduled_start_at") is not None else params.get("scheduled_start_at"),
+                "scheduled_start_label": payload.get("scheduled_start_label") or params.get("scheduled_start_label"),
+            },
+            template=str(stored.get("template") or "warehouse"),
+        )
+        source = str(payload.get("source") or stored.get("source") or "sample").lower()
+        if source not in ALLOWED_SOURCES:
+            source = "sample"
+        tick_ms = clamp_int(payload.get("tick_ms") or stored.get("tick_ms"), 320, 120, 2000)
+        updated = self.db.update_task_definition(
+            task_id=task_id,
+            mission_name=stored["mission_name"],
+            template=stored["template"],
+            source=source,
+            status="PREPARING",
+            params=merged,
+            tick_ms=tick_ms,
+            updated_at=now_ts(),
+        )
+        live = LiveTask(
+            task_id=task_id,
+            mission_name=str(updated["mission_name"]),
+            template=str(updated["template"]),
+            source=str(updated["source"]),
+            params=dict(updated["params"] or {}),
+            status="PREPARING",
+            created_at=float(updated["created_at"]),
+            updated_at=float(updated["updated_at"]),
+            tick_ms=int(updated["tick_ms"]),
+        )
+        with self.tasks_lock:
+            self.tasks[task_id] = live
+        self._emit_event(live, "task_approved", {"task": self._task_brief(live)})
+        live.prep_thread = threading.Thread(target=self._prepare_task, args=(task_id,), daemon=True)
+        live.prep_thread.start()
+        return {"task": self._task_brief(live), "review_action": "approved"}
 
     def wait_events(self, task_id: str, after_seq: int, timeout: float = 15.0) -> Optional[List[Dict[str, Any]]]:
         live = self._get_live_task(task_id)
@@ -1125,11 +1332,16 @@ class TaskDB:
             candidate = DEFAULT_ACTIVE_USER_ID
             candidate_row = conn.execute("SELECT user_id FROM user_accounts WHERE user_id = ?", (candidate,)).fetchone()
             if candidate_row is None:
-                fallback_row = conn.execute(
-                    "SELECT user_id FROM user_accounts ORDER BY CASE role WHEN 'admin' THEN 0 ELSE 1 END, created_at ASC LIMIT 1"
-                ).fetchone()
-                if fallback_row is not None:
-                    candidate = str(fallback_row["user_id"])
+                fallback_row = conn.execute("SELECT user_id, role FROM user_accounts ORDER BY created_at ASC").fetchall()
+                if fallback_row:
+                    ranked = sorted(
+                        fallback_row,
+                        key=lambda row: (
+                            ROLE_PRIORITY.get(normalize_role(row["role"]), 99),
+                            str(row["user_id"]),
+                        ),
+                    )
+                    candidate = str(ranked[0]["user_id"])
             conn.execute(
                 """
                 INSERT OR REPLACE INTO app_state(key, value, updated_at)
@@ -1173,7 +1385,7 @@ class TaskDB:
         return {"logged_in": bool(logged_in), "current_user": current}
 
     def login(self, role: str, username: str, password: str) -> Optional[Dict[str, Any]]:
-        role = "admin" if str(role or "").lower() == "admin" else "executor"
+        role = normalize_role(role)
         username = normalize_username(username)
         password_hash = hash_password(password)
         now = now_ts()
@@ -1192,7 +1404,7 @@ class TaskDB:
             if row is None:
                 return None
 
-            actual_role = "admin" if str(row["role"]).lower() == "admin" else "executor"
+            actual_role = normalize_role(row["role"])
             stored_hash = str(row["password_hash"] or "")
             if actual_role != role or not stored_hash or not hmac.compare_digest(stored_hash, password_hash):
                 return None
@@ -1272,10 +1484,11 @@ class TaskDB:
             SELECT user_id, username, display_name, role, department, title, status, last_login_at, created_at, updated_at
             FROM user_accounts
             WHERE status = 'active'
-            ORDER BY CASE role WHEN 'admin' THEN 0 ELSE 1 END, updated_at DESC, created_at ASC
+            ORDER BY updated_at DESC, created_at ASC
             """
         ).fetchall()
-        return [self._parse_user_row(row) for row in rows]
+        users = [self._parse_user_row(row) for row in rows]
+        return sorted(users, key=lambda user: (ROLE_PRIORITY.get(user["role"], 99), -float(user["updated_at"])))
 
     def _load_active_user_id(self, conn: sqlite3.Connection) -> Optional[str]:
         row = conn.execute("SELECT value FROM app_state WHERE key = 'active_user_id'").fetchone()
@@ -1329,6 +1542,49 @@ class TaskDB:
                 ),
             )
             conn.commit()
+
+    def update_task_definition(
+        self,
+        task_id: str,
+        mission_name: str,
+        template: str,
+        source: str,
+        status: str,
+        params: Dict[str, Any],
+        tick_ms: int,
+        updated_at: float,
+    ) -> Dict[str, Any]:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE tasks
+                SET mission_name = ?,
+                    template = ?,
+                    source = ?,
+                    status = ?,
+                    params_json = ?,
+                    tick_ms = ?,
+                    updated_at = ?,
+                    metrics_json = COALESCE(metrics_json, '{}'),
+                    error = NULL
+                WHERE task_id = ?
+                """,
+                (
+                    mission_name,
+                    template,
+                    source,
+                    status,
+                    json.dumps(params, ensure_ascii=False),
+                    tick_ms,
+                    updated_at,
+                    task_id,
+                ),
+            )
+            conn.commit()
+        updated = self.get_task(task_id)
+        if updated is None:
+            raise KeyError(task_id)
+        return updated
 
     def update_task_runtime(
         self,
@@ -1527,8 +1783,7 @@ class TaskDB:
         }
 
     def _parse_user_row(self, row: sqlite3.Row) -> Dict[str, Any]:
-        role = str(row["role"]).lower()
-        normalized_role = "admin" if role == "admin" else "executor"
+        normalized_role = normalize_role(row["role"])
         return {
             "user_id": str(row["user_id"]),
             "username": str(row["username"]),

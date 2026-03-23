@@ -192,7 +192,7 @@ def task_control_view(request, task_id):
     if payload is None:
         return json_error("Invalid JSON payload", status=400)
     command = str(payload.get("action") or "").lower()
-    result = TASK_RUNTIME.control_task(task_id, command)
+    result = TASK_RUNTIME.control_task(task_id, command, payload)
     if result is None:
         return json_error("Task not found", status=404)
     if result.get("error"):

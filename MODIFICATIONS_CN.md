@@ -2329,3 +2329,79 @@
     - 基于 `APPO` 的多智能体强化学习
     - 注意力机制、`GRU` 时序建模、子目标奖励塑形
   - 明确不再使用前端、后端、数据库等实现层描述替代算法介绍。
+
+## 90. 新增申请人角色，并接入“申请 -> 审核 -> 飞手执行”任务流转
+
+- 文件：`web_demo/task_runtime.py`
+- 主要修改：
+  - 新增第三类用户角色 `requester`，用于提交无人机任务申请；
+  - 默认种子账号中新增 `requester01`；
+  - 原展示名为“监督员01~10”的账号统一改为“飞手01~10”；
+  - 角色归一化从原先的 `admin/executor` 扩展为 `admin/requester/executor`；
+  - 任务类别新增三种业务类型：
+    - `patrol`（巡逻）
+    - `show`（表演）
+    - `transport`（运输）
+  - `create_task()` 现在会根据当前登录角色分流：
+    - 申请人提交时生成 `PENDING_REVIEW` 申请单；
+    - 管理员仍可直接走原有任务创建逻辑。
+  - `control_task()` 新增：
+    - `approve`：管理员审核通过并指派飞手，任务进入实际可执行状态；
+    - `reject`：管理员驳回申请，任务状态变为 `REJECTED`。
+  - 提交反馈的权限报错文案由“监督员”改为“飞手”。
+
+- 文件：`backend_django/views.py`
+- 主要修改：
+  - `/api/tasks/<task_id>/control` 现在会把完整 JSON 载荷传给后端运行时；
+  - 因此管理员审核通过时可携带飞手、地图、执行时间、帧数、节拍等审批参数。
+
+- 文件：`web_frontend/src/App.vue`
+- 主要修改：
+  - 登录页角色扩展为：
+    - `申请人`
+    - `管理员`
+    - `飞手`
+  - 角色标签、登录提示和页签逻辑同步扩展为三角色模式；
+  - `申请人` 登录后仅显示 `任务申请` 入口；
+  - 原“监督员”展示名统一替换为“飞手”。
+
+- 文件：`web_frontend/src/services/api.js`
+- 主要修改：
+  - `controlOpsTask()` 扩展为支持附带审批参数，而不再只发送单一 `action` 字段。
+
+- 文件：`web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+- 主要修改：
+  - 管理员任务中心第一屏从“创建任务”改为“申请审核”；
+  - 新增待审核申请列表，展示申请人、任务类别、地点和申请时间；
+  - 新增审核面板，管理员可在此：
+    - 指定飞手；
+    - 调整地图、时间、帧数、节拍；
+    - 审核通过或驳回。
+  - 新增申请人任务中心：
+    - 提交任务申请表单；
+    - 查看自己的申请记录和审核状态。
+  - 执行侧原“监督员”文案统一改为“飞手”；
+  - 任务阶段显示扩展为：
+    - `待审核`
+    - `待执行`
+    - `执行中`
+    - `已驳回`
+    - `已完成`
+
+- 文件：`web_frontend/src/modules/operations/OperationsModeView.vue`
+- 主要修改：
+  - 执行侧权限提示文案由“监督员”统一改为“飞手”。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“任务申请、管理员审核和飞手指派这条流程现在是怎么设计的”问答；
+  - 记录新角色、新状态和默认测试账号。
+
+- 验证结果：
+  - `python3 -m py_compile web_demo/task_runtime.py backend_django/views.py manage.py` 通过；
+  - `python3 manage.py check` 通过；
+  - `npm --prefix web_frontend run build` 通过；
+  - 已实际用接口验证：
+    - `requester01` 可提交 `PENDING_REVIEW` 任务申请；
+    - 管理员可审核通过并指派 `飞手01`；
+    - 任务状态可进入 `READY`。

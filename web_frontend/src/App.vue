@@ -11,8 +11,9 @@
         <h2>系统登录</h2>
         <p class="login-sub">请选择身份并输入账号密码。</p>
         <div class="login-role-row">
-          <button class="role-toggle" :class="{ active: loginRole === 'executor' }" @click="setLoginRole('executor')">监督员</button>
+          <button class="role-toggle" :class="{ active: loginRole === 'requester' }" @click="setLoginRole('requester')">申请人</button>
           <button class="role-toggle" :class="{ active: loginRole === 'admin' }" @click="setLoginRole('admin')">管理员</button>
+          <button class="role-toggle" :class="{ active: loginRole === 'executor' }" @click="setLoginRole('executor')">飞手</button>
         </div>
         <p class="login-sub" style="margin-top: 8px">{{ roleHintText }}</p>
 
@@ -78,7 +79,10 @@ import OpsDashboardView from "./modules/dashboard/OpsDashboardView.vue";
 import { fetchAuthOptions, fetchAuthState, fetchIdentity, loginWithPassword, logoutCurrentUser } from "./services/api";
 
 const adminTabs = [
-  { key: "taskCenter", label: "任务分配" },
+  { key: "taskCenter", label: "任务审核" },
+];
+const requesterTabs = [
+  { key: "taskCenter", label: "任务申请" },
 ];
 const executorTabs = [
   { key: "taskCenter", label: "任务中心" },
@@ -92,20 +96,33 @@ const authError = ref("");
 
 const currentUser = ref(null);
 const authAccounts = ref([]);
-const loginRole = ref("executor");
+const loginRole = ref("requester");
 const loginUsername = ref("");
 const loginPassword = ref("");
 const activeMode = ref("taskCenter");
 
-const currentRole = computed(() => (currentUser.value?.role === "admin" ? "admin" : "executor"));
-const tabs = computed(() => (currentRole.value === "admin" ? adminTabs : executorTabs));
-const roleLabel = computed(() => (currentRole.value === "admin" ? "管理员" : "监督员"));
+const currentRole = computed(() => {
+  if (currentUser.value?.role === "admin") return "admin";
+  if (currentUser.value?.role === "requester") return "requester";
+  return "executor";
+});
+const tabs = computed(() => {
+  if (currentRole.value === "admin") return adminTabs;
+  if (currentRole.value === "requester") return requesterTabs;
+  return executorTabs;
+});
+const roleLabel = computed(() => {
+  if (currentRole.value === "admin") return "管理员";
+  if (currentRole.value === "requester") return "申请人";
+  return "飞手";
+});
 const currentUserName = computed(() => currentUser.value?.display_name || "未登录账户");
 const currentUserDept = computed(() => currentUser.value?.department || "未分配部门");
 const currentUserInitial = computed(() => userInitial(currentUser.value));
 const roleHintText = computed(() => {
   if (loginRole.value === "admin") return "管理员账号示例：admin（可手动输入其他管理员账号）";
-  return "监督员账号示例：executor01（可手动输入其他监督员账号）";
+  if (loginRole.value === "requester") return "申请人账号示例：requester01";
+  return "飞手账号示例：executor01（可手动输入其他飞手账号）";
 });
 
 function normalizeUser(raw) {
@@ -114,7 +131,7 @@ function normalizeUser(raw) {
     user_id: String(raw.user_id || ""),
     username: String(raw.username || ""),
     display_name: String(raw.display_name || "未命名用户"),
-    role: raw.role === "admin" ? "admin" : "executor",
+    role: raw.role === "admin" || raw.role === "requester" ? raw.role : "executor",
     department: String(raw.department || "未分配部门"),
     title: String(raw.title || ""),
     last_login_at: raw.last_login_at ?? null,
@@ -158,7 +175,7 @@ async function bootstrapAuth() {
 }
 
 function setLoginRole(role) {
-  loginRole.value = role === "admin" ? "admin" : "executor";
+  loginRole.value = role === "admin" || role === "requester" ? role : "executor";
   prefillByRole(loginRole.value);
 }
 
