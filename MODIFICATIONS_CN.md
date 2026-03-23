@@ -2080,6 +2080,64 @@
   - 补充答辩风险点：若写成 Django，容易被追问 `settings.py / urls.py / ORM / manage.py` 等实现细节；
   - 建议论文里保持为“Python 后端服务”表述，更符合当前代码实现。
 
+## 81. 后端迁移为 Django，并完成前端接口兼容检查
+
+- 文件：`manage.py`
+- 主要修改：
+  - 新增 Django 项目入口，支持使用标准 `manage.py runserver` 启动后端。
+
+- 文件：`backend_django/settings.py`
+- 主要修改：
+  - 新增 Django 基础配置；
+  - 使用 `SQLite` 作为 Django 默认数据库；
+  - 设置时区、静态资源基础配置和最小中间件。
+
+- 文件：`backend_django/urls.py`
+- 主要修改：
+  - 将原有后端 API 路径迁移到 Django 路由体系；
+  - 保持 `/api/...` 路径不变，兼容现有前端调用。
+
+- 文件：`backend_django/views.py`
+- 主要修改：
+  - 将原先 `web_demo/server.py` 中的接口逻辑迁移为 Django 视图；
+  - 接入原有 `TaskRuntime`，保持任务、认证、反馈、回放、推理等逻辑继续复用；
+  - 使用 `StreamingHttpResponse` 兼容任务事件 SSE 流；
+  - 保留 `/uav-icon.png` 与静态首页入口。
+
+- 文件：`web_demo/server.py`
+- 主要修改：
+  - 从原先自建 `ThreadingHTTPServer` 改为 Django 启动兼容包装器；
+  - 保留原来的 `python web_demo/server.py --host ... --port ...` 启动习惯；
+  - 内部转为调用 Django `runserver --noreload`。
+
+- 文件：`requirements.txt`
+- 主要修改：
+  - 新增 `Django>=5,<6` 依赖。
+
+- 文件：`web_demo/README.md`
+- 主要修改：
+  - 增加 Django 本地启动说明；
+  - 保留旧兼容入口说明；
+  - 说明前端仍通过同样的 `/api/...` 路径访问后端。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 更新项目技术介绍，将后端表述改为 Django；
+  - 更新“论文里能不能直接写用了 Django”的结论；
+  - 新增“后端迁移到 Django 后，前端对后端的引用要不要改”问答。
+
+- 前端引用检查结果：
+  - `web_frontend/src/services/api.js` 中所有 `fetch` 与 `EventSource` 调用路径继续保持不变；
+  - `web_frontend/vite.config.js` 中 `/api` 和 `/uav-icon.png` 代理目标仍可继续指向 `127.0.0.1:8080`；
+  - 本次迁移无需修改前端业务接口路径。
+
+- 验证结果：
+  - `python3 -m py_compile manage.py backend_django/*.py web_demo/server.py` 通过；
+  - `python3 manage.py check` 通过；
+  - 已安装 Django 并成功启动 `http://127.0.0.1:8080`；
+  - 已验证 `/api/auth/options`、`/api/tasks`、`/uav-icon.png` 正常返回；
+  - 通过 Playwright 验证前端经 Vite 代理后可正常访问 Django 后端并完成登录。
+
 ## 79. 补充文献综述论文检索结果，并建立“章节-论文”映射
 
 - 文件：`文献综述-薛文清-2210720131-修订源.html`

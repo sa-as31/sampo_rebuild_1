@@ -22,11 +22,27 @@ Then open:
 
 - `http://localhost:8080`
 
+## Run locally with Django backend
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python manage.py runserver 0.0.0.0:8080 --noreload
+```
+
+Or keep using the previous compatible entrypoint:
+
+```bash
+python web_demo/server.py --host 0.0.0.0 --port 8080
+```
+
 ## What it does
 
 - `POST /api/run-demo` runs checkpoint inference and returns rollout frames as JSON
 - the frontend draws obstacles, targets, agents, and animated playback on a canvas
 - if runtime inference is not available, the UI can still load a built-in sample animation
+- frontend Vue app continues to call the backend through the same `/api/...` paths
 
 ## Main parameters exposed in the UI
 

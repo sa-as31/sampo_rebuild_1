@@ -16,3 +16,4 @@ tensorboardX
 faster-fifo
 threadpoolctl
 pyoctomap
+Django>=5,<6
