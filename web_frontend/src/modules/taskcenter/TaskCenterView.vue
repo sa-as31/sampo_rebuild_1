@@ -304,6 +304,15 @@
           />
           <strong>{{ replay.frameIndex }}/{{ Math.max(0, replay.frames.length - 1) }}</strong>
         </div>
+        <div class="field-grid" style="margin-top: 10px; max-width: 420px">
+          <label>回放速度(ms/帧)
+            <input v-model.number="replaySpeedInput" max="2000" min="80" step="20" type="number" />
+          </label>
+        </div>
+        <div class="btn-row" style="margin-top: 10px">
+          <button class="btn secondary" @click="applyReplaySpeed">设置回放速度</button>
+        </div>
+        <div class="legend" style="margin-top: 8px">当前回放节拍：{{ replaySpeedInput }} ms/帧</div>
 
         <div class="ops-dual-view-grid history-dual-view-grid" style="margin-top: 10px">
           <section class="ops-view-card history-view-card">
@@ -625,6 +634,15 @@
               @input="drawReplayFrame"
             />
           </div>
+          <div class="field-grid" style="margin-top: 10px; max-width: 420px">
+            <label>回放速度(ms/帧)
+              <input v-model.number="replaySpeedInput" max="2000" min="80" step="20" type="number" />
+            </label>
+          </div>
+          <div class="btn-row" style="margin-top: 10px">
+            <button class="btn secondary" @click="applyReplaySpeed">设置回放速度</button>
+          </div>
+          <div class="legend" style="margin-top: 8px">当前回放节拍：{{ replaySpeedInput }} ms/帧</div>
 
           <div class="ops-dual-view-grid history-dual-view-grid" style="margin-top: 10px">
             <section class="ops-view-card history-view-card">
@@ -774,6 +792,7 @@ const feedbackForm = reactive({
 });
 const executorView = ref("execute");
 const pilotSpeedInput = ref(1200);
+const replaySpeedInput = ref(220);
 
 const replay = reactive({
   available: false,
@@ -1291,7 +1310,21 @@ async function togglePlayback() {
     }
     replay.frameIndex += 1;
     drawReplayFrame();
-  }, 220);
+  }, replaySpeedInput.value);
+}
+
+function applyReplaySpeed() {
+  const parsedSpeed = Number(replaySpeedInput.value);
+  if (!Number.isFinite(parsedSpeed) || parsedSpeed < 80 || parsedSpeed > 2000) {
+    status.value = "请输入 80 到 2000 之间的回放节拍。";
+    return;
+  }
+  replaySpeedInput.value = parsedSpeed;
+  status.value = `回放节拍已调整为 ${parsedSpeed} ms/帧`;
+  if (replay.playing) {
+    stopReplayTimer();
+    togglePlayback();
+  }
 }
 
 function stopReplayTimer() {
