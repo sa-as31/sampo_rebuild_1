@@ -22,8 +22,8 @@ ROLE_PRIORITY = {"admin": 0, "requester": 1, "executor": 2}
 TASK_CATEGORY_CONFIGS = {
     "patrol": {
         "label": "巡逻",
-        "template": "warehouse",
-        "default_mission_name": "patrol_request",
+        "template": "campus",
+        "default_mission_name": "campus_patrol_request",
     },
     "show": {
         "label": "表演",
@@ -237,6 +237,8 @@ class LiveTask:
     environment: Optional[Dict[str, Any]] = None
     frames: List[Dict[str, Any]] = field(default_factory=list)
     frame_index: int = 0
+    cycle_step_offset: int = 0
+    cycle_task_offset: int = 0
     base_metrics: Dict[str, Any] = field(default_factory=dict)
     runtime_metrics: Dict[str, Any] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
@@ -365,6 +367,7 @@ class TaskRuntime:
                 "review_status": "pending",
                 "task_category": task_category,
                 "task_category_label": category_config["label"],
+                "continuous_patrol": task_category == "patrol",
                 "requested_location": requested_location,
                 "requester_user_id": str(current_user.get("user_id") or ""),
                 "requester_username": str(current_user.get("username") or ""),
@@ -558,6 +561,17 @@ class TaskRuntime:
                     self._emit_event(live, "task_stopped", {"task": self._task_brief(live), "snapshot": self._build_snapshot(live)})
                     self._persist_runtime_state(live)
                     live.cond.notify_all()
+            elif action == "set_speed":
+                tick_ms = clamp_int(payload.get("tick_ms"), live.tick_ms, 120, 2400)
+                live.tick_ms = tick_ms
+                live.params["tick_ms"] = tick_ms
+                live.updated_at = now_ts()
+                self._persist_runtime_state(live)
+                self._emit_event(
+                    live,
+                    "task_speed_changed",
+                    {"task": self._task_brief(live), "tick_ms": tick_ms},
+                )
             else:
                 return {"error": f"Unsupported action: {action}"}
 
@@ -749,6 +763,7 @@ class TaskRuntime:
             return
 
         while True:
+            cycle_reset = False
             with live.lock:
                 if live.status in FINAL_STATUSES or live.stop_requested:
                     return
@@ -766,22 +781,44 @@ class TaskRuntime:
 
                 last_index = len(live.frames) - 1
                 if live.frame_index >= last_index:
-                    live.status = "COMPLETED"
-                    if live.runtime_metrics:
-                        live.runtime_metrics["status"] = "COMPLETED"
-                    live.ended_at = now_ts()
-                    live.updated_at = live.ended_at
-                    self._persist_runtime_state(live)
-                    self._emit_event(
-                        live,
-                        "task_completed",
-                        {
-                            "task": self._task_brief(live),
-                            "snapshot": self._build_snapshot(live),
-                        },
-                    )
-                    return
+                    if bool(live.params.get("continuous_patrol")) and live.frames:
+                        live.cycle_step_offset += max(1, int(live.frames[-1].get("step", last_index)) + 1)
+                        live.cycle_task_offset += max(0, int(live.frames[-1].get("tasks_completed", 0)))
+                        live.frame_index = 0
+                        frame = live.frames[live.frame_index]
+                        live.runtime_metrics = self._calculate_runtime_metrics(live, frame)
+                        self._detect_alerts(live, frame)
+                        live.updated_at = now_ts()
+                        self._persist_runtime_state(live)
+                        self._emit_event(
+                            live,
+                            "frame_update",
+                            {
+                                "task": self._task_brief(live),
+                                "snapshot": self._build_snapshot(live),
+                            },
+                        )
+                        cycle_reset = True
+                    else:
+                        live.status = "COMPLETED"
+                        if live.runtime_metrics:
+                            live.runtime_metrics["status"] = "COMPLETED"
+                        live.ended_at = now_ts()
+                        live.updated_at = live.ended_at
+                        self._persist_runtime_state(live)
+                        self._emit_event(
+                            live,
+                            "task_completed",
+                            {
+                                "task": self._task_brief(live),
+                                "snapshot": self._build_snapshot(live),
+                            },
+                        )
+                        return
 
+            if cycle_reset:
+                time.sleep(live.tick_ms / 1000.0)
+                continue
             time.sleep(live.tick_ms / 1000.0)
 
             with live.lock:
@@ -831,6 +868,8 @@ class TaskRuntime:
 
         if live.status in FINAL_STATUSES and live.frames:
             live.frame_index = 0
+            live.cycle_step_offset = 0
+            live.cycle_task_offset = 0
             live.cumulative_conflicts = 0
             live.alert_count = 0
             live.alerts = []
@@ -854,8 +893,8 @@ class TaskRuntime:
             live.cond.notify_all()
 
     def _calculate_runtime_metrics(self, live: LiveTask, frame: Dict[str, Any]) -> Dict[str, Any]:
-        step = int(frame.get("step", live.frame_index))
-        tasks_completed = int(frame.get("tasks_completed", 0))
+        step = int(frame.get("step", live.frame_index)) + int(live.cycle_step_offset)
+        tasks_completed = int(frame.get("tasks_completed", 0)) + int(live.cycle_task_offset)
         frame_conflicts = int(frame.get("vertex_conflicts", 0))
         live.cumulative_conflicts += frame_conflicts
 
@@ -1820,6 +1859,8 @@ def normalize_task_payload(payload: Dict[str, Any], template: str) -> Dict[str, 
     merged["max_frames"] = clamp_int(merged.get("max_frames"), 64, 4, 1024)
     merged["max_episode_steps"] = clamp_int(merged.get("max_episode_steps"), 64, 8, 2048)
     merged["device"] = "gpu" if str(merged.get("device", "cpu")).lower() == "gpu" else "cpu"
+    merged["continuous_patrol"] = bool(merged.get("continuous_patrol", False))
+    merged["tick_ms"] = clamp_int(merged.get("tick_ms"), 320, 120, 2400)
     try:
         merged["scheduled_start_at"] = float(merged["scheduled_start_at"]) if merged.get("scheduled_start_at") else None
     except (TypeError, ValueError):
@@ -1829,6 +1870,9 @@ def normalize_task_payload(payload: Dict[str, Any], template: str) -> Dict[str, 
 
 
 def build_sample_rollout(template: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    if bool(payload.get("continuous_patrol")) and template == "campus":
+        return build_continuous_patrol_rollout(template, payload)
+
     config = TEMPLATE_CONFIGS.get(template, TEMPLATE_CONFIGS["warehouse"])
     height, width = 12, 12
     obstacles = build_template_obstacles(template, height, width)
@@ -1910,6 +1954,108 @@ def build_sample_rollout(template: str, payload: Dict[str, Any]) -> Dict[str, An
             "num_agents": len(starts),
             "save_svg": None,
             "warnings": [f"backend sample mode: {template}"],
+        },
+        "environment": environment,
+        "frames": frames,
+        "metrics": metrics,
+    }
+
+
+def build_continuous_patrol_rollout(template: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    config = TEMPLATE_CONFIGS.get(template, TEMPLATE_CONFIGS["campus"])
+    height, width = 12, 12
+    obstacles = build_template_obstacles(template, height, width)
+    environment = {"width": width, "height": height, "obstacles": obstacles}
+
+    route = [(1, 1), (1, 10), (6, 10), (10, 10), (10, 3), (6, 1)]
+    requested_agents = clamp_int(payload.get("num_agents"), 4, 1, 16)
+    plans = []
+
+    for idx in range(requested_agents):
+        offset = idx % len(route)
+        rotated = route[offset:] + route[:offset]
+        points = rotated + [rotated[0]]
+        full_path: List[Tuple[int, int]] = []
+        targets: List[Tuple[int, int]] = []
+        completed_marks: List[int] = []
+        cumulative = 0
+        for segment_index in range(len(points) - 1):
+            start = points[segment_index]
+            target = points[segment_index + 1]
+            segment = find_path_a_star(obstacles, start, target) or [start]
+            for point_index, point in enumerate(segment):
+                if full_path and point_index == 0:
+                    continue
+                full_path.append(point)
+                targets.append(target)
+                reached = int(point == target)
+                cumulative += reached
+                completed_marks.append(cumulative)
+        plans.append(
+            {
+                "id": idx,
+                "path": full_path or [points[0]],
+                "targets": targets or [points[1]],
+                "completed_marks": completed_marks or [0],
+            }
+        )
+
+    max_step = max((len(plan["path"]) - 1 for plan in plans), default=0)
+    frames = []
+    for step in range(0, max_step + 1):
+        agents = []
+        tasks_completed = 0
+        completed_this_step = 0
+        for plan in plans:
+            cursor = min(step, len(plan["path"]) - 1)
+            x, y = plan["path"][cursor]
+            target_x, target_y = plan["targets"][cursor]
+            cumulative = int(plan["completed_marks"][cursor])
+            previous = int(plan["completed_marks"][cursor - 1]) if cursor > 0 else 0
+            reached = max(0, cumulative - previous)
+            completed_this_step += reached
+            tasks_completed += cumulative
+            agents.append(
+                {
+                    "id": int(plan["id"]),
+                    "x": int(x),
+                    "y": int(y),
+                    "target_x": int(target_x),
+                    "target_y": int(target_y),
+                    "reward": float(0.3 if reached else 0.02),
+                    "done": False,
+                }
+            )
+        frames.append(
+            {
+                "step": int(step),
+                "vertex_conflicts": int(count_vertex_conflicts(agents)),
+                "completed_this_step": int(completed_this_step),
+                "tasks_completed": int(tasks_completed),
+                "agents": agents,
+            }
+        )
+
+    total_steps = max(1, len(frames) - 1)
+    total_conflicts = sum(frame["vertex_conflicts"] for frame in frames)
+    metrics = {
+        "mean_reward": 0.28,
+        "tasks_completed": int(frames[-1]["tasks_completed"] if frames else 0),
+        "throughput": round((frames[-1]["tasks_completed"] if frames else 0) / total_steps, 4),
+        "total_steps": int(total_steps),
+        "vertex_conflicts": int(total_conflicts),
+    }
+
+    return {
+        "meta": {
+            "actual_device": "sample",
+            "checkpoint_path": "sample/continuous-campus-patrol",
+            "cfg_dir": "sample",
+            "frames": len(frames),
+            "map_name": str(payload.get("map_name") or config["map_name"]),
+            "num_agents": requested_agents,
+            "save_svg": None,
+            "warnings": ["backend sample mode: continuous campus patrol"],
         },
         "environment": environment,
         "frames": frames,

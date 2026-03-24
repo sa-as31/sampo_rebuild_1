@@ -557,6 +557,14 @@
             <button class="btn secondary" @click="runTaskAction('resume')">继续</button>
             <button class="btn secondary" @click="runTaskAction('stop')">停止</button>
           </div>
+          <div class="btn-row" style="margin-top: 10px">
+            <button class="btn secondary" @click="setPilotTaskSpeed(1200)">演示减速</button>
+            <button class="btn secondary" @click="setPilotTaskSpeed(700)">标准速度</button>
+            <button class="btn secondary" @click="setPilotTaskSpeed(360)">加快一点</button>
+          </div>
+          <div class="legend" style="margin-top: 8px">
+            当前飞行节拍：{{ selectedTask?.tick_ms || selectedTask?.params?.tick_ms || 320 }} ms/步
+          </div>
           <div class="status-chip">{{ feedbackStatus }}</div>
           <OperationsModeView embedded :current-user="currentUser" :focus-task-id="selectedTaskId" :role="props.role" />
         </section>
@@ -1589,6 +1597,22 @@ async function startAssignedTask() {
     feedbackStatus.value = "任务已开始执行。";
   } catch (error) {
     feedbackStatus.value = `开始执行失败：${error.message}`;
+  }
+}
+
+async function setPilotTaskSpeed(tickMs) {
+  if (!selectedTaskId.value) {
+    feedbackStatus.value = "请先选择一个任务";
+    return;
+  }
+  try {
+    await controlOpsTask(selectedTaskId.value, "set_speed", {
+      tick_ms: tickMs,
+    });
+    await refreshTasks();
+    feedbackStatus.value = `已将飞行节拍调整为 ${tickMs} ms/步。`;
+  } catch (error) {
+    feedbackStatus.value = `调整速度失败：${error.message}`;
   }
 }
 
