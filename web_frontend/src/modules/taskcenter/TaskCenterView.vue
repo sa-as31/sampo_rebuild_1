@@ -718,6 +718,7 @@ const selectedFeedback = ref([]);
 const assignees = ref([]);
 const importedMaps = ref(loadImportedMaps());
 const replayTimer = ref(null);
+const replayVisualTimer = ref(null);
 const adminSection = ref("create");
 let pollTimer = null;
 
@@ -1108,6 +1109,7 @@ function ensureSelectedTask() {
   selectedAlerts.value = [];
   selectedFeedback.value = [];
   stopReplayTimer();
+  stopReplayVisualTimer();
   drawEmptyCanvas(liveCanvasRef.value, "请选择左侧任务以展开执行详情");
 }
 
@@ -1131,6 +1133,7 @@ function closeExecutorDetail() {
   selectedAlerts.value = [];
   selectedFeedback.value = [];
   stopReplayTimer();
+  stopReplayVisualTimer();
   drawEmptyCanvas(liveCanvasRef.value, "请选择左侧任务以展开执行详情");
   drawEmptyCanvas(executorHistoryCanvasRef.value, "请选择左侧任务以查看历史回放");
   drawEmptyCanvas(executorHistory3dCanvasRef.value, "请选择左侧任务以查看历史回放");
@@ -1181,10 +1184,12 @@ async function loadReplay(options = {}) {
     if (!replay.available || !replay.frames.length || !replay.environment) {
       if (!silent) status.value = replay.reason || "当前任务无法提供历史回放";
       drawReplayFrame();
+      ensureReplayVisualTimer();
       return;
     }
     if (!silent) status.value = `历史回放已加载，帧数 ${replay.frames.length}`;
     drawReplayFrame();
+    ensureReplayVisualTimer();
   } catch (error) {
     if (!silent) status.value = `加载回放失败：${error.message}`;
   }
@@ -1281,6 +1286,30 @@ function stopReplayTimer() {
   if (replayTimer.value) {
     window.clearInterval(replayTimer.value);
     replayTimer.value = null;
+  }
+}
+
+function shouldAnimateReplayCanvas() {
+  if (isAdmin.value) return adminSection.value === "completed" && !!selectedTaskId.value;
+  if (isRequester.value) return false;
+  return executorView.value === "history" && !!selectedTaskId.value;
+}
+
+function ensureReplayVisualTimer() {
+  if (!shouldAnimateReplayCanvas()) {
+    stopReplayVisualTimer();
+    return;
+  }
+  if (replayVisualTimer.value) return;
+  replayVisualTimer.value = window.setInterval(() => {
+    drawReplayFrame();
+  }, 140);
+}
+
+function stopReplayVisualTimer() {
+  if (replayVisualTimer.value) {
+    window.clearInterval(replayVisualTimer.value);
+    replayVisualTimer.value = null;
   }
 }
 
@@ -1596,6 +1625,7 @@ async function submitTaskRequest() {
 watch(adminSection, async (section) => {
   if (!isAdmin.value) return;
   stopReplayTimer();
+  if (section !== "completed") stopReplayVisualTimer();
   if (section === "create" && !pendingReviewTasks.value.some((task) => task.task_id === selectedTaskId.value)) {
     selectedTaskId.value = pendingReviewTasks.value[0]?.task_id || "";
   }
@@ -1608,6 +1638,7 @@ watch(adminSection, async (section) => {
   await nextTick();
   if (selectedTaskId.value) {
     await loadTaskDetail(selectedTaskId.value, false);
+    ensureReplayVisualTimer();
     return;
   }
   drawEmptyCanvas(liveCanvasRef.value, "暂无实时任务画面");
@@ -1616,9 +1647,15 @@ watch(adminSection, async (section) => {
 });
 
 watch(executorView, async (view) => {
-  if (isAdmin.value || view !== "history") return;
+  if (isAdmin.value || isRequester.value) return;
+  if (view !== "history") {
+    stopReplayVisualTimer();
+    return;
+  }
+  await loadReplay({ silent: true });
   await nextTick();
   drawReplayFrame();
+  ensureReplayVisualTimer();
 });
 
 onMounted(async () => {
@@ -1628,10 +1665,12 @@ onMounted(async () => {
   drawEmptyCanvas(executorHistoryCanvasRef.value, "请选择左侧任务以查看历史回放");
   drawEmptyCanvas(executorHistory3dCanvasRef.value, "请选择左侧任务以查看历史回放");
   drawEmptyCanvas(history3dCanvasRef.value, "暂无可展示回放");
+  ensureReplayVisualTimer();
 });
 
 onUnmounted(() => {
   stopReplayTimer();
+  stopReplayVisualTimer();
   if (pollTimer) window.clearInterval(pollTimer);
 });
 </script>
