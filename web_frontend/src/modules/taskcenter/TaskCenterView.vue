@@ -557,10 +557,13 @@
             <button class="btn secondary" @click="runTaskAction('resume')">继续</button>
             <button class="btn secondary" @click="runTaskAction('stop')">停止</button>
           </div>
+          <div class="field-grid" style="margin-top: 10px; max-width: 420px">
+            <label>飞行速度节拍(ms/步)
+              <input v-model.number="pilotSpeedInput" max="2400" min="120" step="20" type="number" />
+            </label>
+          </div>
           <div class="btn-row" style="margin-top: 10px">
-            <button class="btn secondary" @click="setPilotTaskSpeed(1200)">演示减速</button>
-            <button class="btn secondary" @click="setPilotTaskSpeed(700)">标准速度</button>
-            <button class="btn secondary" @click="setPilotTaskSpeed(360)">加快一点</button>
+            <button class="btn secondary" @click="setPilotTaskSpeed(pilotSpeedInput)">设置速度</button>
           </div>
           <div class="legend" style="margin-top: 8px">
             当前飞行节拍：{{ selectedTask?.tick_ms || selectedTask?.params?.tick_ms || 320 }} ms/步
@@ -770,6 +773,7 @@ const feedbackForm = reactive({
   message: "",
 });
 const executorView = ref("execute");
+const pilotSpeedInput = ref(1200);
 
 const replay = reactive({
   available: false,
@@ -1159,6 +1163,7 @@ async function loadTaskDetail(taskId, withStatusText) {
     selectedSnapshot.value = detail.snapshot || null;
     selectedAlerts.value = alerts.alerts || [];
     selectedFeedback.value = feedback.feedback || [];
+    pilotSpeedInput.value = Number(detail.task?.tick_ms || detail.task?.params?.tick_ms || 320);
     if (isAdmin.value && adminSection.value === "create" && selectedTask.value?.status === "PENDING_REVIEW") {
       syncReviewFormFromTask(selectedTask.value);
     }
@@ -1605,12 +1610,17 @@ async function setPilotTaskSpeed(tickMs) {
     feedbackStatus.value = "请先选择一个任务";
     return;
   }
+  const parsedTickMs = Number(tickMs);
+  if (!Number.isFinite(parsedTickMs) || parsedTickMs < 120 || parsedTickMs > 2400) {
+    feedbackStatus.value = "请输入 120 到 2400 之间的节拍值。";
+    return;
+  }
   try {
     await controlOpsTask(selectedTaskId.value, "set_speed", {
-      tick_ms: tickMs,
+      tick_ms: parsedTickMs,
     });
     await refreshTasks();
-    feedbackStatus.value = `已将飞行节拍调整为 ${tickMs} ms/步。`;
+    feedbackStatus.value = `已将飞行节拍调整为 ${parsedTickMs} ms/步。`;
   } catch (error) {
     feedbackStatus.value = `调整速度失败：${error.message}`;
   }
