@@ -86,6 +86,32 @@ export function createRenderer() {
       }
     }
 
+    const pulse = performance.now() / 1000;
+    frame.agents.forEach((agent) => {
+      const color = palette[agent.id % palette.length];
+      const path = findPathAStar(obstacles, [agent.x, agent.y], [agent.target_x, agent.target_y]) || [[agent.x, agent.y]];
+      if (path.length < 2) return;
+
+      ctx.save();
+      ctx.strokeStyle = `${color}${Math.round((0.56 + 0.2 * Math.sin(pulse * 3 + agent.id)) * 255)
+        .toString(16)
+        .padStart(2, "0")}`;
+      ctx.lineWidth = Math.max(1.8, cell * 0.13);
+      ctx.setLineDash([cell * 0.34, cell * 0.22]);
+      ctx.lineDashOffset = -(pulse * cell * 2.4 + agent.id * cell * 0.45);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      path.forEach(([row, col], index) => {
+        const px = left + col * cell + cell / 2;
+        const py = top + row * cell + cell / 2;
+        if (index === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      });
+      ctx.stroke();
+      ctx.restore();
+    });
+
     frame.agents.forEach((agent) => {
       const color = palette[agent.id % palette.length];
       const tx = left + agent.target_y * cell + cell / 2;
