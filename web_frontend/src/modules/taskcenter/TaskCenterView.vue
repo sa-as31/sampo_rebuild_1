@@ -800,6 +800,7 @@ const feedbackForm = reactive({
   message: "",
 });
 const executorView = ref("execute");
+const reviewFormTaskId = ref("");
 const pilotSpeedInput = ref(1200);
 const replaySpeedInput = ref(220);
 
@@ -1430,7 +1431,11 @@ function syncAssigneeDisplayName() {
 }
 
 function syncReviewFormFromTask(task) {
+  const taskId = String(task?.task_id || "");
+  if (!taskId) return;
+  if (reviewFormTaskId.value === taskId) return;
   const params = task?.params || {};
+  reviewFormTaskId.value = taskId;
   assignForm.assignee_user_id = String(params.assignee_user_id || "");
   syncAssigneeDisplayName();
   assignForm.source = task?.source || "sample";
@@ -1503,6 +1508,7 @@ async function approveTaskRequest() {
       scheduled_start_label: scheduledStartAt ? fmtDateTime(scheduledStartAt) : "",
       review_note: assignForm.review_note,
     });
+    reviewFormTaskId.value = "";
     await refreshTasks();
     assignStatus.value = `审核通过，已为 ${selectedTask.value?.mission_name || "该任务"} 指派飞手 ${assignForm.assignee_display_name}`;
     adminSection.value = "active";
@@ -1520,6 +1526,7 @@ async function rejectTaskRequest() {
     await controlOpsTask(selectedTaskId.value, "reject", {
       review_note: assignForm.review_note,
     });
+    reviewFormTaskId.value = "";
     await refreshTasks();
     assignStatus.value = "申请已驳回。";
   } catch (error) {
@@ -1702,6 +1709,7 @@ watch(adminSection, async (section) => {
   if (!isAdmin.value) return;
   stopReplayTimer();
   if (section !== "completed") stopReplayVisualTimer();
+  if (section !== "create") reviewFormTaskId.value = "";
   if (section === "create" && !pendingReviewTasks.value.some((task) => task.task_id === selectedTaskId.value)) {
     selectedTaskId.value = pendingReviewTasks.value[0]?.task_id || "";
   }
