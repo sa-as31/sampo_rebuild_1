@@ -3,12 +3,12 @@
     <article class="panel admin-task-hero">
       <div>
         <p class="section-kicker">ADMIN WORKSPACE</p>
-        <h2>管理员任务中心</h2>
-        <p class="legend">管理员工作流收敛为三件事：创建任务、查看执行中任务、复盘已完成任务。</p>
+        <h2>审核申请并调度任务执行</h2>
+        <p class="legend">围绕审核、执行与归档三条工作流组织管理员视图，让任务状态与调度动作更清楚。</p>
       </div>
       <div class="admin-summary-row">
         <div class="status-card">
-          <p>任务总数</p>
+          <p>总任务</p>
           <strong>{{ adminTaskStats.total }}</strong>
         </div>
         <div class="status-card">
@@ -16,28 +16,28 @@
           <strong>{{ adminTaskStats.active }}</strong>
         </div>
         <div class="status-card">
-          <p>已完成</p>
+          <p>已归档</p>
           <strong>{{ adminTaskStats.completed }}</strong>
         </div>
         <div class="status-card">
-          <p>待审核申请</p>
+          <p>待审核</p>
           <strong>{{ adminTaskStats.pending }}</strong>
         </div>
       </div>
     </article>
 
     <nav class="admin-workspace-tabs">
-      <button class="tab-btn" :class="{ active: adminSection === 'create' }" @click="adminSection = 'create'">申请审核</button>
-      <button class="tab-btn" :class="{ active: adminSection === 'active' }" @click="adminSection = 'active'">执行中任务</button>
-      <button class="tab-btn" :class="{ active: adminSection === 'completed' }" @click="adminSection = 'completed'">已完成任务</button>
+      <button class="tab-btn" :class="{ active: adminSection === 'create' }" @click="adminSection = 'create'">审核</button>
+      <button class="tab-btn" :class="{ active: adminSection === 'active' }" @click="adminSection = 'active'">执行</button>
+      <button class="tab-btn" :class="{ active: adminSection === 'completed' }" @click="adminSection = 'completed'">归档</button>
     </nav>
 
     <section v-if="adminSection === 'create'" class="admin-workspace-grid admin-dispatch-grid">
       <article class="panel">
         <div class="admin-panel-head">
           <div>
-            <h2>待审核任务申请</h2>
-            <p class="legend">申请人提交指定时间、地点和任务类型后，由管理员在此审核并指派飞手。</p>
+            <h2>待审核申请</h2>
+            <p class="legend">查看申请人提交的时间、地点与任务类别，并完成审批与飞手指派。</p>
           </div>
           <button class="btn" @click="refreshTasks">刷新任务状态</button>
         </div>
@@ -64,8 +64,8 @@
       <article class="panel">
         <div class="admin-panel-head">
           <div>
-            <h2>审核与飞手指派</h2>
-            <p class="legend">管理员审核申请后，选择飞手并确认执行参数，任务才会进入待执行。</p>
+            <h2>审批与飞手指派</h2>
+            <p class="legend">确认执行地图、时间与飞手后，任务才会进入待执行状态。</p>
           </div>
         </div>
 
@@ -140,7 +140,7 @@
         <div class="admin-panel-head">
           <div>
             <h2>执行中任务</h2>
-            <p class="legend">只显示准备中、待开始、执行中、暂停中的任务，减少干扰。</p>
+            <p class="legend">聚焦待执行、执行中和暂停中的任务，减少与归档任务混杂。</p>
           </div>
           <button class="btn" @click="refreshTasks">刷新列表</button>
         </div>
@@ -187,7 +187,7 @@
         <div class="admin-panel-head">
           <div>
             <h2>任务实时详情</h2>
-            <p class="legend">查看当前任务运行状态，并直接在当前任务页完成必要操作。</p>
+            <p class="legend">在当前工作台中查看实时状态，并直接发起开始、暂停、继续或停止。</p>
           </div>
           <div class="btn-row">
             <button class="btn secondary" @click="runTaskAction('start')">立即开始</button>
@@ -229,8 +229,8 @@
       <article class="panel">
         <div class="admin-panel-head">
           <div>
-            <h2>已完成任务</h2>
-            <p class="legend">查看已完成、失败或停止的任务，并追踪告警和飞手反馈。</p>
+            <h2>任务归档</h2>
+            <p class="legend">查看已完成、失败或停止的任务，并对告警与飞手反馈做复盘记录。</p>
           </div>
           <button class="btn" @click="refreshTasks">刷新历史</button>
         </div>
@@ -277,7 +277,7 @@
         <div class="admin-panel-head">
           <div>
             <h2>复盘与问题记录</h2>
-            <p class="legend">系统告警和飞手反馈分开展示，便于毕业设计中的问题复盘。</p>
+            <p class="legend">系统告警与飞手反馈分开展示，便于快速查看问题来源与处理线索。</p>
           </div>
           <div class="btn-row">
             <button class="btn secondary" @click="loadReplay">加载历史回放</button>
@@ -368,12 +368,12 @@
     <article class="panel admin-task-hero">
       <div>
         <p class="section-kicker">REQUEST WORKSPACE</p>
-        <h2>任务申请中心</h2>
-        <p class="legend">申请人提交指定时间、地点和任务类型的无人机任务申请，等待管理员审核与飞手指派。</p>
+        <h2>提交无人机任务并追踪审核进展</h2>
+        <p class="legend">围绕申请、审核结果和飞手分配结果组织页面，让任务提交流程更简洁直接。</p>
       </div>
       <div class="admin-summary-row">
         <div class="status-card">
-          <p>我的申请</p>
+          <p>申请总数</p>
           <strong>{{ requesterTaskStats.total }}</strong>
         </div>
         <div class="status-card">
@@ -395,8 +395,8 @@
       <article class="panel">
         <div class="admin-panel-head">
           <div>
-            <h2>提交无人机任务申请</h2>
-            <p class="legend">填写任务名称、类别、地点和执行时间。提交后交由管理员审核。</p>
+            <h2>新建任务申请</h2>
+            <p class="legend">填写任务名称、类别、地点与执行时间，提交后交由管理员审核。</p>
           </div>
         </div>
 
@@ -436,7 +436,7 @@
         <div class="admin-panel-head">
           <div>
             <h2>我的申请记录</h2>
-            <p class="legend">查看管理员审核状态、飞手指派情况和任务执行进展。</p>
+            <p class="legend">查看审核状态、飞手分配情况与任务执行进展。</p>
           </div>
           <button class="btn" @click="refreshTasks">刷新列表</button>
         </div>
@@ -475,8 +475,8 @@
     <article class="panel executor-task-list">
       <div class="admin-panel-head">
         <div>
-          <h2>任务中心</h2>
-          <p class="legend">这里只显示分配给当前飞手的任务，选中后再进入任务执行页。</p>
+          <h2>分配给我的任务</h2>
+          <p class="legend">左侧只保留当前飞手相关任务，选中后在右侧进入执行、反馈与回放界面。</p>
         </div>
         <button class="btn" @click="refreshTasks">刷新列表</button>
       </div>

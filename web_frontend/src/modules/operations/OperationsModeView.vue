@@ -73,7 +73,10 @@
 
     <article class="panel ops-main-panel">
       <div class="ops-main-head">
-        <h2>联合运行视图（2D + 3D）</h2>
+        <div>
+          <p class="section-kicker">LIVE EXECUTION</p>
+          <h2>联合运行视图（2D + 3D）</h2>
+        </div>
         <button v-if="sidebarCollapsed && !isEmbedded" class="btn secondary" @click="toggleSidebar">显示参数侧栏</button>
       </div>
       <div class="status-chip">{{ opsStatus }}</div>

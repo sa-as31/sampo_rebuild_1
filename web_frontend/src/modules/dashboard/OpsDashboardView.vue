@@ -1,7 +1,8 @@
 <template>
   <section class="dashboard-grid">
     <article class="panel">
-      <h2>运营大屏</h2>
+      <p class="section-kicker">OPS DASHBOARD</p>
+      <h2>用更少的指标查看当前任务态势</h2>
       <div class="status-chip">{{ status }}</div>
 
       <div class="status-cards" style="margin-top: 10px">
@@ -44,7 +45,8 @@
     </article>
 
     <article class="panel">
-      <h2>实时地图快照</h2>
+      <p class="section-kicker">LIVE SNAPSHOT</p>
+      <h2>当前焦点任务的实时地图快照</h2>
       <div class="canvas-wrap" style="margin-top: 10px">
         <canvas ref="canvasRef" width="980" height="520"></canvas>
       </div>

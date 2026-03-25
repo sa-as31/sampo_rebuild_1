@@ -2583,3 +2583,37 @@
   - `npm --prefix web_frontend run build` 通过；
   - 使用 Playwright 访问首页，已确认新的顶层标题、账号区与模式切换结构正常渲染；
   - 页面主气质已从深色控制台入口切换为暖白编辑风，但任务中心等业务深色舞台暂保留，作为后续逐页重构对象。
+
+## 96. 第二轮核心业务页 UI 收束：任务中心、运营大屏与联合运行页统一到暖白编辑风
+
+- 文件：`web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+- 主要修改：
+  - 收紧管理员、申请人、飞手三类任务中心页面的标题与说明文案，减少后台式重复解释；
+  - 将管理员工作流 tab 文案压缩为“审核 / 执行 / 归档”，让导航更简洁；
+  - 将申请人页改写为“提交任务并追踪进展”的表达方式，突出任务链路而不是表单堆砌；
+  - 将飞手页标题收束为“分配给我的任务”，强化任务列表到详情页的单任务聚焦体验。
+
+- 文件：`web_frontend/src/modules/dashboard/OpsDashboardView.vue`
+- 主要修改：
+  - 运营大屏新增更接近展示页的标题层级；
+  - 把页面重心从“后台监控”转为“任务态势观察”，减少纯技术化语气。
+
+- 文件：`web_frontend/src/modules/operations/OperationsModeView.vue`
+- 主要修改：
+  - 联合运行页增加 `LIVE EXECUTION` 的标题标识；
+  - 保持 2D/3D 运行舞台不变，但让外层信息组织更统一到新的页面语言。
+
+- 文件：`web_frontend/src/styles.css`
+- 主要修改：
+  - 将通用 `panel`、`status-card`、`metric`、`task-meta`、`admin-task-card`、`admin-highlight-card`、`ops-alerts` 等核心业务容器统一切换为暖白编辑风；
+  - 表单、搜索框、日期选择器、按钮统一为浅底深字的低干扰样式；
+  - 保留 `canvas-wrap` 为深色舞台，只让运行视图本体继续承担视觉焦点；
+  - 调整页面层级、标题字号、卡片圆角、分隔边界与反馈列表的样式，使各角色页更简洁、干净、清晰；
+  - 保持现有业务流程和 API 不变，仅重构呈现方式。
+
+- 验证结果：
+  - `npm --prefix web_frontend run build` 通过；
+  - 使用 Playwright 检查了：
+    - 已登录飞手首页；
+    - 退出后的登录页；
+  - 确认新的暖白入口层与任务中心结构均可正常渲染。
