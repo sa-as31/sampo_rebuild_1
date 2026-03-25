@@ -75,7 +75,7 @@ DEFAULT_USER_ACCOUNTS = [
         "role": "admin",
         "department": "调度中心",
         "title": "平台运维负责人",
-        "password": "admin123",
+        "password": "1",
     },
     {
         "user_id": "u_req_001",
@@ -84,7 +84,7 @@ DEFAULT_USER_ACCOUNTS = [
         "role": "requester",
         "department": "任务申请组",
         "title": "飞行任务申请员",
-        "password": "req01@123",
+        "password": "1",
     },
     {
         "user_id": "u_exec_001",
@@ -93,7 +93,7 @@ DEFAULT_USER_ACCOUNTS = [
         "role": "executor",
         "department": "运营飞行组",
         "title": "无人机飞手",
-        "password": "exec01@123",
+        "password": "1",
     },
     {
         "user_id": "u_exec_002",
@@ -102,7 +102,7 @@ DEFAULT_USER_ACCOUNTS = [
         "role": "executor",
         "department": "运营飞行组",
         "title": "无人机飞手",
-        "password": "exec02@123",
+        "password": "1",
     },
     {
         "user_id": "u_exec_003",
@@ -111,7 +111,7 @@ DEFAULT_USER_ACCOUNTS = [
         "role": "executor",
         "department": "运营飞行组",
         "title": "无人机飞手",
-        "password": "exec03@123",
+        "password": "1",
     },
     {
         "user_id": "u_exec_004",
@@ -120,7 +120,7 @@ DEFAULT_USER_ACCOUNTS = [
         "role": "executor",
         "department": "运营飞行组",
         "title": "无人机飞手",
-        "password": "exec04@123",
+        "password": "1",
     },
     {
         "user_id": "u_exec_005",
@@ -129,7 +129,7 @@ DEFAULT_USER_ACCOUNTS = [
         "role": "executor",
         "department": "运营飞行组",
         "title": "无人机飞手",
-        "password": "exec05@123",
+        "password": "1",
     },
     {
         "user_id": "u_exec_006",
@@ -138,7 +138,7 @@ DEFAULT_USER_ACCOUNTS = [
         "role": "executor",
         "department": "运营飞行组",
         "title": "无人机飞手",
-        "password": "exec06@123",
+        "password": "1",
     },
     {
         "user_id": "u_exec_007",
@@ -147,7 +147,7 @@ DEFAULT_USER_ACCOUNTS = [
         "role": "executor",
         "department": "运营飞行组",
         "title": "无人机飞手",
-        "password": "exec07@123",
+        "password": "1",
     },
     {
         "user_id": "u_exec_008",
@@ -156,7 +156,7 @@ DEFAULT_USER_ACCOUNTS = [
         "role": "executor",
         "department": "运营飞行组",
         "title": "无人机飞手",
-        "password": "exec08@123",
+        "password": "1",
     },
     {
         "user_id": "u_exec_009",
@@ -165,7 +165,7 @@ DEFAULT_USER_ACCOUNTS = [
         "role": "executor",
         "department": "运营飞行组",
         "title": "无人机飞手",
-        "password": "exec09@123",
+        "password": "1",
     },
     {
         "user_id": "u_exec_010",
@@ -174,7 +174,7 @@ DEFAULT_USER_ACCOUNTS = [
         "role": "executor",
         "department": "运营飞行组",
         "title": "无人机飞手",
-        "password": "exec10@123",
+        "password": "1",
     },
 ]
 DEFAULT_ACTIVE_USER_ID = "u_exec_001"
