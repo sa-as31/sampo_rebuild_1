@@ -790,6 +790,14 @@ body {
   min-height: 540px;
 }
 
+.ops-main-panel-embedded {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+}
+
 .ops-executor-summary {
   display: grid;
   gap: 12px;
@@ -804,6 +812,22 @@ body {
 
 .ops-main-head h2 {
   margin: 10px 0 0;
+}
+
+.ops-inline-meta {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ops-inline-meta span {
+  border: 1px solid var(--editorial-border);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--editorial-subtle);
+  background: rgba(255, 255, 255, 0.56);
 }
 
 .ops-sidebar-panel.collapsed .ops-sidebar-head {
@@ -1292,10 +1316,11 @@ body {
   border: none;
   background: transparent;
   min-width: 0;
+  box-shadow: none;
 }
 
 .admin-active-embedded .ops-main-head {
-  display: none;
+  margin-bottom: 4px;
 }
 
 .admin-active-embedded .status-cards {
@@ -1329,6 +1354,10 @@ body {
 
 .admin-active-embedded .ops-view-card .canvas-wrap canvas {
   height: 420px;
+}
+
+.admin-active-embedded .ops-inline-meta {
+  margin-bottom: 2px;
 }
 
 .feedback-item {

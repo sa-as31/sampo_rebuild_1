@@ -142,7 +142,7 @@
             <button class="btn" @click="approveTaskRequest">审核通过并分配飞手</button>
             <button class="btn secondary" @click="rejectTaskRequest">驳回申请</button>
           </div>
-          <div class="status-chip">{{ assignStatus }}</div>
+          <div v-if="assignStatus" class="status-chip">{{ assignStatus }}</div>
         </template>
         <div v-else class="ops-alert-empty">请先从左侧选择一条待审核任务申请。</div>
       </article>
@@ -464,7 +464,7 @@
         <div class="btn-row" style="margin-top: 12px">
           <button class="btn" @click="submitTaskRequest">提交任务申请</button>
         </div>
-        <div class="status-chip">{{ requestStatus }}</div>
+        <div v-if="requestStatus" class="status-chip">{{ requestStatus }}</div>
       </article>
 
       <article class="panel requester-aside-panel">
@@ -675,10 +675,10 @@
               <div class="btn-row" style="margin-top: 10px">
                 <button class="btn secondary" @click="setPilotTaskSpeed(pilotSpeedInput)">设置速度</button>
               </div>
+              <div class="status-chip" style="margin-top: 10px">当前节拍：{{ selectedTask?.tick_ms || selectedTask?.params?.tick_ms || 320 }} ms/步</div>
             </section>
           </div>
-          <div class="legend" style="margin-top: 8px">当前飞行节拍：{{ selectedTask?.tick_ms || selectedTask?.params?.tick_ms || 320 }} ms/步</div>
-          <div class="status-chip">{{ feedbackStatus }}</div>
+          <div v-if="feedbackStatus" class="status-chip">{{ feedbackStatus }}</div>
           <OperationsModeView embedded :current-user="currentUser" :focus-task-id="selectedTaskId" :role="props.role" />
         </section>
 
@@ -714,7 +714,7 @@
             <button class="btn secondary" @click="reportTaskAnomaly">标记异常</button>
             <button class="btn" @click="submitExecutorFeedback">提交备注</button>
           </div>
-          <div class="status-chip">{{ feedbackStatus }}</div>
+          <div v-if="feedbackStatus" class="status-chip">{{ feedbackStatus }}</div>
 
           <div class="ops-alerts" style="margin-top: 12px">
             <h3>已提交反馈</h3>
@@ -850,9 +850,9 @@ const executorDateInputRef = ref(null);
 const adminActiveDateInputRef = ref(null);
 const adminCompletedDateInputRef = ref(null);
 const status = ref("任务中心初始化中...");
-const assignStatus = ref("管理员可审核任务申请并分配飞手。");
-const feedbackStatus = ref("飞手可以提交现场问题与备注。");
-const requestStatus = ref("请填写任务时间、地点和类别后提交申请。");
+const assignStatus = ref("");
+const feedbackStatus = ref("");
+const requestStatus = ref("");
 const tasks = ref([]);
 const selectedTaskId = ref("");
 const selectedTask = ref(null);

@@ -71,29 +71,34 @@
       </div>
     </aside>
 
-    <article class="panel ops-main-panel">
+    <article class="panel ops-main-panel" :class="{ 'ops-main-panel-embedded': isEmbedded }">
       <div class="ops-main-head">
         <div>
-          <p class="section-kicker">LIVE EXECUTION</p>
-          <h2>联合运行视图（2D + 3D）</h2>
+          <p class="section-kicker">{{ isEmbedded ? "MISSION STAGE" : "LIVE EXECUTION" }}</p>
+          <h2>{{ isEmbedded ? "实时任务舞台" : "联合运行视图（2D + 3D）" }}</h2>
         </div>
         <button v-if="sidebarCollapsed && !isEmbedded" class="btn secondary" @click="toggleSidebar">显示参数侧栏</button>
       </div>
       <div class="status-chip">{{ opsStatus }}</div>
-      <div class="legend">任务ID: {{ currentTaskId || "未创建" }}</div>
+      <div class="ops-inline-meta">
+        <span>任务ID: {{ currentTaskId || "未创建" }}</span>
+        <span>状态: {{ runtime.task?.status || "待命" }}</span>
+      </div>
 
       <div class="status-cards" style="margin-top: 10px">
         <div class="status-card"><p>在线无人机数</p><strong>{{ statusCards.online }}</strong></div>
         <div class="status-card"><p>累计完成任务</p><strong>{{ statusCards.completed }}</strong></div>
-        <div class="status-card"><p>冲突告警数</p><strong>{{ statusCards.conflicts }}</strong></div>
-        <div class="status-card"><p>平均任务时延(步)</p><strong>{{ statusCards.latency }}</strong></div>
+        <div v-if="!isEmbedded" class="status-card"><p>冲突告警数</p><strong>{{ statusCards.conflicts }}</strong></div>
+        <div v-if="!isEmbedded" class="status-card"><p>平均任务时延(步)</p><strong>{{ statusCards.latency }}</strong></div>
       </div>
 
       <div class="ops-dual-view-grid">
         <section class="ops-view-card">
           <h3>2D 俯视运行状态</h3>
-          <div class="legend">点击地图空白网格可设置目标点（仅非运行状态可编辑）</div>
-          <div class="legend">当前选中无人机：{{ selectedDroneId + 1 }}</div>
+          <div class="legend">
+            {{ isEmbedded ? `当前选中无人机：${selectedDroneId + 1}` : "点击地图空白网格可设置目标点（仅非运行状态可编辑）" }}
+          </div>
+          <div v-if="!isEmbedded" class="legend">当前选中无人机：{{ selectedDroneId + 1 }}</div>
           <div class="canvas-wrap" style="margin-top: 8px">
             <canvas ref="opsCanvasRef" width="880" height="500" @click="onOpsCanvasClick"></canvas>
           </div>
@@ -101,7 +106,7 @@
 
         <section class="ops-view-card">
           <h3>3D 运行状态</h3>
-          <div class="legend">与左侧 2D 使用同一任务、同一帧数据</div>
+          <div class="legend">{{ isEmbedded ? "与左侧同帧同步展示" : "与左侧 2D 使用同一任务、同一帧数据" }}</div>
           <div class="legend">镜头：{{ cameraModeLabel }} · 放大：x{{ zoomScale.toFixed(2) }}</div>
           <div class="canvas-wrap" style="margin-top: 8px">
             <canvas ref="ops3dCanvasRef" width="880" height="500"></canvas>
@@ -109,7 +114,7 @@
         </section>
       </div>
 
-      <div class="field-grid" style="margin-top: 10px; max-width: 280px">
+      <div v-if="!isEmbedded" class="field-grid" style="margin-top: 10px; max-width: 280px">
         <label>当前选中无人机
           <select v-model.number="selectedDroneId">
             <option v-for="d in fleetRows" :key="d.id" :value="d.id">无人机 {{ d.id + 1 }}</option>
@@ -117,7 +122,7 @@
         </label>
       </div>
 
-      <table class="fleet-table">
+      <table v-if="!isEmbedded" class="fleet-table">
         <thead>
           <tr>
             <th>ID</th>
@@ -138,7 +143,7 @@
         </tbody>
       </table>
 
-      <div class="ops-alerts">
+      <div v-if="!isEmbedded" class="ops-alerts">
         <h3>实时告警</h3>
         <div v-if="alerts.length === 0" class="ops-alert-empty">当前无告警</div>
         <div v-for="alert in alerts" :key="`${alert.ts}-${alert.code}`" class="ops-alert-item" :class="`level-${alert.level}`">
