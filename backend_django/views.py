@@ -267,6 +267,5 @@ def task_events_view(request, task_id):
 
     response = StreamingHttpResponse(event_stream(), content_type="text/event-stream; charset=utf-8")
     response["Cache-Control"] = "no-store"
-    response["Connection"] = "keep-alive"
     response["X-Accel-Buffering"] = "no"
     return response

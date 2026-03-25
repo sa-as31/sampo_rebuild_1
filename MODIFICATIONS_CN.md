@@ -2521,3 +2521,28 @@
     - 进入飞手任务详情；
     - 切换到“回放与告警”页签；
     - 2D 回放 canvas 在 400ms 内像素内容发生变化，确认动画真实生效。
+
+## 93. 修复“开始执行后不动”的事件流与恢复态兼容问题
+
+- 文件：`backend_django/views.py`
+- 主要修改：
+  - 修复 Django 任务事件流接口；
+  - 移除 `StreamingHttpResponse` 中不被 Django 开发服务器允许的 `Connection: keep-alive` 响应头；
+  - 保留 `text/event-stream`、`Cache-Control` 和 `X-Accel-Buffering`，恢复前端 EventSource 正常订阅。
+
+- 文件：`web_demo/task_runtime.py`
+- 主要修改：
+  - 调整任务启动逻辑；
+  - 将 `PAUSED` 纳入“开始执行”动作的兼容状态；
+  - 服务重启后被恢复成 `PAUSED` 的任务，现在可直接通过飞手界面的“开始执行”恢复运行，不再出现按钮点下去但任务不推进的问题。
+
+- 文件：`解疑.md`
+- 主要修改：
+  - 新增“为什么点击开始执行后页面看起来不动”的问答；
+  - 记录事件流 500 与恢复态 `PAUSED` 兼容问题这两个根因。
+
+- 验证结果：
+  - `python3 manage.py check` 通过；
+  - `npm --prefix web_frontend run build` 通过；
+  - `/api/tasks/<task_id>/events` 不再返回 500；
+  - 任务恢复为 `PAUSED` 后，调用 `start` 可重新切回运行流程。

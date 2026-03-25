@@ -914,7 +914,7 @@ class TaskRuntime:
             live.last_alert_step = {}
             live.runtime_metrics = self._calculate_runtime_metrics(live, live.frames[0])
 
-        if live.status == "READY" or live.status in FINAL_STATUSES:
+        if live.status in {"READY", "PAUSED"} or live.status in FINAL_STATUSES:
             live.started_at = live.started_at or now_ts()
             live.stop_requested = False
             live.status = "RUNNING"
