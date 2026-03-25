@@ -991,6 +991,22 @@ body {
   gap: 10px;
 }
 
+.admin-subheadline {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-subheadline span {
+  border: 1px solid var(--editorial-border);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--editorial-subtle);
+  background: rgba(255, 255, 255, 0.56);
+}
+
 .admin-workspace-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -1020,6 +1036,14 @@ body {
 .admin-active-grid,
 .admin-completed-grid {
   grid-template-columns: minmax(420px, 1.2fr) minmax(360px, 0.95fr);
+}
+
+.requester-create-grid {
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.72fr);
+}
+
+.requester-history-grid {
+  grid-template-columns: minmax(360px, 0.92fr) minmax(0, 1.08fr);
 }
 
 .admin-replay-grid {
@@ -1107,6 +1131,35 @@ body {
   padding: 12px;
 }
 
+.admin-focus-header {
+  margin-top: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.admin-focus-header strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 30px;
+  line-height: 1.04;
+  letter-spacing: -0.04em;
+  color: var(--editorial-text);
+}
+
+.admin-focus-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--editorial-border);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.66);
+  color: var(--editorial-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .admin-highlight-card p {
   margin: 0;
   color: var(--editorial-muted);
@@ -1140,6 +1193,12 @@ body {
 
 .admin-map-import-grid {
   grid-template-columns: 1fr;
+}
+
+.admin-form-grid,
+.requester-form-grid {
+  margin-top: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .admin-fleet-table td,
@@ -1215,6 +1274,10 @@ body {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+.admin-metric-strip {
+  margin-top: 14px;
 }
 
 .admin-active-embedded {
@@ -1302,6 +1365,10 @@ body {
   padding: 2px 8px;
   color: var(--editorial-muted);
   font-size: 12px;
+}
+
+.requester-aside-panel {
+  align-self: start;
 }
 
 .feedback-head em {
@@ -1556,6 +1623,8 @@ body {
   .admin-overview-grid,
   .admin-list-grid,
   .admin-dispatch-grid,
+  .requester-create-grid,
+  .requester-history-grid,
   .admin-replay-grid,
   .admin-active-grid,
   .admin-completed-grid {
