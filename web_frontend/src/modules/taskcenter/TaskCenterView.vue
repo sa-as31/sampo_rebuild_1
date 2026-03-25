@@ -546,8 +546,9 @@
       <template v-if="selectedTask">
         <div class="admin-panel-head">
           <div>
+            <p class="section-kicker">TASK DETAIL</p>
             <h2>{{ selectedTask.mission_name }}</h2>
-            <p class="legend">任务已进入执行页，联合运行、回放和反馈都在这里处理。</p>
+            <p class="legend">在同一详情页中完成执行、反馈与回放。</p>
           </div>
           <div class="btn-row">
             <button class="btn secondary" @click="exportReport">导出任务报告</button>
@@ -562,35 +563,51 @@
           <div class="task-meta"><span>累计任务数</span><strong>{{ selectedSnapshot?.metrics?.tasks_completed ?? selectedTask?.metrics?.tasks_completed ?? "-" }}</strong></div>
         </div>
 
-        <div class="admin-workspace-tabs" style="margin-top: 12px">
-          <button class="tab-btn" :class="{ active: executorView === 'execute' }" @click="executorView = 'execute'">任务执行</button>
-          <button class="tab-btn" :class="{ active: executorView === 'feedback' }" @click="executorView = 'feedback'">反馈与操作</button>
-          <button class="tab-btn" :class="{ active: executorView === 'history' }" @click="executorView = 'history'">回放与告警</button>
+        <div class="admin-workspace-tabs compact-tabs" style="margin-top: 12px">
+          <button class="tab-btn" :class="{ active: executorView === 'execute' }" @click="executorView = 'execute'">执行</button>
+          <button class="tab-btn" :class="{ active: executorView === 'feedback' }" @click="executorView = 'feedback'">反馈</button>
+          <button class="tab-btn" :class="{ active: executorView === 'history' }" @click="executorView = 'history'">回放</button>
         </div>
 
         <section v-if="executorView === 'execute'" class="executor-embedded-run">
-          <div class="btn-row" style="margin-top: 12px">
-            <button class="btn" @click="startAssignedTask">开始执行</button>
-            <button class="btn secondary" @click="runTaskAction('pause')">暂停</button>
-            <button class="btn secondary" @click="runTaskAction('resume')">继续</button>
-            <button class="btn secondary" @click="runTaskAction('stop')">停止</button>
+          <div class="executor-action-grid">
+            <section class="executor-action-card">
+              <p class="section-kicker">MISSION CONTROL</p>
+              <h3>执行控制</h3>
+              <div class="btn-row" style="margin-top: 12px">
+                <button class="btn" @click="startAssignedTask">开始执行</button>
+                <button class="btn secondary" @click="runTaskAction('pause')">暂停</button>
+                <button class="btn secondary" @click="runTaskAction('resume')">继续</button>
+                <button class="btn secondary" @click="runTaskAction('stop')">停止</button>
+              </div>
+            </section>
+
+            <section class="executor-action-card">
+              <p class="section-kicker">FLIGHT SPEED</p>
+              <h3>飞行节拍</h3>
+              <div class="field-grid" style="margin-top: 10px">
+                <label>速度(ms/步)
+                  <input v-model.number="pilotSpeedInput" max="2400" min="120" step="20" type="number" />
+                </label>
+              </div>
+              <div class="btn-row" style="margin-top: 10px">
+                <button class="btn secondary" @click="setPilotTaskSpeed(pilotSpeedInput)">设置速度</button>
+              </div>
+            </section>
           </div>
-          <div class="field-grid" style="margin-top: 10px; max-width: 420px">
-            <label>飞行速度节拍(ms/步)
-              <input v-model.number="pilotSpeedInput" max="2400" min="120" step="20" type="number" />
-            </label>
-          </div>
-          <div class="btn-row" style="margin-top: 10px">
-            <button class="btn secondary" @click="setPilotTaskSpeed(pilotSpeedInput)">设置速度</button>
-          </div>
-          <div class="legend" style="margin-top: 8px">
-            当前飞行节拍：{{ selectedTask?.tick_ms || selectedTask?.params?.tick_ms || 320 }} ms/步
-          </div>
+          <div class="legend" style="margin-top: 8px">当前飞行节拍：{{ selectedTask?.tick_ms || selectedTask?.params?.tick_ms || 320 }} ms/步</div>
           <div class="status-chip">{{ feedbackStatus }}</div>
           <OperationsModeView embedded :current-user="currentUser" :focus-task-id="selectedTaskId" :role="props.role" />
         </section>
 
         <section v-else-if="executorView === 'feedback'" class="executor-feedback-panel">
+          <div class="admin-panel-head">
+            <div>
+              <p class="section-kicker">FIELD NOTES</p>
+              <h2>现场反馈</h2>
+              <p class="legend">提交问题、风险、备注与临时延期申请。</p>
+            </div>
+          </div>
           <div class="admin-highlight-card compact">
             <p>当前任务</p>
             <strong>{{ selectedTask.mission_name }}</strong>
@@ -632,7 +649,14 @@
         </section>
 
         <section v-else class="executor-history-panel">
-          <div class="btn-row" style="margin-top: 12px">
+          <div class="admin-panel-head">
+            <div>
+              <p class="section-kicker">TASK REPLAY</p>
+              <h2>历史回放与告警</h2>
+              <p class="legend">在同一回放区查看 2D、3D 与任务告警。</p>
+            </div>
+          </div>
+          <div class="executor-toolbar" style="margin-top: 12px">
             <button class="btn secondary" @click="loadReplay">加载历史回放</button>
             <button class="btn secondary" @click="togglePlayback">{{ replay.playing ? "暂停回放" : "播放回放" }}</button>
             <input
