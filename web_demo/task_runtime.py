@@ -412,31 +412,46 @@ class TaskRuntime:
 
     def list_tasks(self, limit: int = 30) -> Dict[str, Any]:
         limit = max(1, min(int(limit), 200))
-        return {"tasks": self.db.list_tasks(limit=limit)}
+        current = self.db.get_current_user()
+        tasks = self.db.list_tasks(limit=limit)
+        visible = [task for task in tasks if self._can_view_task(task, current)]
+        return {"tasks": visible}
 
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
+        current = self.db.get_current_user()
         live = self._get_live_task(task_id)
         if live is None:
             stored = self.db.get_task(task_id)
             if stored is None:
                 return None
+            if not self._can_view_task(stored, current):
+                return {"error": "无权访问该任务", "status": 403}
             return {"task": stored, "snapshot": None, "alerts": self.db.get_alerts(task_id, limit=20)}
 
         with live.lock:
+            task = self._task_brief(live)
+            if not self._can_view_task(task, current):
+                return {"error": "无权访问该任务", "status": 403}
             return {
-                "task": self._task_brief(live),
+                "task": task,
                 "snapshot": self._build_snapshot(live, include_environment=True),
                 "alerts": list(reversed(live.alerts[-20:])),
             }
 
     def get_alerts(self, task_id: str, limit: int = 20) -> Optional[Dict[str, Any]]:
+        current = self.db.get_current_user()
         live = self._get_live_task(task_id)
         if live is None:
             stored = self.db.get_task(task_id)
             if stored is None:
                 return None
+            if not self._can_view_task(stored, current):
+                return {"error": "无权访问该任务", "status": 403}
             return {"task_id": task_id, "alerts": self.db.get_alerts(task_id, limit=limit)}
         with live.lock:
+            task = self._task_brief(live)
+            if not self._can_view_task(task, current):
+                return {"error": "无权访问该任务", "status": 403}
             alerts = list(reversed(live.alerts[-limit:]))
         return {"task_id": task_id, "alerts": alerts}
 
@@ -444,6 +459,13 @@ class TaskRuntime:
         stored = self.db.get_task(task_id)
         if stored is None and self._get_live_task(task_id) is None:
             return None
+        current = self.db.get_current_user()
+        reference = stored
+        if reference is None:
+            live = self._get_live_task(task_id)
+            reference = self._task_brief(live) if live is not None else None
+        if reference is not None and not self._can_view_task(reference, current):
+            return {"error": "无权访问该任务", "status": 403}
         return {"task_id": task_id, "feedback": self.db.get_feedback(task_id, limit=limit)}
 
     def submit_feedback(self, task_id: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -455,6 +477,9 @@ class TaskRuntime:
         current = self.db.get_current_user()
         if current is None:
             return {"error": "未检测到当前登录账号"}
+        task_payload = task or self._task_brief(live)
+        if not self._can_view_task(task_payload, current):
+            return {"error": "当前账号不能向该任务提交反馈"}
 
         category = str(payload.get("category") or "issue").strip().lower()
         if category not in {"issue", "risk", "note", "delay_request", "anomaly"}:
@@ -464,7 +489,6 @@ class TaskRuntime:
         if not message:
             return {"error": "反馈内容不能为空"}
 
-        task_payload = task or self._task_brief(live)
         params = task_payload.get("params") or {}
         assignee_user_id = str(params.get("assignee_user_id") or "")
         if current.get("role") == "executor" and assignee_user_id and assignee_user_id != current.get("user_id"):
@@ -488,11 +512,14 @@ class TaskRuntime:
         return {"task_id": task_id, "feedback": feedback}
 
     def get_replay(self, task_id: str) -> Optional[Dict[str, Any]]:
+        current = self.db.get_current_user()
         live = self._get_live_task(task_id)
         if live is None:
             stored = self.db.get_task(task_id)
             if stored is None:
                 return None
+            if not self._can_view_task(stored, current):
+                return {"error": "无权访问该任务", "status": 403}
             persisted = self._load_persisted_replay(task_id)
             if persisted is not None:
                 persisted["task"] = stored
@@ -507,9 +534,12 @@ class TaskRuntime:
                 "task": stored,
             }
         with live.lock:
+            task = self._task_brief(live)
+            if not self._can_view_task(task, current):
+                return {"error": "无权访问该任务", "status": 403}
             payload = self._build_replay_response(
                 task_id=task_id,
-                task=self._task_brief(live),
+                task=task,
                 environment=live.environment,
                 frames=live.frames,
                 metrics=live.base_metrics,
@@ -523,11 +553,17 @@ class TaskRuntime:
         payload = dict(payload or {})
         if action in {"approve", "reject"}:
             return self._review_task_request(task_id, action, payload)
+        current = self.db.get_current_user()
+        if current is None:
+            return {"error": "未检测到当前登录账号"}
         live = self._get_live_task(task_id)
         if live is None:
             return None
 
         with live.lock:
+            task = self._task_brief(live)
+            if not self._can_control_task(task, current, action):
+                return {"error": "当前账号无权操作该任务"}
             if action == "start":
                 self._handle_start_locked(live)
             elif action == "pause":
@@ -1051,6 +1087,33 @@ class TaskRuntime:
     def _get_live_task(self, task_id: str) -> Optional[LiveTask]:
         with self.tasks_lock:
             return self.tasks.get(task_id)
+
+    def _can_view_task(self, task: Optional[Dict[str, Any]], current: Optional[Dict[str, Any]]) -> bool:
+        if task is None or current is None:
+            return False
+        role = normalize_role(current.get("role"))
+        if role == "admin":
+            return True
+        params = task.get("params") or {}
+        user_id = str(current.get("user_id") or "")
+        if role == "requester":
+            return str(params.get("requester_user_id") or "") == user_id
+        if role == "executor":
+            return str(params.get("assignee_user_id") or "") == user_id
+        return False
+
+    def _can_control_task(self, task: Optional[Dict[str, Any]], current: Optional[Dict[str, Any]], action: str) -> bool:
+        if task is None or current is None:
+            return False
+        role = normalize_role(current.get("role"))
+        if role == "admin":
+            return True
+        if role != "executor":
+            return False
+        if action not in {"start", "pause", "resume", "stop", "set_speed"}:
+            return False
+        params = task.get("params") or {}
+        return str(params.get("assignee_user_id") or "") == str(current.get("user_id") or "")
 
     def _restore_live_tasks(self):
         for stored in self.db.list_restorable_tasks(limit=300):

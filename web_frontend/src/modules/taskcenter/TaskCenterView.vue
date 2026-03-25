@@ -458,6 +458,15 @@
           </button>
           <div v-if="requesterTasks.length === 0" class="ops-alert-empty">当前还没有提交任务申请。</div>
         </div>
+
+        <div v-if="selectedTask" class="admin-highlight-card" style="margin-top: 14px">
+          <p>申请详情</p>
+          <strong>{{ selectedTask.mission_name }}</strong>
+          <span>审核状态：{{ taskStageLabel(selectedTask.status) }}</span>
+          <span>任务类别：{{ taskCategoryLabel(selectedTask.params?.task_category) }} · 申请地点：{{ selectedTask.params?.requested_location || "-" }}</span>
+          <span>指派飞手：{{ assigneeLabel(selectedTask) }}</span>
+          <span>审核意见：{{ selectedTask.params?.review_note || "暂无审核意见" }}</span>
+        </div>
       </article>
     </section>
   </section>

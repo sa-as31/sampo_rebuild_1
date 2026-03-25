@@ -182,6 +182,8 @@ def task_detail_view(_request, task_id):
     payload = TASK_RUNTIME.get_task(task_id)
     if payload is None:
         return json_error("Task not found", status=404)
+    if payload.get("error"):
+        return json_error(payload["error"], status=int(payload.get("status") or 400))
     return json_ok(payload)
 
 
@@ -206,6 +208,8 @@ def task_alerts_view(request, task_id):
     payload = TASK_RUNTIME.get_alerts(task_id, limit=limit)
     if payload is None:
         return json_error("Task not found", status=404)
+    if payload.get("error"):
+        return json_error(payload["error"], status=int(payload.get("status") or 400))
     return json_ok(payload)
 
 
@@ -214,6 +218,8 @@ def task_replay_view(_request, task_id):
     payload = TASK_RUNTIME.get_replay(task_id)
     if payload is None:
         return json_error("Task not found", status=404)
+    if payload.get("error"):
+        return json_error(payload["error"], status=int(payload.get("status") or 400))
     return json_ok(payload)
 
 
@@ -225,6 +231,8 @@ def task_feedback_view(request, task_id):
         payload = TASK_RUNTIME.get_feedback(task_id, limit=limit)
         if payload is None:
             return json_error("Task not found", status=404)
+        if payload.get("error"):
+            return json_error(payload["error"], status=int(payload.get("status") or 400))
         return json_ok(payload)
 
     payload = read_json_body(request)
