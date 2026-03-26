@@ -82,7 +82,7 @@
         </div>
       </header>
 
-      <nav class="mode-tabs editorial-tabs">
+      <nav v-if="tabs.length > 1" class="mode-tabs editorial-tabs">
         <button
           v-for="tab in tabs"
           :key="tab.key"

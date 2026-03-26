@@ -1,9 +1,17 @@
 <template>
   <section class="dashboard-grid">
-    <article class="panel">
-      <p class="section-kicker">OPS DASHBOARD</p>
-      <h2>用更少的指标查看当前任务态势</h2>
-      <div class="status-chip">{{ status }}</div>
+    <article class="panel dashboard-panel-primary">
+      <div class="admin-panel-head">
+        <div>
+          <p class="section-kicker">OPS DASHBOARD</p>
+          <h2>运营观测</h2>
+          <p class="legend">只保留当前最值得看的任务与总体态势。</p>
+        </div>
+        <div class="btn-row">
+          <button class="btn secondary" @click="refreshDashboard">刷新</button>
+          <button class="btn secondary" @click="goMode('taskCenter')">返回任务中心</button>
+        </div>
+      </div>
 
       <div class="status-cards" style="margin-top: 10px">
         <div class="status-card"><p>任务总数</p><strong>{{ summary.total_tasks }}</strong></div>
@@ -12,48 +20,42 @@
         <div class="status-card"><p>平均吞吐量</p><strong>{{ fmt(summary.avg_throughput, 4) }}</strong></div>
       </div>
 
-      <div class="btn-row" style="margin-top: 10px">
-        <button class="btn secondary" @click="refreshDashboard">刷新</button>
-        <button class="btn secondary" @click="goMode('taskCenter')">查看任务中心</button>
+      <div class="admin-subheadline" style="margin-top: 14px">
+        <span>{{ status }}</span>
+        <span>当前焦点任务 {{ focusTask?.mission_name || "未选定" }}</span>
       </div>
 
-      <table class="fleet-table" style="margin-top: 10px">
-        <thead>
-          <tr>
-            <th>任务ID</th>
-            <th>任务名</th>
-            <th>状态</th>
-            <th>吞吐量</th>
-            <th>更新</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="task in tasks"
-            :key="task.task_id"
-            :class="{ 'task-row-active': task.task_id === focusTaskId }"
-            @click="onFocusTask(task.task_id)"
-          >
-            <td>{{ task.task_id }}</td>
-            <td>{{ task.mission_name }}</td>
-            <td>{{ task.status }}</td>
-            <td>{{ fmt(task.metrics?.throughput, 4) }}</td>
-            <td>{{ fmtTime(task.updated_at) }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="dashboard-task-stack">
+        <button
+          v-for="task in dashboardTaskCards"
+          :key="task.task_id"
+          class="admin-task-card"
+          :class="{ active: task.task_id === focusTaskId }"
+          @click="onFocusTask(task.task_id)"
+        >
+          <span class="admin-task-card-top">
+            <strong>{{ task.mission_name }}</strong>
+            <em>{{ task.status }}</em>
+          </span>
+          <span class="admin-task-card-meta">吞吐量 {{ fmt(task.metrics?.throughput, 4) }} · 更新时间 {{ fmtTime(task.updated_at) }}</span>
+          <span class="admin-task-card-meta">任务ID {{ task.task_id }}</span>
+        </button>
+        <div v-if="dashboardTaskCards.length === 0" class="ops-alert-empty">当前没有可观察的任务。</div>
+      </div>
     </article>
 
     <article class="panel">
       <p class="section-kicker">LIVE SNAPSHOT</p>
-      <h2>当前焦点任务的实时地图快照</h2>
+      <h2>{{ focusTask?.mission_name || "当前焦点任务的实时地图快照" }}</h2>
+      <div class="ops-inline-meta" style="margin-top: 12px">
+        <span>任务ID: {{ focusTask?.task_id || "-" }}</span>
+        <span>状态: {{ focusTask?.status || "-" }}</span>
+      </div>
       <div class="canvas-wrap" style="margin-top: 10px">
         <canvas ref="canvasRef" width="980" height="520"></canvas>
       </div>
 
       <div class="metrics" style="margin-top: 10px">
-        <div class="metric"><span>焦点任务</span><strong style="font-size: 18px">{{ focusTask?.task_id || "-" }}</strong></div>
-        <div class="metric"><span>状态</span><strong style="font-size: 18px">{{ focusTask?.status || "-" }}</strong></div>
         <div class="metric"><span>当前步</span><strong>{{ snapshot?.metrics?.step ?? "-" }}</strong></div>
         <div class="metric"><span>累计任务</span><strong>{{ snapshot?.metrics?.tasks_completed ?? "-" }}</strong></div>
         <div class="metric"><span>冲突累计</span><strong>{{ snapshot?.metrics?.cumulative_conflicts ?? "-" }}</strong></div>
@@ -74,7 +76,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, reactive, ref } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import { fetchDashboardSummary, fetchOpsAlerts, fetchOpsTasks, getOpsTask } from "../../services/api";
 import { createRenderer } from "../shared/renderer";
 
@@ -96,6 +98,27 @@ const summary = reactive({
   failed_tasks: 0,
   stopped_tasks: 0,
   avg_throughput: 0,
+});
+
+const dashboardTaskCards = computed(() => {
+  const rank = {
+    RUNNING: 0,
+    PAUSED: 1,
+    READY: 2,
+    PREPARING: 3,
+    COMPLETED: 4,
+    FAILED: 5,
+    STOPPED: 6,
+  };
+  return tasks.value
+    .slice()
+    .sort((a, b) => {
+      const ra = rank[String(a.status || "").toUpperCase()] ?? 99;
+      const rb = rank[String(b.status || "").toUpperCase()] ?? 99;
+      if (ra !== rb) return ra - rb;
+      return Number(b.updated_at || 0) - Number(a.updated_at || 0);
+    })
+    .slice(0, 6);
 });
 
 function fmt(value, digits = 2) {

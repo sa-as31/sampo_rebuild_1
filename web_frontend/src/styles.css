@@ -1413,6 +1413,17 @@ body {
   gap: 16px;
 }
 
+.dashboard-panel-primary {
+  display: grid;
+  align-content: start;
+}
+
+.dashboard-task-stack {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
 .status-cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(130px, 1fr));

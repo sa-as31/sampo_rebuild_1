@@ -427,12 +427,17 @@
     </nav>
 
     <section v-if="requesterSection === 'create'" class="admin-workspace-grid requester-create-grid">
-      <article class="panel requester-form-panel">
+    <article class="panel requester-form-panel">
         <div class="admin-panel-head">
           <div>
             <h2>新建任务申请</h2>
             <p class="legend">只保留最必要的申请信息：任务类型、地点和期望时间。</p>
           </div>
+        </div>
+
+        <div class="admin-subheadline">
+          <span>一步完成申请</span>
+          <span>执行参数会由管理员在审核时补全</span>
         </div>
 
         <div class="field-grid requester-form-grid">
@@ -499,6 +504,11 @@
           <button class="btn" @click="refreshTasks">刷新列表</button>
         </div>
 
+        <div class="admin-subheadline">
+          <span>待审核 {{ requesterTaskStats.pending }} 条</span>
+          <span>已通过 {{ requesterTaskStats.approved }} 条</span>
+        </div>
+
         <div class="admin-overview-list">
           <button
             v-for="task in requesterTasks"
@@ -563,6 +573,12 @@
         <button class="btn" @click="refreshTasks">刷新列表</button>
       </div>
 
+      <div class="admin-subheadline">
+        <span>待执行 {{ filteredTasks.filter((task) => ['PREPARING', 'READY'].includes(task.status)).length }} 条</span>
+        <span>执行中 {{ filteredTasks.filter((task) => ['RUNNING', 'PAUSED'].includes(task.status)).length }} 条</span>
+        <span>已结束 {{ filteredTasks.filter((task) => FINAL_STATUSES.has(task.status)).length }} 条</span>
+      </div>
+
       <div class="field-grid">
         <label>状态筛选
           <select v-model="filters.status">
@@ -602,8 +618,7 @@
         </label>
       </div>
 
-      <div class="status-chip">{{ status }}</div>
-      <p class="legend">日期筛选规则：待执行看计划时间，执行中看计划/开始时间，已完成优先看完成时间。</p>
+      <div v-if="status" class="status-chip">{{ status }}</div>
 
       <div class="executor-task-stack">
         <button
@@ -1226,9 +1241,9 @@ async function refreshTasks() {
     if (isAdmin.value) {
       status.value = `任务已刷新：待审核 ${pendingReviewTasks.value.length}，执行中 ${activeTasks.value.length}，已完成 ${completedTasks.value.length}`;
     } else if (isRequester.value) {
-      status.value = `申请列表已更新：待审核 ${requesterTaskStats.value.pending}，已通过 ${requesterTaskStats.value.approved}`;
+      status.value = "";
     } else {
-      status.value = `任务列表已更新，可见 ${filteredTasks.value.length} 条（总 ${tasks.value.length} 条）`;
+      status.value = "";
     }
   } catch (error) {
     status.value = `刷新失败：${error.message}`;
@@ -1285,7 +1300,7 @@ function closeExecutorDetail() {
   drawEmptyCanvas(liveCanvasRef.value, "请选择左侧任务以展开执行详情");
   drawEmptyCanvas(executorHistoryCanvasRef.value, "请选择左侧任务以查看历史回放");
   drawEmptyCanvas(executorHistory3dCanvasRef.value, "请选择左侧任务以查看历史回放");
-  status.value = `任务列表已更新，可见 ${filteredTasks.value.length} 条（总 ${tasks.value.length} 条）`;
+  status.value = "";
 }
 
 async function loadTaskDetail(taskId, withStatusText) {
