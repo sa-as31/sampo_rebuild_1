@@ -55,18 +55,18 @@
         </div>
       </div>
 
-        <div v-else-if="!sidebarCollapsed" class="ops-executor-summary">
-        <div class="status-chip">飞手仅查看当前任务，不可在此页修改任务参数。</div>
+      <div v-else-if="!sidebarCollapsed" class="ops-executor-summary">
+        <div class="status-chip ops-mode-chip">参数已锁定</div>
         <div class="admin-highlight-card compact">
           <p>当前任务</p>
           <strong>{{ runtime.task?.mission_name || "未载入任务" }}</strong>
           <span>任务ID：{{ currentTaskId || "-" }}</span>
-          <span>状态：{{ runtime.task?.status || "待命" }}</span>
+          <span>阶段：{{ runtime.task?.status || "待命" }}</span>
         </div>
         <div class="admin-highlight-card compact">
-          <p>操作说明</p>
-          <strong>任务中心发起</strong>
-          <span>开始执行、申请延期、标记异常请在任务中心完成，这里只负责 2D + 3D 观察与回放。</span>
+          <p>席位状态</p>
+          <strong>观察与值守</strong>
+          <span>启动、延期和异常上报在任务中心处理。</span>
         </div>
       </div>
     </aside>
@@ -75,14 +75,15 @@
       <div class="ops-main-head">
         <div>
           <p class="section-kicker">{{ isEmbedded ? "MISSION STAGE" : "LIVE EXECUTION" }}</p>
-          <h2>{{ isEmbedded ? "实时任务舞台" : "联合运行视图（2D + 3D）" }}</h2>
+          <h2>{{ isEmbedded ? "实时任务舞台" : "实时联合运行" }}</h2>
         </div>
         <button v-if="sidebarCollapsed && !isEmbedded" class="btn secondary" @click="toggleSidebar">显示参数侧栏</button>
       </div>
-      <div class="status-chip">{{ opsStatus }}</div>
+      <div class="status-chip ops-status-banner">{{ opsStatus }}</div>
       <div class="ops-inline-meta">
         <span>任务ID: {{ currentTaskId || "未创建" }}</span>
         <span>状态: {{ runtime.task?.status || "待命" }}</span>
+        <span>当前步: {{ runtime.metrics.step || activeFrame.step || 0 }}</span>
       </div>
 
       <div class="status-cards" style="margin-top: 10px">
@@ -95,10 +96,10 @@
       <div class="ops-dual-view-grid">
         <section class="ops-view-card">
           <h3>2D 俯视运行状态</h3>
-          <div class="legend">
-            {{ isEmbedded ? `当前选中无人机：${selectedDroneId + 1}` : "点击地图空白网格可设置目标点（仅非运行状态可编辑）" }}
+          <div class="ops-inline-meta ops-card-meta">
+            <span>选中无人机 {{ selectedDroneId + 1 }}</span>
+            <span>{{ currentTaskId && !isTerminalStatus(runtime.task?.status) ? "运行锁定" : "待命可编辑" }}</span>
           </div>
-          <div v-if="!isEmbedded" class="legend">当前选中无人机：{{ selectedDroneId + 1 }}</div>
           <div class="canvas-wrap" style="margin-top: 8px">
             <canvas ref="opsCanvasRef" width="880" height="500" @click="onOpsCanvasClick"></canvas>
           </div>
@@ -106,8 +107,10 @@
 
         <section class="ops-view-card">
           <h3>3D 运行状态</h3>
-          <div class="legend">{{ isEmbedded ? "与左侧同帧同步展示" : "与左侧 2D 使用同一任务、同一帧数据" }}</div>
-          <div class="legend">镜头：{{ cameraModeLabel }} · 放大：x{{ zoomScale.toFixed(2) }}</div>
+          <div class="ops-inline-meta ops-card-meta">
+            <span>镜头 {{ cameraModeLabel }}</span>
+            <span>放大 x{{ zoomScale.toFixed(2) }}</span>
+          </div>
           <div class="canvas-wrap" style="margin-top: 8px">
             <canvas ref="ops3dCanvasRef" width="880" height="500"></canvas>
           </div>

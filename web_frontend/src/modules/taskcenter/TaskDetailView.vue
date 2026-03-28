@@ -1,434 +1,388 @@
 <template>
-  <section v-if="isAdmin" class="admin-task-shell">
-    <article class="panel admin-task-hero">
-      <div>
-        <p class="section-kicker">ADMIN WORKSPACE</p>
-        <h2>审核申请并调度任务执行</h2>
-        <div class="admin-subheadline admin-hero-strip">
-          <span>审核队列 {{ pendingReviewTasks.length }}</span>
-          <span>执行调度 {{ activeTasks.length }}</span>
-          <span>归档任务 {{ completedTasks.length }}</span>
-        </div>
-      </div>
-      <div class="admin-summary-row">
-        <div class="status-card">
-          <p>总任务</p>
-          <strong>{{ adminTaskStats.total }}</strong>
-        </div>
-        <div class="status-card">
-          <p>执行中</p>
-          <strong>{{ adminTaskStats.active }}</strong>
-        </div>
-        <div class="status-card">
-          <p>已归档</p>
-          <strong>{{ adminTaskStats.completed }}</strong>
-        </div>
-        <div class="status-card">
-          <p>待审核</p>
-          <strong>{{ adminTaskStats.pending }}</strong>
-        </div>
-      </div>
-    </article>
-
-    <nav class="admin-workspace-tabs">
-      <button class="tab-btn" :class="{ active: adminSection === 'create' }" @click="adminSection = 'create'">审核</button>
-      <button class="tab-btn" :class="{ active: adminSection === 'active' }" @click="adminSection = 'active'">执行</button>
-      <button class="tab-btn" :class="{ active: adminSection === 'completed' }" @click="adminSection = 'completed'">归档</button>
-    </nav>
-
-    <section v-if="adminSection === 'create'" class="admin-workspace-grid admin-dispatch-grid">
-      <article class="panel">
-        <div class="admin-panel-head">
-          <div>
-            <p class="section-kicker">REVIEW QUEUE</p>
-            <h2>待审核申请</h2>
-          </div>
-          <button class="btn" @click="refreshTasks">同步队列</button>
-        </div>
-
-        <div class="admin-subheadline">
-          <span>当前待审核 {{ pendingReviewTasks.length }} 条</span>
-          <span v-if="status">{{ status }}</span>
-        </div>
-
-        <div class="admin-overview-list" style="grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));">
-          <button
-            v-for="task in pendingReviewTasks"
-            :key="task.task_id"
-            class="admin-task-card"
-            @click="$router.push(`/task/${task.task_id}?role=admin&section=create`)"
-          >
-            <span class="admin-task-card-top">
-              <strong>{{ task.mission_name }}</strong>
-              <em>{{ taskCategoryLabel(task.params?.task_category) }}</em>
-            </span>
-            <span class="admin-task-card-meta">{{ requesterLabel(task) }} · {{ task.params?.requested_location || task.params?.map_name || "-" }}</span>
-            <span class="admin-task-card-meta">申请 {{ fmtDateTime(task.created_at) }} · 执行窗口 {{ fmtDateTime(task.params?.scheduled_start_at) }}</span>
-          </button>
-          <div v-if="pendingReviewTasks.length === 0" class="ops-alert-empty">当前没有待审核申请。</div>
-        </div>
-      </article>
-    </section>
-
-    <section v-else-if="adminSection === 'active'" class="admin-workspace-grid admin-active-grid">
-      <article class="panel">
-        <div class="admin-panel-head">
-          <div>
-            <p class="section-kicker">ACTIVE OPS</p>
-            <h2>执行中任务</h2>
-          </div>
-          <button class="btn" @click="refreshTasks">刷新列表</button>
-        </div>
-
-        <div class="admin-subheadline">
-          <span>待执行 {{ activeTasks.filter((task) => ['PREPARING','READY'].includes(task.status)).length }} 条</span>
-          <span>运行或暂停 {{ activeTasks.filter((task) => ['RUNNING','PAUSED'].includes(task.status)).length }} 条</span>
-          <span v-if="status">{{ status }}</span>
-        </div>
-
-        <div class="admin-toolbar-row">
-          <label class="admin-search">
-            <span>搜索任务</span>
-            <input v-model="adminFilters.activeKeyword" placeholder="任务名 / task_id / 飞手" />
-          </label>
-          <label class="admin-search">
-            <span>按日期筛选</span>
-            <div class="date-picker-trigger" @click="openDatePicker(adminActiveDateInputRef)">
-              <input
-                ref="adminActiveDateInputRef"
-                v-model="adminFilters.activeDate"
-                class="date-picker-input"
-                type="date"
-                @keydown.prevent
-                @beforeinput.prevent
-              />
-              <button class="date-picker-button" type="button" @click.stop="openDatePicker(adminActiveDateInputRef)">选择日期</button>
-            </div>
-          </label>
-        </div>
-
-        <div class="admin-overview-list" style="grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));">
-          <button
-            v-for="task in filteredActiveTasks"
-            :key="task.task_id"
-            class="admin-task-card"
-            @click="$router.push(`/task/${task.task_id}?role=admin&section=active`)"
-          >
-            <span class="admin-task-card-top">
-              <strong>{{ task.mission_name }}</strong>
-              <em>{{ taskStageLabel(task.status) }}</em>
-            </span>
-            <span class="admin-task-card-meta">{{ templateLabel(task.template) }} · {{ assigneeLabel(task) }}</span>
-            <span class="admin-task-card-meta">计划开始 {{ fmtDateTime(task.params?.scheduled_start_at) }} · 状态 {{ task.status }}</span>
-          </button>
-          <div v-if="filteredActiveTasks.length === 0" class="ops-alert-empty">当前没有执行中任务。</div>
-        </div>
-      </article>
-    </section>
-
-    <section v-else class="admin-workspace-grid admin-completed-grid">
-      <article class="panel">
-        <div class="admin-panel-head">
-          <div>
-            <p class="section-kicker">ARCHIVE</p>
-            <h2>任务归档</h2>
-          </div>
-          <button class="btn" @click="refreshTasks">刷新历史</button>
-        </div>
-
-        <div class="admin-subheadline">
-          <span>已归档 {{ completedTasks.length }} 条</span>
-          <span v-if="status">{{ status }}</span>
-        </div>
-
-        <div class="admin-toolbar-row">
-          <label class="admin-search">
-            <span>搜索任务</span>
-            <input v-model="adminFilters.completedKeyword" placeholder="任务名 / task_id / 飞手" />
-          </label>
-          <label class="admin-search">
-            <span>按日期筛选</span>
-            <div class="date-picker-trigger" @click="openDatePicker(adminCompletedDateInputRef)">
-              <input
-                ref="adminCompletedDateInputRef"
-                v-model="adminFilters.completedDate"
-                class="date-picker-input"
-                type="date"
-                @keydown.prevent
-                @beforeinput.prevent
-              />
-              <button class="date-picker-button" type="button" @click.stop="openDatePicker(adminCompletedDateInputRef)">选择日期</button>
-            </div>
-          </label>
-        </div>
-
-        <div class="admin-overview-list" style="grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));">
-          <button
-            v-for="task in filteredCompletedTasks"
-            :key="task.task_id"
-            class="admin-task-card"
-            @click="$router.push(`/task/${task.task_id}?role=admin&section=completed`)"
-          >
-            <span class="admin-task-card-top">
-              <strong>{{ task.mission_name }}</strong>
-              <em>{{ taskStageLabel(task.status) }}</em>
-            </span>
-            <span class="admin-task-card-meta">{{ assigneeLabel(task) }} · 归档于 {{ fmtDateTime(task.ended_at || task.updated_at) }}</span>
-            <span class="admin-task-card-meta">系统告警 {{ selectedTaskId === task.task_id ? selectedAlerts.length : Number(task.metrics?.alerts || 0) }} · 状态 {{ task.status }}</span>
-          </button>
-          <div v-if="filteredCompletedTasks.length === 0" class="ops-alert-empty">当前没有已完成任务。</div>
-        </div>
-      </article>
-    </section>
-  </section>
-
-  <section v-else-if="isRequester" class="admin-task-shell">
-    <article class="panel admin-task-hero">
-      <div>
-        <p class="section-kicker">REQUEST WORKSPACE</p>
-        <h2>提交任务申请并追踪审核进展</h2>
-        <div class="admin-subheadline admin-hero-strip">
-          <span>我的申请 {{ requesterTaskStats.total }}</span>
-          <span>待审核 {{ requesterTaskStats.pending }}</span>
-          <span>已通过 {{ requesterTaskStats.approved }}</span>
-        </div>
-      </div>
-      <div class="admin-summary-row">
-        <div class="status-card">
-          <p>申请总数</p>
-          <strong>{{ requesterTaskStats.total }}</strong>
-        </div>
-        <div class="status-card">
-          <p>待审核</p>
-          <strong>{{ requesterTaskStats.pending }}</strong>
-        </div>
-        <div class="status-card">
-          <p>已通过</p>
-          <strong>{{ requesterTaskStats.approved }}</strong>
-        </div>
-        <div class="status-card">
-          <p>已驳回</p>
-          <strong>{{ requesterTaskStats.rejected }}</strong>
-        </div>
-      </div>
-    </article>
-
-    <nav class="admin-workspace-tabs">
-      <button class="tab-btn" :class="{ active: requesterSection === 'create' }" @click="requesterSection = 'create'">发起申请</button>
-      <button class="tab-btn" :class="{ active: requesterSection === 'history' }" @click="requesterSection = 'history'">我的申请</button>
-    </nav>
-
-    <section v-if="requesterSection === 'create'" class="admin-workspace-grid requester-create-grid">
-      <article class="panel requester-form-panel">
-        <div class="admin-panel-head">
-          <div>
-            <p class="section-kicker">NEW REQUEST</p>
-            <h2>新建任务申请</h2>
-          </div>
-        </div>
-
-        <div class="field-grid requester-form-grid">
-          <label>任务名称
-            <input v-model="requestForm.mission_name" placeholder="如：north_zone_patrol_request" />
-          </label>
-          <label>任务类别
-            <select v-model="requestForm.task_category">
-              <option value="patrol">巡逻</option>
-              <option value="show">表演</option>
-              <option value="transport">运输</option>
-            </select>
-          </label>
-          <label>执行地点
-            <input v-model="requestForm.requested_location" placeholder="如：北区 3 号楼天台 / 仓库 A 区" />
-          </label>
-          <label>申请执行时间
-            <input v-model="requestForm.scheduled_start_input" type="datetime-local" />
-          </label>
-        </div>
-
-        <div class="admin-highlight-card">
-          <p>提交预览</p>
-          <strong>{{ requestForm.mission_name }}</strong>
-          <span>{{ taskCategoryLabel(requestForm.task_category) }} · {{ requestForm.requested_location || "未填写地点" }}</span>
-          <span>执行窗口：{{ requesterScheduledPreview }}</span>
-        </div>
-
-        <div class="btn-row" style="margin-top: 12px">
-          <button class="btn" @click="submitTaskRequest">提交任务申请</button>
-        </div>
-        <div v-if="requestStatus" class="status-chip">{{ requestStatus }}</div>
-      </article>
-
-      <article class="panel requester-aside-panel">
-        <div class="admin-panel-head">
-          <div>
-            <p class="section-kicker">QUEUE STATUS</p>
-            <h2>我的申请队列</h2>
-          </div>
-        </div>
-        <div class="status-cards requester-status-grid">
-          <div class="status-card"><p>待审核</p><strong>{{ requesterTaskStats.pending }}</strong></div>
-          <div class="status-card"><p>已通过</p><strong>{{ requesterTaskStats.approved }}</strong></div>
-          <div class="status-card"><p>已驳回</p><strong>{{ requesterTaskStats.rejected }}</strong></div>
-          <div class="status-card"><p>申请总数</p><strong>{{ requesterTaskStats.total }}</strong></div>
-        </div>
-        <div class="admin-highlight-card compact">
-          <p>最近申请</p>
-          <strong>{{ latestRequesterTask?.mission_name || "暂无申请记录" }}</strong>
-          <span v-if="latestRequesterTask">
-            {{ taskStageLabel(latestRequesterTask.status) }} · {{ fmtDateTime(latestRequesterTask.updated_at || latestRequesterTask.created_at) }}
-          </span>
-          <span v-else>提交后会在这里看到最新处理进展。</span>
-        </div>
-      </article>
-    </section>
-
-    <section v-else class="admin-workspace-grid requester-history-grid">
-      <article class="panel">
-        <div class="admin-panel-head">
-          <div>
-            <p class="section-kicker">REQUEST HISTORY</p>
-            <h2>我的申请记录</h2>
-          </div>
-          <button class="btn" @click="refreshTasks">刷新列表</button>
-        </div>
-
-        <div class="admin-subheadline">
-          <span>待审核 {{ requesterTaskStats.pending }} 条</span>
-          <span>已通过 {{ requesterTaskStats.approved }} 条</span>
-        </div>
-
-        <div class="admin-overview-list">
-          <button
-            v-for="task in requesterTasks"
-            :key="task.task_id"
-            class="admin-task-card"
-            :class="{ active: task.task_id === selectedTaskId }"
-            @click="selectTask(task.task_id)"
-          >
-            <span class="admin-task-card-top">
-              <strong>{{ task.mission_name }}</strong>
-              <em>{{ taskStageLabel(task.status) }}</em>
-            </span>
-            <span class="admin-task-card-meta">{{ taskCategoryLabel(task.params?.task_category) }} · {{ task.params?.requested_location || "-" }}</span>
-            <span class="admin-task-card-meta">飞手 {{ assigneeLabel(task) }} · 执行窗口 {{ fmtDateTime(task.params?.scheduled_start_at) }}</span>
-          </button>
-          <div v-if="requesterTasks.length === 0" class="ops-alert-empty">当前还没有提交任务申请。</div>
-        </div>
-      </article>
-    </section>
-  </section>
-
-  <section v-else class="executor-task-shell">
-    <article class="panel admin-task-hero executor-task-hero">
-      <div>
-        <p class="section-kicker">FLIGHT DESK</p>
-        <h2>我的任务队列</h2>
-        <div class="admin-subheadline admin-hero-strip">
-          <span>待执行 {{ executorTaskStats.queued }}</span>
-          <span>执行中 {{ executorTaskStats.active }}</span>
-          <span>已结束 {{ executorTaskStats.finished }}</span>
-        </div>
-      </div>
-      <div class="admin-summary-row">
-        <div class="status-card">
-          <p>任务总数</p>
-          <strong>{{ executorTaskStats.total }}</strong>
-        </div>
-        <div class="status-card">
-          <p>待执行</p>
-          <strong>{{ executorTaskStats.queued }}</strong>
-        </div>
-        <div class="status-card">
-          <p>执行中</p>
-          <strong>{{ executorTaskStats.active }}</strong>
-        </div>
-        <div class="status-card">
-          <p>已结束</p>
-          <strong>{{ executorTaskStats.finished }}</strong>
-        </div>
-      </div>
-    </article>
-
-    <article class="panel executor-task-list">
+  <section class="task-detail-page">
+    <article class="panel">
       <div class="admin-panel-head">
         <div>
-          <p class="section-kicker">TASK FILTERS</p>
-          <h2>分配给我的任务</h2>
+          <button class="btn secondary" @click="$router.back()" style="margin-bottom: 12px">← 返回列表</button>
+          <h2>{{ selectedTask?.mission_name || "任务详情" }}</h2>
         </div>
-        <button class="btn" @click="refreshTasks">刷新列表</button>
+        <div class="btn-row" v-if="adminSection === 'active' || isExecutor">
+          <button v-if="adminSection === 'active'" class="btn secondary" @click="runTaskAction('start')">立即开始</button>
+          <button v-if="adminSection === 'active'" class="btn secondary" @click="runTaskAction('pause')">暂停</button>
+          <button v-if="adminSection === 'active'" class="btn secondary" @click="runTaskAction('resume')">继续</button>
+          <button v-if="adminSection === 'active'" class="btn secondary" @click="runTaskAction('stop')">停止</button>
+          <button v-if="isExecutor || adminSection === 'completed'" class="btn secondary" @click="exportReport">导出任务报告</button>
+        </div>
       </div>
-
-      <div class="admin-subheadline">
-        <span>待执行 {{ filteredTasks.filter((task) => ['PREPARING', 'READY'].includes(task.status)).length }} 条</span>
-        <span>执行中 {{ filteredTasks.filter((task) => ['RUNNING', 'PAUSED'].includes(task.status)).length }} 条</span>
-        <span>已结束 {{ filteredTasks.filter((task) => FINAL_STATUSES.has(task.status)).length }} 条</span>
+      <div v-if="selectedTask" class="admin-subheadline task-detail-subheadline">
+        <span>任务ID {{ selectedTask.task_id }}</span>
+        <span>当前阶段 {{ taskStageLabel(selectedTask.status) }}</span>
+        <span>{{ status || "详情已就绪" }}</span>
       </div>
-
-      <div class="field-grid">
-        <label>状态筛选
-          <select v-model="filters.status">
-            <option value="ALL">全部</option>
-            <option value="PREPARING">PREPARING</option>
-            <option value="READY">READY</option>
-            <option value="RUNNING">RUNNING</option>
-            <option value="PAUSED">PAUSED</option>
-            <option value="COMPLETED">COMPLETED</option>
-            <option value="FAILED">FAILED</option>
-            <option value="STOPPED">STOPPED</option>
-          </select>
-        </label>
-        <label>模板筛选
-          <select v-model="filters.template">
-            <option value="ALL">全部</option>
-            <option value="warehouse">仓储巡检</option>
-            <option value="campus">园区配送</option>
-            <option value="emergency">应急调度</option>
-          </select>
-        </label>
-        <label>关键词
-          <input v-model="filters.keyword" placeholder="任务名 / task_id" />
-        </label>
-        <label>按日期筛选
-          <div class="date-picker-trigger" @click="openDatePicker(executorDateInputRef)">
-            <input
-              ref="executorDateInputRef"
-              v-model="filters.date"
-              class="date-picker-input"
-              type="date"
-              @keydown.prevent
-              @beforeinput.prevent
-            />
-            <button class="date-picker-button" type="button" @click.stop="openDatePicker(executorDateInputRef)">选择日期</button>
+        <template v-if="adminSection === 'create' && selectedTask && selectedTask.status === 'PENDING_REVIEW'">
+          <div class="admin-focus-header" style="margin-top: 20px">
+            <div>
+              <p class="section-kicker">APPLICATION SUMMARY</p>
+              <strong>{{ requesterLabel(selectedTask) }}</strong>
+            </div>
+            <span class="admin-focus-badge">{{ taskCategoryLabel(selectedTask.params?.task_category) }}</span>
           </div>
-        </label>
-      </div>
 
-      <div v-if="status" class="status-chip">{{ status }}</div>
+          <div class="task-meta-grid">
+            <div class="task-meta"><span>申请人</span><strong>{{ requesterLabel(selectedTask) }}</strong></div>
+            <div class="task-meta"><span>任务类别</span><strong>{{ taskCategoryLabel(selectedTask.params?.task_category) }}</strong></div>
+            <div class="task-meta"><span>申请地点</span><strong>{{ selectedTask.params?.requested_location || "-" }}</strong></div>
+            <div class="task-meta"><span>申请时间</span><strong>{{ fmtDateTime(selectedTask.params?.scheduled_start_at) }}</strong></div>
+          </div>
 
-      <div class="executor-task-stack">
-        <button
-          v-for="task in filteredTasks"
-          :key="task.task_id"
-          class="admin-task-card"
-          :class="{ active: task.task_id === selectedTaskId }"
-          @click="selectTask(task.task_id)"
-        >
-          <span class="admin-task-card-top">
-            <strong>{{ task.mission_name }}</strong>
-            <em>{{ taskStageLabel(task.status) }}</em>
-          </span>
-          <span class="admin-task-card-meta">{{ templateLabel(task.template) }} · {{ fmtDateTime(task.params?.scheduled_start_at) }}</span>
-          <span class="admin-task-card-meta">任务ID {{ task.task_id }} · 状态 {{ task.status }}</span>
-        </button>
-        <div v-if="filteredTasks.length === 0" class="ops-alert-empty">当前没有分配给你的任务。</div>
-      </div>
+          <div class="field-grid admin-form-grid">
+            <label>分配飞手
+              <select v-model="assignForm.assignee_user_id" @change="syncAssigneeDisplayName">
+                <option value="">请选择飞手</option>
+                <option v-for="user in assignees" :key="user.user_id" :value="user.user_id">{{ user.display_name }} ({{ user.username }})</option>
+              </select>
+            </label>
+            <label>执行数据源
+              <select v-model="assignForm.source">
+                <option value="sample">sample</option>
+                <option value="model">model</option>
+              </select>
+            </label>
+            <label>使用地图
+              <select v-model="assignForm.map_name">
+                <option v-for="item in availableMapChoices" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
+            </label>
+            <label>执行时间
+              <input v-model="assignForm.scheduled_start_input" type="datetime-local" />
+            </label>
+            <label>无人机数量
+              <input v-model.number="assignForm.num_agents" min="1" type="number" />
+            </label>
+            <label>最大帧数
+              <input v-model.number="assignForm.max_frames" min="4" type="number" />
+            </label>
+            <label>节拍(ms)
+              <input v-model.number="assignForm.tick_ms" min="120" step="20" type="number" />
+            </label>
+            <label>审核备注
+              <input v-model="assignForm.review_note" placeholder="可填写审核意见" />
+            </label>
+          </div>
+
+          <div class="field-grid admin-map-import-grid">
+            <label>导入地图(JSON)
+              <input accept=".json,application/json" type="file" @change="onImportMapFile" />
+            </label>
+          </div>
+
+          <div class="admin-highlight-card">
+            <p>审核结果预览</p>
+            <strong>{{ selectedTask.mission_name }}</strong>
+            <span>{{ taskCategoryLabel(selectedTask.params?.task_category) }} · {{ selectedAssigneeLabel }} · {{ assignForm.map_name || "未选地图" }}</span>
+            <span>计划开始：{{ scheduledPreviewText }}</span>
+          </div>
+
+          <div class="btn-row" style="margin-top: 12px">
+            <button class="btn" @click="approveTaskRequest">审核通过并分配飞手</button>
+            <button class="btn secondary" @click="rejectTaskRequest">驳回申请</button>
+          </div>
+          <div v-if="assignStatus" class="status-chip">{{ assignStatus }}</div>
+        </template>
+
+        <template v-else-if="adminSection === 'active' && selectedTask">
+          <div class="admin-focus-header">
+            <div>
+              <p class="section-kicker">LIVE TASK</p>
+              <strong>{{ assigneeLabel(selectedTask) }}</strong>
+            </div>
+            <span class="admin-focus-badge">{{ taskStageLabel(selectedTask.status) }}</span>
+          </div>
+
+          <div class="task-meta-grid admin-metric-strip">
+            <div class="task-meta"><span>任务ID</span><strong>{{ selectedTask.task_id }}</strong></div>
+            <div class="task-meta"><span>地图</span><strong>{{ selectedTask.params?.map_name || "-" }}</strong></div>
+            <div class="task-meta"><span>累计任务数</span><strong>{{ selectedSnapshot?.metrics?.tasks_completed ?? selectedTask?.metrics?.tasks_completed ?? "-" }}</strong></div>
+            <div class="task-meta"><span>吞吐量</span><strong>{{ fmtNumber(selectedSnapshot?.metrics?.throughput ?? selectedTask?.metrics?.throughput, 4) }}</strong></div>
+          </div>
+
+          <section class="admin-active-embedded" style="margin-top: 12px">
+            <OperationsModeView embedded :current-user="currentUser" :focus-task-id="selectedTaskId" :role="props.role" />
+          </section>
+        </template>
+
+        <template v-else-if="adminSection === 'completed' && selectedTask">
+          <div class="admin-focus-header">
+            <div>
+              <p class="section-kicker">ARCHIVE RECAP</p>
+              <strong>{{ assigneeLabel(selectedTask) }}</strong>
+            </div>
+            <span class="admin-focus-badge">{{ taskStageLabel(selectedTask.status) }}</span>
+          </div>
+
+          <div class="task-meta-grid admin-metric-strip">
+            <div class="task-meta"><span>任务ID</span><strong>{{ selectedTask.task_id }}</strong></div>
+            <div class="task-meta"><span>结束时间</span><strong>{{ fmtDateTime(selectedTask.ended_at || selectedTask.updated_at) }}</strong></div>
+            <div class="task-meta"><span>累计任务数</span><strong>{{ selectedSnapshot?.metrics?.tasks_completed ?? selectedTask?.metrics?.tasks_completed ?? "-" }}</strong></div>
+            <div class="task-meta"><span>飞手反馈</span><strong>{{ selectedFeedback.length }}</strong></div>
+          </div>
+
+          <div class="admin-slider-row">
+            <span>回放进度</span>
+            <input
+              v-model.number="replay.frameIndex"
+              :max="Math.max(0, replay.frames.length - 1)"
+              min="0"
+              type="range"
+              @input="drawReplayFrame"
+            />
+            <strong>{{ replay.frameIndex }}/{{ Math.max(0, replay.frames.length - 1) }}</strong>
+          </div>
+          <div class="field-grid" style="margin-top: 10px; max-width: 420px">
+            <label>回放速度(ms/帧)
+              <input v-model.number="replaySpeedInput" max="2000" min="80" step="20" type="number" />
+            </label>
+          </div>
+          <div class="btn-row" style="margin-top: 10px">
+            <button class="btn secondary" @click="applyReplaySpeed">设置回放速度</button>
+          </div>
+          <div class="ops-inline-meta" style="margin-top: 8px">
+            <span>回放节拍 {{ replaySpeedInput }} ms/帧</span>
+            <span>当前帧 {{ replay.frameIndex }}/{{ Math.max(0, replay.frames.length - 1) }}</span>
+          </div>
+
+          <div class="ops-dual-view-grid history-dual-view-grid" style="margin-top: 10px">
+            <section class="ops-view-card history-view-card">
+              <h3>2D 历史回放</h3>
+              <div class="canvas-wrap history-canvas-wrap history-canvas-wrap-2d" style="margin-top: 8px">
+                <canvas ref="historyCanvasRef" width="920" height="460"></canvas>
+              </div>
+            </section>
+            <section class="ops-view-card history-view-card">
+              <h3>3D 历史回放</h3>
+              <div class="canvas-wrap history-canvas-wrap history-canvas-wrap-3d" style="margin-top: 8px">
+                <canvas ref="history3dCanvasRef" width="920" height="460"></canvas>
+              </div>
+            </section>
+          </div>
+
+          <div class="admin-recap-grid">
+            <div class="ops-alerts">
+              <h3>系统告警</h3>
+              <div v-if="selectedAlerts.length === 0" class="ops-alert-empty">无告警记录</div>
+              <div
+                v-for="alert in selectedAlerts"
+                :key="`${alert.ts}-${alert.code}`"
+                class="ops-alert-item"
+                :class="`level-${alert.level}`"
+              >
+                <span class="ops-alert-code">[{{ alert.code }}]</span>
+                <span>{{ alert.message }}</span>
+                <span class="ops-alert-step">step {{ alert.frame_step }}</span>
+              </div>
+            </div>
+
+            <div class="ops-alerts">
+              <h3>飞手反馈</h3>
+              <div v-if="selectedFeedback.length === 0" class="ops-alert-empty">当前没有飞手反馈。</div>
+              <div v-for="item in selectedFeedback" :key="`${item.created_at}-${item.username}-${item.message}`" class="feedback-item">
+                <div class="feedback-head">
+                  <strong>{{ item.display_name || item.username || "未知用户" }}</strong>
+                  <span>{{ feedbackCategoryLabel(item.category) }}</span>
+                  <em>{{ fmtDateTime(item.created_at) }}</em>
+                </div>
+                <p>{{ item.message }}</p>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <template v-else-if="isRequester && selectedTask">
+          <div class="admin-focus-header">
+            <div>
+              <p class="section-kicker">REQUEST STATUS</p>
+              <strong>{{ taskStageLabel(selectedTask.status) }}</strong>
+            </div>
+            <span class="admin-focus-badge">{{ taskCategoryLabel(selectedTask.params?.task_category) }}</span>
+          </div>
+
+          <div class="task-meta-grid admin-metric-strip">
+            <div class="task-meta"><span>申请时间</span><strong>{{ fmtDateTime(selectedTask.created_at) }}</strong></div>
+            <div class="task-meta"><span>计划执行</span><strong>{{ fmtDateTime(selectedTask.params?.scheduled_start_at) }}</strong></div>
+            <div class="task-meta"><span>申请地点</span><strong>{{ selectedTask.params?.requested_location || "-" }}</strong></div>
+            <div class="task-meta"><span>指派飞手</span><strong>{{ assigneeLabel(selectedTask) }}</strong></div>
+          </div>
+
+          <div class="admin-highlight-card">
+            <p>审核意见</p>
+            <strong>{{ selectedTask.params?.review_note || "暂未填写审核意见" }}</strong>
+            <span>最近更新：{{ fmtDateTime(selectedTask.updated_at) }}</span>
+          </div>
+        </template>
+
+        <template v-else-if="isExecutor && selectedTask">
+          <div class="task-meta-grid">
+            <div class="task-meta"><span>任务ID</span><strong>{{ selectedTask.task_id }}</strong></div>
+            <div class="task-meta"><span>任务阶段</span><strong>{{ taskStageLabel(selectedTask.status) }}</strong></div>
+            <div class="task-meta"><span>计划开始</span><strong>{{ fmtDateTime(selectedTask.params?.scheduled_start_at) }}</strong></div>
+            <div class="task-meta"><span>累计任务数</span><strong>{{ selectedSnapshot?.metrics?.tasks_completed ?? selectedTask?.metrics?.tasks_completed ?? "-" }}</strong></div>
+          </div>
+
+          <div class="admin-workspace-tabs compact-tabs" style="margin-top: 12px">
+            <button class="tab-btn" :class="{ active: executorView === 'execute' }" @click="executorView = 'execute'">执行</button>
+            <button class="tab-btn" :class="{ active: executorView === 'feedback' }" @click="executorView = 'feedback'">记录</button>
+            <button class="tab-btn" :class="{ active: executorView === 'history' }" @click="executorView = 'history'">回放</button>
+          </div>
+
+          <section v-if="executorView === 'execute'" class="executor-embedded-run">
+            <div class="executor-action-grid">
+              <section class="executor-action-card">
+                <p class="section-kicker">MISSION CONTROL</p>
+                <h3>执行控制</h3>
+                <div class="btn-row" style="margin-top: 12px">
+                  <button class="btn" @click="startAssignedTask">开始执行</button>
+                  <button class="btn secondary" @click="runTaskAction('pause')">暂停</button>
+                  <button class="btn secondary" @click="runTaskAction('resume')">继续</button>
+                  <button class="btn secondary" @click="runTaskAction('stop')">停止</button>
+                </div>
+              </section>
+
+              <section class="executor-action-card">
+                <p class="section-kicker">FLIGHT SPEED</p>
+                <h3>飞行节拍</h3>
+                <div class="field-grid" style="margin-top: 10px">
+                  <label>速度(ms/步)
+                    <input v-model.number="pilotSpeedInput" max="2400" min="120" step="20" type="number" />
+                  </label>
+                </div>
+                <div class="btn-row" style="margin-top: 10px">
+                  <button class="btn secondary" @click="setPilotTaskSpeed(pilotSpeedInput)">设置速度</button>
+                </div>
+                <div class="ops-inline-meta" style="margin-top: 10px">
+                  <span>当前节拍 {{ selectedTask?.tick_ms || selectedTask?.params?.tick_ms || 320 }} ms/步</span>
+                </div>
+              </section>
+            </div>
+            <div v-if="feedbackStatus" class="status-chip">{{ feedbackStatus }}</div>
+            <OperationsModeView embedded :current-user="currentUser" :focus-task-id="selectedTaskId" :role="props.role" />
+          </section>
+
+          <section v-else-if="executorView === 'feedback'" class="executor-feedback-panel">
+            <div class="admin-panel-head">
+              <div>
+                <p class="section-kicker">FIELD NOTES</p>
+                <h2>现场记录</h2>
+              </div>
+            </div>
+            <div class="admin-highlight-card compact">
+              <p>当前任务</p>
+              <strong>{{ selectedTask.mission_name }}</strong>
+              <span>{{ taskStageLabel(selectedTask.status) }} · {{ fmtDateTime(selectedTask.params?.scheduled_start_at) }}</span>
+            </div>
+
+            <label class="login-label">
+              记录类型
+              <select v-model="feedbackForm.category">
+                <option value="issue">问题</option>
+                <option value="risk">风险</option>
+                <option value="note">备注</option>
+              </select>
+            </label>
+            <label class="login-label">
+              记录内容
+              <textarea v-model="feedbackForm.message" class="feedback-textarea" placeholder="例如：北侧障碍与现场不一致，第 3 架无人机等待时间持续抬升。"></textarea>
+            </label>
+
+            <div class="btn-row" style="margin-top: 12px">
+              <button class="btn secondary" @click="requestTaskDelay">申请延期</button>
+              <button class="btn secondary" @click="reportTaskAnomaly">标记异常</button>
+              <button class="btn" @click="submitExecutorFeedback">提交记录</button>
+            </div>
+            <div v-if="feedbackStatus" class="status-chip">{{ feedbackStatus }}</div>
+
+            <div class="ops-alerts" style="margin-top: 12px">
+              <h3>已提交记录</h3>
+              <div v-if="selectedFeedback.length === 0" class="ops-alert-empty">当前没有记录。</div>
+              <div v-for="item in selectedFeedback" :key="`${item.created_at}-${item.username}-${item.message}`" class="feedback-item">
+                <div class="feedback-head">
+                  <strong>{{ item.display_name || item.username || "未知用户" }}</strong>
+                  <span>{{ feedbackCategoryLabel(item.category) }}</span>
+                  <em>{{ fmtDateTime(item.created_at) }}</em>
+                </div>
+                <p>{{ item.message }}</p>
+              </div>
+            </div>
+          </section>
+
+          <section v-else class="executor-history-panel">
+            <div class="admin-panel-head">
+              <div>
+                <p class="section-kicker">TASK REPLAY</p>
+                <h2>历史回放与告警</h2>
+              </div>
+            </div>
+            <div class="executor-toolbar" style="margin-top: 12px">
+              <button class="btn secondary" @click="loadReplay">加载历史回放</button>
+              <button class="btn secondary" @click="togglePlayback">{{ replay.playing ? "暂停回放" : "播放回放" }}</button>
+              <input
+                v-model.number="replay.frameIndex"
+                :max="Math.max(0, replay.frames.length - 1)"
+                min="0"
+                type="range"
+                @input="drawReplayFrame"
+              />
+            </div>
+            <div class="field-grid" style="margin-top: 10px; max-width: 420px">
+              <label>回放速度(ms/帧)
+                <input v-model.number="replaySpeedInput" max="2000" min="80" step="20" type="number" />
+              </label>
+            </div>
+            <div class="btn-row" style="margin-top: 10px">
+              <button class="btn secondary" @click="applyReplaySpeed">设置回放速度</button>
+            </div>
+            <div class="ops-inline-meta" style="margin-top: 8px">
+              <span>回放节拍 {{ replaySpeedInput }} ms/帧</span>
+              <span>当前帧 {{ replay.frameIndex }}/{{ Math.max(0, replay.frames.length - 1) }}</span>
+            </div>
+
+            <div class="ops-dual-view-grid history-dual-view-grid" style="margin-top: 10px">
+              <section class="ops-view-card history-view-card">
+                <h3>2D 历史回放</h3>
+                <div class="canvas-wrap history-canvas-wrap history-canvas-wrap-2d" style="margin-top: 8px">
+                  <canvas ref="executorHistoryCanvasRef" width="920" height="460"></canvas>
+                </div>
+              </section>
+              <section class="ops-view-card history-view-card">
+                <h3>3D 历史回放</h3>
+                <div class="canvas-wrap history-canvas-wrap history-canvas-wrap-3d" style="margin-top: 8px">
+                  <canvas ref="executorHistory3dCanvasRef" width="920" height="460"></canvas>
+                </div>
+              </section>
+            </div>
+
+            <div class="ops-alerts" style="margin-top: 10px">
+              <h3>任务告警</h3>
+              <div v-if="selectedAlerts.length === 0" class="ops-alert-empty">无告警记录</div>
+              <div
+                v-for="alert in selectedAlerts"
+                :key="`${alert.ts}-${alert.code}`"
+                class="ops-alert-item"
+                :class="`level-${alert.level}`"
+              >
+                <span class="ops-alert-code">[{{ alert.code }}]</span>
+                <span>{{ alert.message }}</span>
+                <span class="ops-alert-step">step {{ alert.frame_step }}</span>
+              </div>
+            </div>
+          </section>
+        </template>
     </article>
   </section>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import OperationsModeView from "../operations/OperationsModeView.vue";
 import {
   controlOpsTask,
@@ -457,11 +411,30 @@ const props = defineProps({
     type: String,
     default: "executor",
   },
+  section: {
+    type: String,
+    default: "create",
+  },
+  taskId: {
+    type: String,
+    default: "",
+  },
   currentUser: {
     type: Object,
     default: null,
   },
 });
+
+const route = useRoute();
+const router = useRouter();
+
+const adminSection = computed(() => props.section);
+const requesterSection = computed(() => props.section);
+const isAdmin = computed(() => props.role === "admin");
+const isRequester = computed(() => props.role === "requester");
+const isExecutor = computed(() => props.role === "executor");
+
+const currentUserId = computed(() => props.currentUser?.user_id || "");
 
 const renderer = createRenderer();
 const liveCanvasRef = ref(null);
@@ -486,7 +459,6 @@ const assignees = ref([]);
 const importedMaps = ref(loadImportedMaps());
 const replayTimer = ref(null);
 const replayVisualTimer = ref(null);
-const adminSection = ref("create");
 let pollTimer = null;
 
 const filters = reactive({
@@ -529,7 +501,6 @@ const feedbackForm = reactive({
   message: "",
 });
 const executorView = ref("execute");
-const requesterSection = ref("create");
 const reviewFormTaskId = ref("");
 const pilotSpeedInput = ref(1200);
 const replaySpeedInput = ref(220);
@@ -547,18 +518,15 @@ const replayViewState = reactive({
   selectedDroneId: 0,
 });
 
-const isAdmin = computed(() => props.role === "admin");
-const isRequester = computed(() => props.role === "requester");
-const currentUserId = computed(() => props.currentUser?.user_id || "");
-const currentUser = computed(() => props.currentUser);
 const hasExecutorSelection = computed(() => !isAdmin.value && !!selectedTaskId.value && !!selectedTask.value);
-const executorAssignedTasks = computed(() =>
-  tasks.value.filter((task) => String(task?.params?.assignee_user_id || "") === currentUserId.value),
-);
 
 const filteredTasks = computed(() => {
   const keyword = filters.keyword.trim().toLowerCase();
-  return executorAssignedTasks.value.filter((task) => {
+  return tasks.value.filter((task) => {
+    if (!isAdmin.value) {
+      const assignee = String(task?.params?.assignee_user_id || "");
+      if (!assignee || assignee !== currentUserId.value) return false;
+    }
     if (filters.status !== "ALL" && task.status !== filters.status) return false;
     if (filters.template !== "ALL" && task.template !== filters.template) return false;
     if (filters.date && !matchTaskDate(task, filters.date)) return false;
@@ -615,17 +583,6 @@ const requesterTaskStats = computed(() => ({
   pending: requesterTasks.value.filter((task) => task.status === "PENDING_REVIEW").length,
   approved: requesterTasks.value.filter((task) => ACTIVE_STATUSES.has(task.status) || task.status === "COMPLETED").length,
   rejected: requesterTasks.value.filter((task) => task.status === "REJECTED").length,
-}));
-const latestRequesterTask = computed(() =>
-  requesterTasks.value
-    .slice()
-    .sort((a, b) => Number(b.updated_at || b.created_at || 0) - Number(a.updated_at || a.created_at || 0))[0] || null,
-);
-const executorTaskStats = computed(() => ({
-  total: executorAssignedTasks.value.length,
-  queued: executorAssignedTasks.value.filter((task) => ["PREPARING", "READY"].includes(task.status)).length,
-  active: executorAssignedTasks.value.filter((task) => ["RUNNING", "PAUSED"].includes(task.status)).length,
-  finished: executorAssignedTasks.value.filter((task) => FINAL_STATUSES.has(task.status)).length,
 }));
 
 function fmtNumber(value, digits = 2) {
@@ -806,6 +763,29 @@ function saveImportedMaps() {
   window.localStorage.setItem("OPS_IMPORTED_MAPS", JSON.stringify(importedMaps.value.slice(-20)));
 }
 
+async function onImportMapFile(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const versionedName = ensureVersionedMapName(data.name || file.name.replace(/\.json$/i, ""));
+    data.name = versionedName;
+    const newEntry = {
+      map_name: versionedName,
+      source: "imported",
+      imported_at: Math.floor(Date.now() / 1000),
+      data: data,
+    };
+    importedMaps.value.push(newEntry);
+    saveImportedMaps();
+    assignForm.map_name = versionedName;
+    assignStatus.value = `地图 ${versionedName} 导入成功`;
+  } catch (error) {
+    assignStatus.value = `导入失败：${error.message}`;
+  }
+}
+
 function drawEmptyCanvas(canvas, message) {
   if (!canvas) return;
   resizeCanvasToDisplaySize(canvas);
@@ -892,33 +872,6 @@ function ensureSelectedTask() {
   stopReplayTimer();
   stopReplayVisualTimer();
   drawEmptyCanvas(liveCanvasRef.value, "请选择左侧任务以展开执行详情");
-}
-
-async function selectTask(taskId) {
-  stopReplayTimer();
-  replay.available = false;
-  replay.frames = [];
-  replay.environment = null;
-  replay.frameIndex = 0;
-  replay.reason = "";
-  selectedTaskId.value = taskId;
-  if (!isAdmin.value) executorView.value = "execute";
-  await loadTaskDetail(taskId, true);
-}
-
-function closeExecutorDetail() {
-  if (isAdmin.value) return;
-  selectedTaskId.value = "";
-  selectedTask.value = null;
-  selectedSnapshot.value = null;
-  selectedAlerts.value = [];
-  selectedFeedback.value = [];
-  stopReplayTimer();
-  stopReplayVisualTimer();
-  drawEmptyCanvas(liveCanvasRef.value, "请选择左侧任务以展开执行详情");
-  drawEmptyCanvas(executorHistoryCanvasRef.value, "请选择左侧任务以查看历史回放");
-  drawEmptyCanvas(executorHistory3dCanvasRef.value, "请选择左侧任务以查看历史回放");
-  status.value = "";
 }
 
 async function loadTaskDetail(taskId, withStatusText) {
@@ -1288,33 +1241,6 @@ async function runTaskAction(action) {
   }
 }
 
-function onImportMapFile(event) {
-  if (!isAdmin.value) return;
-  const file = event?.target?.files?.[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const parsed = JSON.parse(String(reader.result || "{}"));
-      const rawMapName = String(parsed.map_name || file.name.replace(/\.[^.]+$/, "") || "imported-map");
-      const mapName = ensureVersionedMapName(rawMapName);
-      const item = {
-        id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-        map_name: mapName,
-        file_name: file.name,
-        ts: Date.now() / 1000,
-      };
-      importedMaps.value = [item, ...importedMaps.value].slice(0, 20);
-      saveImportedMaps();
-      assignForm.map_name = mapName;
-      assignStatus.value = `地图已导入：${mapName}`;
-    } catch (error) {
-      assignStatus.value = `地图导入失败：${error.message}`;
-    }
-  };
-  reader.readAsText(file, "utf-8");
-}
-
 function applyImportedMap(item) {
   assignForm.map_name = item.map_name;
   assignStatus.value = `已选择地图：${item.map_name}`;
@@ -1496,11 +1422,10 @@ watch(executorView, async (view) => {
 
 onMounted(async () => {
   await refreshAssignees();
-  await refreshTasks();
-  pollTimer = window.setInterval(() => refreshTasks(), 3200);
-  drawEmptyCanvas(executorHistoryCanvasRef.value, "请选择左侧任务以查看历史回放");
-  drawEmptyCanvas(executorHistory3dCanvasRef.value, "请选择左侧任务以查看历史回放");
-  drawEmptyCanvas(history3dCanvasRef.value, "暂无可展示回放");
+  if (props.taskId) {
+    selectedTaskId.value = props.taskId;
+    await loadTaskDetail(props.taskId, false);
+  }
   ensureReplayVisualTimer();
 });
 
