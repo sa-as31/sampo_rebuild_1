@@ -384,6 +384,7 @@
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import OperationsModeView from "../operations/OperationsModeView.vue";
+import { useAuthStore } from "../../stores/auth";
 import {
   controlOpsTask,
   createOpsTask,
@@ -427,6 +428,7 @@ const props = defineProps({
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 
 const adminSection = computed(() => props.section);
 const requesterSection = computed(() => props.section);
@@ -434,7 +436,8 @@ const isAdmin = computed(() => props.role === "admin");
 const isRequester = computed(() => props.role === "requester");
 const isExecutor = computed(() => props.role === "executor");
 
-const currentUserId = computed(() => props.currentUser?.user_id || "");
+const currentUser = computed(() => props.currentUser || authStore.state.currentUser || null);
+const currentUserId = computed(() => currentUser.value?.user_id || "");
 
 const renderer = createRenderer();
 const liveCanvasRef = ref(null);

@@ -302,8 +302,10 @@
 
 - 文件：
   - `web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+  - `web_frontend/src/modules/taskcenter/TaskDetailView.vue`
 - 主要修改：
   - 修复“提交成功后看不到我的申请数据变动”的交互问题
   - 申请提交成功后，先刷新任务列表，再自动切换到 `我的申请`
   - 保留新创建任务的 `task_id` 作为当前选中项，进入历史页后直接看到刚提交的申请详情
   - 成功提示改为“已切换到我的申请”，让状态反馈更直接
+  - 修复任务中心和任务详情页未正确读取当前登录用户的问题，避免 `我的申请` / `分配给我的任务` 因 `currentUser` 为空而筛选不到数据

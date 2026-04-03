@@ -393,6 +393,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import OperationsModeView from "../operations/OperationsModeView.vue";
+import { useAuthStore } from "../../stores/auth";
 import {
   controlOpsTask,
   createOpsTask,
@@ -426,6 +427,7 @@ const props = defineProps({
   },
 });
 
+const authStore = useAuthStore();
 const renderer = createRenderer();
 const liveCanvasRef = ref(null);
 const historyCanvasRef = ref(null);
@@ -512,8 +514,9 @@ const replayViewState = reactive({
 
 const isAdmin = computed(() => props.role === "admin");
 const isRequester = computed(() => props.role === "requester");
-const currentUserId = computed(() => props.currentUser?.user_id || "");
-const currentUser = computed(() => props.currentUser);
+const resolvedCurrentUser = computed(() => props.currentUser || authStore.state.currentUser || null);
+const currentUserId = computed(() => resolvedCurrentUser.value?.user_id || "");
+const currentUser = computed(() => resolvedCurrentUser.value);
 const hasExecutorSelection = computed(() => !isAdmin.value && !!selectedTaskId.value && !!selectedTask.value);
 const executorAssignedTasks = computed(() =>
   tasks.value.filter((task) => String(task?.params?.assignee_user_id || "") === currentUserId.value),
