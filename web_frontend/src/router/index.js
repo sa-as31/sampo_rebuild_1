@@ -25,7 +25,12 @@ const routes = [
       },
       {
         path: 'admin',
-        redirect: '/admin/pending',
+        redirect: '/admin/overview',
+      },
+      {
+        path: 'admin/overview',
+        component: RoleWorkspace,
+        props: { role: 'admin', section: 'overview' }
       },
       {
         path: 'admin/pending',

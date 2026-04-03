@@ -1065,6 +1065,16 @@ body {
   gap: 10px;
 }
 
+.admin-overview-status-cards {
+  margin-top: 14px;
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+}
+
+.admin-overview-route-list {
+  margin-top: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .admin-subheadline {
   margin-top: 14px;
   display: flex;
@@ -1778,6 +1788,11 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .admin-overview-status-cards,
+  .admin-overview-route-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .executor-task-list {
     position: static;
   }
@@ -1835,6 +1850,11 @@ body {
 
   .admin-summary-row {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-overview-status-cards,
+  .admin-overview-route-list {
+    grid-template-columns: 1fr;
   }
 
   .admin-slider-row {

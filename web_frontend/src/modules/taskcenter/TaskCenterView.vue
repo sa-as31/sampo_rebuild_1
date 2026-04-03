@@ -1,42 +1,70 @@
 <template>
   <section v-if="isAdmin" class="admin-task-shell">
-    <article class="panel admin-task-hero">
-      <div>
-        <p class="section-kicker">ADMIN WORKSPACE</p>
-        <h2>审核申请并调度任务执行</h2>
-        <div class="admin-subheadline admin-hero-strip">
-          <span>审核队列 {{ pendingReviewTasks.length }}</span>
-          <span>执行调度 {{ activeTasks.length }}</span>
-          <span>归档任务 {{ completedTasks.length }}</span>
+    <section v-if="adminSection === 'overview'" class="admin-workspace-grid admin-overview-grid">
+      <article class="panel">
+        <div class="admin-panel-head">
+          <div>
+            <p class="section-kicker">ADMIN OVERVIEW</p>
+            <h2>调度总览</h2>
+          </div>
+          <button class="btn" @click="refreshTasks">同步数据</button>
         </div>
-      </div>
-      <div class="admin-summary-row">
-        <div class="status-card">
-          <p>总任务</p>
-          <strong>{{ adminTaskStats.total }}</strong>
-        </div>
-        <div class="status-card">
-          <p>执行中</p>
-          <strong>{{ adminTaskStats.active }}</strong>
-        </div>
-        <div class="status-card">
-          <p>已归档</p>
-          <strong>{{ adminTaskStats.completed }}</strong>
-        </div>
-        <div class="status-card">
-          <p>待审核</p>
-          <strong>{{ adminTaskStats.pending }}</strong>
-        </div>
-      </div>
-    </article>
 
-    <nav class="admin-workspace-tabs">
-      <button class="tab-btn" :class="{ active: adminSection === 'create' }" @click="adminSection = 'create'">审核</button>
-      <button class="tab-btn" :class="{ active: adminSection === 'active' }" @click="adminSection = 'active'">执行</button>
-      <button class="tab-btn" :class="{ active: adminSection === 'completed' }" @click="adminSection = 'completed'">归档</button>
-    </nav>
+        <div class="status-cards admin-overview-status-cards">
+          <div class="status-card">
+            <p>总任务</p>
+            <strong>{{ adminTaskStats.total }}</strong>
+          </div>
+          <div class="status-card">
+            <p>执行中</p>
+            <strong>{{ adminTaskStats.active }}</strong>
+          </div>
+          <div class="status-card">
+            <p>已归档</p>
+            <strong>{{ adminTaskStats.completed }}</strong>
+          </div>
+          <div class="status-card">
+            <p>待审核</p>
+            <strong>{{ adminTaskStats.pending }}</strong>
+          </div>
+        </div>
 
-    <section v-if="adminSection === 'create'" class="admin-workspace-grid admin-dispatch-grid">
+        <div class="admin-overview-list admin-overview-route-list">
+          <button class="admin-task-card" @click="$router.push('/admin/pending')">
+            <span class="admin-task-card-top">
+              <strong>审核队列</strong>
+              <em>{{ pendingReviewTasks.length }} 条</em>
+            </span>
+            <span class="admin-task-card-meta">查看新申请、审批结论与任务分配。</span>
+          </button>
+          <button class="admin-task-card" @click="$router.push('/admin/active')">
+            <span class="admin-task-card-top">
+              <strong>执行调度</strong>
+              <em>{{ activeTasks.length }} 条</em>
+            </span>
+            <span class="admin-task-card-meta">跟进待执行、执行中与暂停任务。</span>
+          </button>
+          <button class="admin-task-card" @click="$router.push('/admin/completed')">
+            <span class="admin-task-card-top">
+              <strong>任务归档</strong>
+              <em>{{ completedTasks.length }} 条</em>
+            </span>
+            <span class="admin-task-card-meta">查看回放、告警与任务闭环结果。</span>
+          </button>
+        </div>
+
+        <div class="admin-highlight-card compact">
+          <p>最新状态</p>
+          <strong>{{ latestAdminTask?.mission_name || "当前暂无任务" }}</strong>
+          <span v-if="latestAdminTask">
+            {{ taskStageLabel(latestAdminTask.status) }} · {{ fmtDateTime(latestAdminTask.updated_at || latestAdminTask.created_at) }}
+          </span>
+          <span v-else>任务队列更新后会在这里显示最近变更。</span>
+        </div>
+      </article>
+    </section>
+
+    <section v-else-if="adminSection === 'create'" class="admin-workspace-grid admin-dispatch-grid">
       <article class="panel">
         <div class="admin-panel-head">
           <div>
@@ -184,8 +212,8 @@
 
   <section v-else-if="isRequester" class="admin-task-shell">
     <nav class="admin-workspace-tabs">
-      <button class="tab-btn" :class="{ active: requesterSection === 'create' }" @click="requesterSection = 'create'">发起申请</button>
-      <button class="tab-btn" :class="{ active: requesterSection === 'history' }" @click="requesterSection = 'history'">我的申请</button>
+      <button class="tab-btn" :class="{ active: requesterSection === 'create' }" @click="router.push('/requester/create')">发起申请</button>
+      <button class="tab-btn" :class="{ active: requesterSection === 'history' }" @click="router.push('/requester/history')">我的申请</button>
     </nav>
 
     <section v-if="requesterSection === 'create'" class="admin-workspace-grid requester-create-grid requester-create-grid-single">
@@ -392,6 +420,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import OperationsModeView from "../operations/OperationsModeView.vue";
 import { useAuthStore } from "../../stores/auth";
 import {
@@ -421,12 +450,17 @@ const props = defineProps({
     type: String,
     default: "executor",
   },
+  section: {
+    type: String,
+    default: "",
+  },
   currentUser: {
     type: Object,
     default: null,
   },
 });
 
+const router = useRouter();
 const authStore = useAuthStore();
 const renderer = createRenderer();
 const liveCanvasRef = ref(null);
@@ -451,7 +485,7 @@ const assignees = ref([]);
 const importedMaps = ref(loadImportedMaps());
 const replayTimer = ref(null);
 const replayVisualTimer = ref(null);
-const adminSection = ref("create");
+const adminSection = ref("overview");
 let pollTimer = null;
 
 const filters = reactive({
@@ -576,6 +610,11 @@ const adminTaskStats = computed(() => ({
   completed: completedTasks.value.length,
   pending: pendingReviewTasks.value.length,
 }));
+const latestAdminTask = computed(() =>
+  tasks.value
+    .slice()
+    .sort((a, b) => Number(b.updated_at || b.created_at || 0) - Number(a.updated_at || a.created_at || 0))[0] || null,
+);
 const requesterTaskStats = computed(() => ({
   total: requesterTasks.value.length,
   pending: requesterTasks.value.filter((task) => task.status === "PENDING_REVIEW").length,
@@ -1407,6 +1446,7 @@ async function submitTaskRequest() {
     selectedTaskId.value = createdTaskId;
     await refreshTasks();
     requesterSection.value = "history";
+    router.push("/requester/history");
     requestStatus.value = createdTaskId
       ? `申请已提交，已切换到“我的申请”。申请编号 ${createdTaskId}`
       : "申请已提交，已切换到“我的申请”。";
@@ -1414,6 +1454,20 @@ async function submitTaskRequest() {
     requestStatus.value = `提交申请失败：${error.message}`;
   }
 }
+
+watch(
+  () => props.section,
+  (section) => {
+    if (isAdmin.value) {
+      adminSection.value = section || "overview";
+      return;
+    }
+    if (isRequester.value) {
+      requesterSection.value = section || "create";
+    }
+  },
+  { immediate: true },
+);
 
 watch(adminSection, async (section) => {
   if (!isAdmin.value) return;

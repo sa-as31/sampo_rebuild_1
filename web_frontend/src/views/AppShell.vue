@@ -55,7 +55,10 @@ const route = useRoute();
 const authStore = useAuthStore();
 
 const adminTabs = [
-  { path: "/admin", label: "审核与调度" },
+  { path: "/admin/overview", label: "总览" },
+  { path: "/admin/pending", label: "审核" },
+  { path: "/admin/active", label: "执行" },
+  { path: "/admin/completed", label: "归档" },
 ];
 const requesterTabs = [
   { path: "/requester", label: "任务申请" },
@@ -86,6 +89,7 @@ const roleLabel = computed(() => {
 const pageTitle = computed(() => {
   if (route.path.startsWith("/task/")) return "任务详情";
   if (currentRole.value === "admin") {
+    if (route.path.startsWith("/admin/overview")) return "总览";
     if (route.path.startsWith("/admin/active")) return "执行调度";
     if (route.path.startsWith("/admin/completed")) return "任务归档";
     return "审核申请";
