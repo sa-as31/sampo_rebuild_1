@@ -7,7 +7,7 @@
           <h1>{{ pageTitle }}</h1>
           <span class="workspace-badge">{{ workspaceBadge }}</span>
         </div>
-        <p class="brand-intro">{{ pageIntro }}</p>
+        <p v-if="pageIntro" class="brand-intro">{{ pageIntro }}</p>
       </div>
       <div class="role-entry">
         <div class="account-chip">
@@ -84,15 +84,25 @@ const roleLabel = computed(() => {
 });
 
 const pageTitle = computed(() => {
-  if (currentRole.value === "admin") return "审核申请并调度飞手执行";
-  if (currentRole.value === "requester") return "提交任务申请并跟进审批结果";
-  return "接收任务、执行飞行并完成值守记录";
+  if (route.path.startsWith("/task/")) return "任务详情";
+  if (currentRole.value === "admin") {
+    if (route.path.startsWith("/admin/active")) return "执行调度";
+    if (route.path.startsWith("/admin/completed")) return "任务归档";
+    return "审核申请";
+  }
+  if (currentRole.value === "requester") {
+    if (route.path.startsWith("/requester/history")) return "我的申请";
+    return "提交任务申请";
+  }
+  if (route.path.startsWith("/executor/dashboard")) return "运营观测";
+  return "任务中心";
 });
 
 const pageIntro = computed(() => {
-  if (currentRole.value === "admin") return "围绕审核队列、执行调度和归档复盘组织统一运营工作台。";
-  if (currentRole.value === "requester") return "用统一入口提交任务，并持续查看审批、分配和执行进展。";
-  return "围绕单个任务完成执行观察、异常记录与历史回放。";
+  if (currentRole.value === "requester" && route.path.startsWith("/requester/create")) {
+    return "提交后可在我的申请中查看审批和分配进展。";
+  }
+  return "";
 });
 
 const workspaceBadge = computed(() => {
