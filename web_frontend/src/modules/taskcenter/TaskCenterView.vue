@@ -1400,9 +1400,13 @@ async function submitTaskRequest() {
       scheduled_start_at: scheduledStartAt,
       scheduled_start_label: fmtDateTime(scheduledStartAt),
     });
-    selectedTaskId.value = created?.task?.task_id || "";
-    requestStatus.value = `申请已提交，等待管理员审核。申请编号 ${selectedTaskId.value}`;
+    const createdTaskId = created?.task?.task_id || "";
+    selectedTaskId.value = createdTaskId;
     await refreshTasks();
+    requesterSection.value = "history";
+    requestStatus.value = createdTaskId
+      ? `申请已提交，已切换到“我的申请”。申请编号 ${createdTaskId}`
+      : "申请已提交，已切换到“我的申请”。";
   } catch (error) {
     requestStatus.value = `提交申请失败：${error.message}`;
   }
