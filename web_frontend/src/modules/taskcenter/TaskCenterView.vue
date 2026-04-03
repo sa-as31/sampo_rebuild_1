@@ -311,36 +311,6 @@
   </section>
 
   <section v-else class="executor-task-shell">
-    <article class="panel admin-task-hero executor-task-hero">
-      <div>
-        <p class="section-kicker">FLIGHT DESK</p>
-        <h2>我的任务队列</h2>
-        <div class="admin-subheadline admin-hero-strip">
-          <span>待执行 {{ executorTaskStats.queued }}</span>
-          <span>执行中 {{ executorTaskStats.active }}</span>
-          <span>已结束 {{ executorTaskStats.finished }}</span>
-        </div>
-      </div>
-      <div class="admin-summary-row">
-        <div class="status-card">
-          <p>任务总数</p>
-          <strong>{{ executorTaskStats.total }}</strong>
-        </div>
-        <div class="status-card">
-          <p>待执行</p>
-          <strong>{{ executorTaskStats.queued }}</strong>
-        </div>
-        <div class="status-card">
-          <p>执行中</p>
-          <strong>{{ executorTaskStats.active }}</strong>
-        </div>
-        <div class="status-card">
-          <p>已结束</p>
-          <strong>{{ executorTaskStats.finished }}</strong>
-        </div>
-      </div>
-    </article>
-
     <article class="panel executor-task-list">
       <div class="admin-panel-head">
         <div>

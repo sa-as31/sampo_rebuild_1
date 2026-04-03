@@ -63,7 +63,11 @@ const routes = [
       },
       {
         path: 'executor',
-        redirect: '/executor/tasks',
+        redirect: '/executor/overview',
+      },
+      {
+        path: 'executor/overview',
+        component: OpsDashboardView,
       },
       {
         path: 'executor/tasks',
@@ -72,7 +76,7 @@ const routes = [
       },
       {
         path: 'executor/dashboard',
-        component: OpsDashboardView,
+        redirect: '/executor/overview',
       }
     ]
   },

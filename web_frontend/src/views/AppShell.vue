@@ -64,8 +64,8 @@ const requesterTabs = [
   { path: "/requester", label: "任务申请" },
 ];
 const executorTabs = [
+  { path: "/executor/overview", label: "总览" },
   { path: "/executor/tasks", label: "任务中心" },
-  { path: "/executor/dashboard", label: "运营观测" },
 ];
 
 const currentRole = computed(() => {
@@ -98,7 +98,7 @@ const pageTitle = computed(() => {
     if (route.path.startsWith("/requester/history")) return "我的申请";
     return "提交任务申请";
   }
-  if (route.path.startsWith("/executor/dashboard")) return "运营观测";
+  if (route.path.startsWith("/executor/overview")) return "总览";
   return "任务中心";
 });
 

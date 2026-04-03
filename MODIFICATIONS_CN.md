@@ -327,3 +327,19 @@
     - `归档`
   - 将管理员页面切换改为真正的路由分页，避免标题、地址和内容不同步
   - 总览页改为紧凑卡片结构，并保留跳转到审核、执行、归档的快捷入口
+
+## 17. 飞手页顶部统计迁入独立“总览”页
+
+- 文件：
+  - `web_frontend/src/router/index.js`
+  - `web_frontend/src/views/AppShell.vue`
+  - `web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+  - `web_frontend/src/modules/dashboard/OpsDashboardView.vue`
+- 主要修改：
+  - 删除飞手任务中心顶部原有的“我的任务队列”大统计区，避免任务页首屏被概览信息占满
+  - 将飞手导航改为：
+    - `总览`
+    - `任务中心`
+  - 新增飞手侧独立 `总览` 路由，原 `executor/dashboard` 兼容跳转到 `executor/overview`
+  - 飞手总览改为只统计“分配给当前飞手”的任务，不再展示全局任务汇总
+  - 总览卡片改为任务总数、待执行、执行中、已结束，并保留焦点任务和任务快照

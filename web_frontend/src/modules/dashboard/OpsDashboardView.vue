@@ -3,8 +3,8 @@
     <article class="panel dashboard-panel-primary">
       <div class="admin-panel-head">
         <div>
-          <p class="section-kicker">OPS DASHBOARD</p>
-          <h2>运营观测</h2>
+          <p class="section-kicker">FLIGHT OVERVIEW</p>
+          <h2>飞手总览</h2>
           <div class="admin-subheadline">
             <span>{{ status }}</span>
             <span>焦点任务 {{ focusTask?.mission_name || "未选定" }}</span>
@@ -18,9 +18,9 @@
 
       <div class="status-cards" style="margin-top: 14px">
         <div class="status-card"><p>任务总数</p><strong>{{ summary.total_tasks }}</strong></div>
-        <div class="status-card"><p>运行中</p><strong>{{ summary.running_tasks }}</strong></div>
-        <div class="status-card"><p>已完成</p><strong>{{ summary.completed_tasks }}</strong></div>
-        <div class="status-card"><p>平均吞吐量</p><strong>{{ fmt(summary.avg_throughput, 4) }}</strong></div>
+        <div class="status-card"><p>待执行</p><strong>{{ summary.queued_tasks }}</strong></div>
+        <div class="status-card"><p>执行中</p><strong>{{ summary.running_tasks }}</strong></div>
+        <div class="status-card"><p>已结束</p><strong>{{ summary.completed_tasks }}</strong></div>
       </div>
 
       <div class="dashboard-task-stack">
@@ -35,16 +35,16 @@
             <strong>{{ task.mission_name }}</strong>
             <em>{{ stageLabel(task.status) }}</em>
           </span>
-          <span class="admin-task-card-meta">{{ task.task_id }} · 吞吐量 {{ fmt(task.metrics?.throughput, 4) }}</span>
-          <span class="admin-task-card-meta">更新于 {{ fmtTime(task.updated_at) }}</span>
+          <span class="admin-task-card-meta">{{ task.task_id }} · 当前步 {{ task.metrics?.step ?? "-" }}</span>
+          <span class="admin-task-card-meta">更新于 {{ fmtTime(task.updated_at) }} · 吞吐量 {{ fmt(task.metrics?.throughput, 4) }}</span>
         </button>
-        <div v-if="dashboardTaskCards.length === 0" class="ops-alert-empty">当前没有可观察的任务。</div>
+        <div v-if="dashboardTaskCards.length === 0" class="ops-alert-empty">当前没有分配给你的任务。</div>
       </div>
     </article>
 
     <article class="panel">
       <p class="section-kicker">LIVE SNAPSHOT</p>
-      <h2>{{ focusTask?.mission_name || "实时任务快照" }}</h2>
+      <h2>{{ focusTask?.mission_name || "任务快照" }}</h2>
       <div class="ops-inline-meta" style="margin-top: 12px">
         <span>任务ID: {{ focusTask?.task_id || "-" }}</span>
         <span>阶段: {{ stageLabel(focusTask?.status) }}</span>
@@ -77,13 +77,15 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { fetchDashboardSummary, fetchOpsAlerts, fetchOpsTasks, getOpsTask } from "../../services/api";
+import { useAuthStore } from "../../stores/auth";
+import { fetchOpsAlerts, fetchOpsTasks, getOpsTask } from "../../services/api";
 import { createRenderer } from "../shared/renderer";
 
 const router = useRouter();
+const authStore = useAuthStore();
 const renderer = createRenderer();
 const canvasRef = ref(null);
-const status = ref("大屏初始化中...");
+const status = ref("总览初始化中...");
 const tasks = ref([]);
 const focusTaskId = ref("");
 const focusTask = ref(null);
@@ -91,14 +93,16 @@ const snapshot = ref(null);
 const alerts = ref([]);
 let timer = null;
 
+const currentUserId = computed(() => String(authStore.state.currentUser?.user_id || ""));
+const assignedTasks = computed(() =>
+  tasks.value.filter((task) => String(task?.params?.assignee_user_id || "") === currentUserId.value),
+);
+
 const summary = reactive({
   total_tasks: 0,
+  queued_tasks: 0,
   running_tasks: 0,
-  paused_tasks: 0,
   completed_tasks: 0,
-  failed_tasks: 0,
-  stopped_tasks: 0,
-  avg_throughput: 0,
 });
 
 const dashboardTaskCards = computed(() => {
@@ -111,7 +115,7 @@ const dashboardTaskCards = computed(() => {
     FAILED: 5,
     STOPPED: 6,
   };
-  return tasks.value
+  return assignedTasks.value
     .slice()
     .sort((a, b) => {
       const ra = rank[String(a.status || "").toUpperCase()] ?? 99;
@@ -148,13 +152,17 @@ function goTaskCenter() {
 
 async function refreshDashboard() {
   try {
-    const [sumData, taskData] = await Promise.all([fetchDashboardSummary(), fetchOpsTasks(80)]);
-    Object.assign(summary, sumData.summary || {});
+    const taskData = await fetchOpsTasks(80);
     tasks.value = taskData.tasks || [];
 
-    const running = tasks.value.find((task) => task.status === "RUNNING");
-    if (!focusTaskId.value || !tasks.value.some((task) => task.task_id === focusTaskId.value)) {
-      focusTaskId.value = (running || tasks.value[0] || {}).task_id || "";
+    summary.total_tasks = assignedTasks.value.length;
+    summary.queued_tasks = assignedTasks.value.filter((task) => ["PREPARING", "READY"].includes(task.status)).length;
+    summary.running_tasks = assignedTasks.value.filter((task) => ["RUNNING", "PAUSED"].includes(task.status)).length;
+    summary.completed_tasks = assignedTasks.value.filter((task) => ["COMPLETED", "FAILED", "STOPPED"].includes(task.status)).length;
+
+    const running = assignedTasks.value.find((task) => task.status === "RUNNING");
+    if (!focusTaskId.value || !assignedTasks.value.some((task) => task.task_id === focusTaskId.value)) {
+      focusTaskId.value = (running || assignedTasks.value[0] || {}).task_id || "";
     } else if (running && focusTask?.value?.status !== "RUNNING") {
       focusTaskId.value = running.task_id;
     }
@@ -165,7 +173,7 @@ async function refreshDashboard() {
       clearCanvas();
     }
 
-    status.value = `大屏已更新（${tasks.value.length}个任务）`;
+    status.value = `总览已更新（我的任务 ${assignedTasks.value.length} 条）`;
   } catch (error) {
     status.value = `刷新失败：${error.message}`;
   }
