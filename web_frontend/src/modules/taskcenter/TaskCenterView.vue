@@ -183,42 +183,12 @@
   </section>
 
   <section v-else-if="isRequester" class="admin-task-shell">
-    <article class="panel admin-task-hero">
-      <div>
-        <p class="section-kicker">REQUEST WORKSPACE</p>
-        <h2>提交任务申请并追踪审核进展</h2>
-        <div class="admin-subheadline admin-hero-strip">
-          <span>我的申请 {{ requesterTaskStats.total }}</span>
-          <span>待审核 {{ requesterTaskStats.pending }}</span>
-          <span>已通过 {{ requesterTaskStats.approved }}</span>
-        </div>
-      </div>
-      <div class="admin-summary-row">
-        <div class="status-card">
-          <p>申请总数</p>
-          <strong>{{ requesterTaskStats.total }}</strong>
-        </div>
-        <div class="status-card">
-          <p>待审核</p>
-          <strong>{{ requesterTaskStats.pending }}</strong>
-        </div>
-        <div class="status-card">
-          <p>已通过</p>
-          <strong>{{ requesterTaskStats.approved }}</strong>
-        </div>
-        <div class="status-card">
-          <p>已驳回</p>
-          <strong>{{ requesterTaskStats.rejected }}</strong>
-        </div>
-      </div>
-    </article>
-
     <nav class="admin-workspace-tabs">
       <button class="tab-btn" :class="{ active: requesterSection === 'create' }" @click="requesterSection = 'create'">发起申请</button>
       <button class="tab-btn" :class="{ active: requesterSection === 'history' }" @click="requesterSection = 'history'">我的申请</button>
     </nav>
 
-    <section v-if="requesterSection === 'create'" class="admin-workspace-grid requester-create-grid">
+    <section v-if="requesterSection === 'create'" class="admin-workspace-grid requester-create-grid requester-create-grid-single">
       <article class="panel requester-form-panel">
         <div class="admin-panel-head">
           <div>
@@ -258,29 +228,6 @@
         </div>
         <div v-if="requestStatus" class="status-chip">{{ requestStatus }}</div>
       </article>
-
-      <article class="panel requester-aside-panel">
-        <div class="admin-panel-head">
-          <div>
-            <p class="section-kicker">QUEUE STATUS</p>
-            <h2>我的申请队列</h2>
-          </div>
-        </div>
-        <div class="status-cards requester-status-grid">
-          <div class="status-card"><p>待审核</p><strong>{{ requesterTaskStats.pending }}</strong></div>
-          <div class="status-card"><p>已通过</p><strong>{{ requesterTaskStats.approved }}</strong></div>
-          <div class="status-card"><p>已驳回</p><strong>{{ requesterTaskStats.rejected }}</strong></div>
-          <div class="status-card"><p>申请总数</p><strong>{{ requesterTaskStats.total }}</strong></div>
-        </div>
-        <div class="admin-highlight-card compact">
-          <p>最近申请</p>
-          <strong>{{ latestRequesterTask?.mission_name || "暂无申请记录" }}</strong>
-          <span v-if="latestRequesterTask">
-            {{ taskStageLabel(latestRequesterTask.status) }} · {{ fmtDateTime(latestRequesterTask.updated_at || latestRequesterTask.created_at) }}
-          </span>
-          <span v-else>提交后会在这里看到最新处理进展。</span>
-        </div>
-      </article>
     </section>
 
     <section v-else class="admin-workspace-grid requester-history-grid">
@@ -296,6 +243,22 @@
         <div class="admin-subheadline">
           <span>待审核 {{ requesterTaskStats.pending }} 条</span>
           <span>已通过 {{ requesterTaskStats.approved }} 条</span>
+        </div>
+
+        <div class="status-cards requester-status-grid">
+          <div class="status-card"><p>申请总数</p><strong>{{ requesterTaskStats.total }}</strong></div>
+          <div class="status-card"><p>待审核</p><strong>{{ requesterTaskStats.pending }}</strong></div>
+          <div class="status-card"><p>已通过</p><strong>{{ requesterTaskStats.approved }}</strong></div>
+          <div class="status-card"><p>已驳回</p><strong>{{ requesterTaskStats.rejected }}</strong></div>
+        </div>
+
+        <div class="admin-highlight-card compact">
+          <p>最近申请</p>
+          <strong>{{ latestRequesterTask?.mission_name || "暂无申请记录" }}</strong>
+          <span v-if="latestRequesterTask">
+            {{ taskStageLabel(latestRequesterTask.status) }} · {{ fmtDateTime(latestRequesterTask.updated_at || latestRequesterTask.created_at) }}
+          </span>
+          <span v-else>提交后会在这里看到最新处理进展。</span>
         </div>
 
         <div class="admin-overview-list">

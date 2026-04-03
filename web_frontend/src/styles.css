@@ -1127,6 +1127,10 @@ body {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.requester-create-grid-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .admin-replay-grid {
   grid-template-columns: minmax(620px, 1.45fr) minmax(320px, 0.85fr);
 }
