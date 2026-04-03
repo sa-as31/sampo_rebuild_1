@@ -294,8 +294,7 @@
             v-for="task in requesterTasks"
             :key="task.task_id"
             class="admin-task-card"
-            :class="{ active: task.task_id === selectedTaskId }"
-            @click="selectTask(task.task_id)"
+            @click="openTaskDetail(task.task_id)"
           >
             <span class="admin-task-card-top">
               <strong>{{ task.mission_name }}</strong>
@@ -372,8 +371,7 @@
           v-for="task in filteredTasks"
           :key="task.task_id"
           class="admin-task-card"
-          :class="{ active: task.task_id === selectedTaskId }"
-          @click="selectTask(task.task_id)"
+          @click="openTaskDetail(task.task_id)"
         >
           <span class="admin-task-card-top">
             <strong>{{ task.mission_name }}</strong>
@@ -879,6 +877,17 @@ async function selectTask(taskId) {
   selectedTaskId.value = taskId;
   if (!isAdmin.value) executorView.value = "execute";
   await loadTaskDetail(taskId, true);
+}
+
+function openTaskDetail(taskId) {
+  if (!taskId) return;
+  if (isRequester.value) {
+    router.push(`/task/${taskId}?role=requester&section=history`);
+    return;
+  }
+  if (!isAdmin.value) {
+    router.push(`/task/${taskId}?role=executor&section=tasks`);
+  }
 }
 
 function closeExecutorDetail() {
