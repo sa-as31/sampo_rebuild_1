@@ -7,10 +7,10 @@
           <h2>{{ selectedTask?.mission_name || "任务详情" }}</h2>
         </div>
         <div class="btn-row" v-if="adminSection === 'active' || isExecutor">
-          <button v-if="adminSection === 'active'" class="btn secondary" @click="runTaskAction('start')">立即开始</button>
-          <button v-if="adminSection === 'active'" class="btn secondary" @click="runTaskAction('pause')">暂停</button>
-          <button v-if="adminSection === 'active'" class="btn secondary" @click="runTaskAction('resume')">继续</button>
-          <button v-if="adminSection === 'active'" class="btn secondary" @click="runTaskAction('stop')">停止</button>
+          <button v-if="adminSection === 'active'" class="btn secondary" :disabled="!canStartSelectedTask" @click="runTaskAction('start')">立即开始</button>
+          <button v-if="adminSection === 'active'" class="btn secondary" :disabled="!canPauseSelectedTask" @click="runTaskAction('pause')">暂停</button>
+          <button v-if="adminSection === 'active'" class="btn secondary" :disabled="!canResumeSelectedTask" @click="runTaskAction('resume')">继续</button>
+          <button v-if="adminSection === 'active'" class="btn secondary" :disabled="!canStopSelectedTask" @click="runTaskAction('stop')">停止</button>
           <button v-if="isExecutor || adminSection === 'completed'" class="btn secondary" @click="exportReport">导出任务报告</button>
         </div>
       </div>
@@ -240,10 +240,10 @@
                 <p class="section-kicker">MISSION CONTROL</p>
                 <h3>执行控制</h3>
                 <div class="btn-row" style="margin-top: 12px">
-                  <button class="btn" @click="startAssignedTask">开始执行</button>
-                  <button class="btn secondary" @click="runTaskAction('pause')">暂停</button>
-                  <button class="btn secondary" @click="runTaskAction('resume')">继续</button>
-                  <button class="btn secondary" @click="runTaskAction('stop')">停止</button>
+                  <button class="btn" :disabled="!canStartSelectedTask" @click="startAssignedTask">开始执行</button>
+                  <button class="btn secondary" :disabled="!canPauseSelectedTask" @click="runTaskAction('pause')">暂停</button>
+                  <button class="btn secondary" :disabled="!canResumeSelectedTask" @click="runTaskAction('resume')">继续</button>
+                  <button class="btn secondary" :disabled="!canStopSelectedTask" @click="runTaskAction('stop')">停止</button>
                 </div>
               </section>
 
@@ -523,6 +523,11 @@ const replayViewState = reactive({
 });
 
 const hasExecutorSelection = computed(() => !isAdmin.value && !!selectedTaskId.value && !!selectedTask.value);
+const selectedTaskStatus = computed(() => String(selectedTask.value?.status || "").toUpperCase());
+const canStartSelectedTask = computed(() => selectedTaskStatus.value === "READY");
+const canPauseSelectedTask = computed(() => selectedTaskStatus.value === "RUNNING");
+const canResumeSelectedTask = computed(() => selectedTaskStatus.value === "PAUSED");
+const canStopSelectedTask = computed(() => ["RUNNING", "PAUSED"].includes(selectedTaskStatus.value));
 
 const filteredTasks = computed(() => {
   const keyword = filters.keyword.trim().toLowerCase();
@@ -1231,18 +1236,58 @@ async function rejectTaskRequest() {
   }
 }
 
-async function runTaskAction(action) {
+function publishTaskActionMessage(message) {
+  status.value = message;
+  if (isExecutor.value) feedbackStatus.value = message;
+}
+
+function buildTaskActionMessage(action, nextStatus) {
+  const normalized = String(nextStatus || "").toUpperCase();
+  if (action === "start") {
+    if (normalized === "RUNNING") return "任务已开始执行。";
+    if (normalized === "PREPARING") return "任务仍在准备中，暂未进入运行态。";
+    return `任务仍处于${taskStageLabel(normalized)}，未进入运行态。`;
+  }
+  if (action === "pause") {
+    if (normalized === "PAUSED") return "任务已暂停。";
+    if (normalized === "READY" || normalized === "PREPARING") return "任务尚未开始，无法暂停。";
+    if (FINAL_STATUSES.has(normalized)) return "任务已结束，无法暂停。";
+    return "任务仍在执行中，未暂停。";
+  }
+  if (action === "resume") {
+    if (normalized === "RUNNING") return "任务已继续执行。";
+    if (normalized === "READY") return "当前状态不可执行继续，请点击“开始执行”。";
+    if (normalized === "PREPARING") return "任务仍在准备中，暂不可继续。";
+    if (FINAL_STATUSES.has(normalized)) return "任务已结束，无法继续。";
+    return "任务仍处于暂停状态，未继续执行。";
+  }
+  if (action === "stop") {
+    if (normalized === "STOPPED") return "任务已停止。";
+    if (normalized === "COMPLETED") return "任务已完成，无需停止。";
+    if (FINAL_STATUSES.has(normalized)) return "任务已结束。";
+    return `任务当前处于${taskStageLabel(normalized)}。`;
+  }
+  return `任务当前状态：${taskStageLabel(normalized)}。`;
+}
+
+async function executeTaskAction(action) {
   if (!selectedTaskId.value) {
-    status.value = "请先选择任务";
-    return;
+    publishTaskActionMessage("请先选择任务");
+    return false;
   }
   try {
     await controlOpsTask(selectedTaskId.value, action);
     await refreshTasks();
-    status.value = `任务操作已执行：${action}`;
+    publishTaskActionMessage(buildTaskActionMessage(action, selectedTask.value?.status));
+    return true;
   } catch (error) {
-    status.value = `任务操作失败：${error.message}`;
+    publishTaskActionMessage(`任务操作失败：${error.message}`);
+    return false;
   }
+}
+
+async function runTaskAction(action) {
+  await executeTaskAction(action);
 }
 
 function applyImportedMap(item) {
@@ -1311,17 +1356,7 @@ async function reportTaskAnomaly() {
 }
 
 async function startAssignedTask() {
-  if (!selectedTaskId.value) {
-    feedbackStatus.value = "请先选择一个任务";
-    return;
-  }
-  try {
-    await controlOpsTask(selectedTaskId.value, "start");
-    await refreshTasks();
-    feedbackStatus.value = "任务已开始执行。";
-  } catch (error) {
-    feedbackStatus.value = `开始执行失败：${error.message}`;
-  }
+  await executeTaskAction("start");
 }
 
 async function setPilotTaskSpeed(tickMs) {

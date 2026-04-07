@@ -885,24 +885,6 @@ class TaskRuntime:
             )
             return
 
-        scheduled_start_at = live.params.get("scheduled_start_at")
-        if scheduled_start_at is not None:
-            try:
-                scheduled_ts = float(scheduled_start_at)
-            except (TypeError, ValueError):
-                scheduled_ts = None
-            if scheduled_ts is not None and scheduled_ts > now_ts():
-                self._emit_event(
-                    live,
-                    "task_status",
-                    {
-                        "status": live.status,
-                        "message": "Task is scheduled for a future time and cannot start yet.",
-                        "task": self._task_brief(live),
-                    },
-                )
-                return
-
         if live.status in FINAL_STATUSES and live.frames:
             live.frame_index = 0
             live.cycle_step_offset = 0
