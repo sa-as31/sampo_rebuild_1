@@ -62,52 +62,52 @@
         <mxCell id="uc_report_issue" value="提交异常反馈" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#334155;fontColor=#0f172a;fontSize=18;strokeWidth=2;" vertex="1" parent="1">
           <mxGeometry x="1065.0" y="765.0" width="260.0" height="72.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053245506" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_requester" target="uc_login">
+        <mxCell id="e_1775559053245506" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_requester" target="uc_login">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053283172" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_requester" target="uc_request">
+        <mxCell id="e_1775559053283172" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_requester" target="uc_request">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053322414" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_requester" target="uc_status">
+        <mxCell id="e_1775559053322414" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_requester" target="uc_status">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053361266" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_requester" target="uc_result">
+        <mxCell id="e_1775559053361266" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_requester" target="uc_result">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053399555" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_admin" target="uc_login">
+        <mxCell id="e_1775559053399555" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_admin" target="uc_login">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053438542" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_admin" target="uc_review_create">
+        <mxCell id="e_1775559053438542" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_admin" target="uc_review_create">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053477372" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_admin" target="uc_assign">
+        <mxCell id="e_1775559053477372" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_admin" target="uc_assign">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053515535" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_admin" target="uc_import_map">
+        <mxCell id="e_1775559053515535" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_admin" target="uc_import_map">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053556149" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_admin" target="uc_monitor">
+        <mxCell id="e_1775559053556149" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_admin" target="uc_monitor">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053594244" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_admin" target="uc_feedback_alarm">
+        <mxCell id="e_1775559053594244" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_admin" target="uc_feedback_alarm">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053632597" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_admin" target="uc_review_done">
+        <mxCell id="e_1775559053632597" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_admin" target="uc_review_done">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053748144" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_executor" target="uc_login">
+        <mxCell id="e_1775559053748144" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_executor" target="uc_login">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053788117" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_executor" target="uc_view_tasks">
+        <mxCell id="e_1775559053788117" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_executor" target="uc_view_tasks">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053830581" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_executor" target="uc_ops_control">
+        <mxCell id="e_1775559053830581" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_executor" target="uc_ops_control">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053870823" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_executor" target="uc_joint_view">
+        <mxCell id="e_1775559053870823" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_executor" target="uc_joint_view">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775559053911299" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_executor" target="uc_report_issue">
+        <mxCell id="e_1775559053911299" value="" style="edgeStyle=none;rounded=0;endArrow=none;startArrow=none;strokeColor=#64748b;strokeWidth=1.4;" edge="1" parent="1" source="actor_executor" target="uc_report_issue">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>
