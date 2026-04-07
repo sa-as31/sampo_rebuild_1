@@ -1,4 +1,5 @@
 const STORAGE_KEY = "OPS_PARAM_TEMPLATES_V1";
+const DEFAULT_TASK_TICK_MS = 600;
 
 function parseTemplates(raw) {
   if (!raw) return [];
@@ -14,7 +15,7 @@ function parseTemplates(raw) {
         mission_name: String(item.mission_name || "enterprise_batch_demo"),
         num_agents: toInt(item.num_agents, 16, 1, 128),
         max_frames: toInt(item.max_frames, 64, 4, 2048),
-        tick_ms: toInt(item.tick_ms, 320, 120, 2000),
+        tick_ms: toInt(item.tick_ms, DEFAULT_TASK_TICK_MS, 120, 2000),
         created_at: Number(item.created_at || Date.now()),
       }))
       .sort((a, b) => b.created_at - a.created_at);
@@ -62,7 +63,7 @@ export function upsertOpsTemplate(template) {
     mission_name: String(template.mission_name || "enterprise_batch_demo"),
     num_agents: toInt(template.num_agents, 16, 1, 128),
     max_frames: toInt(template.max_frames, 64, 4, 2048),
-    tick_ms: toInt(template.tick_ms, 320, 120, 2000),
+    tick_ms: toInt(template.tick_ms, DEFAULT_TASK_TICK_MS, 120, 2000),
     created_at: Number(template.created_at || Date.now()),
   };
 

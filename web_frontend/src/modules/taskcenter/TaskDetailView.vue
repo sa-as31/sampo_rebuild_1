@@ -259,7 +259,7 @@
                   <button class="btn secondary" @click="setPilotTaskSpeed(pilotSpeedInput)">设置速度</button>
                 </div>
                 <div class="ops-inline-meta" style="margin-top: 10px">
-                  <span>当前节拍 {{ selectedTask?.tick_ms || selectedTask?.params?.tick_ms || 320 }} ms/步</span>
+                  <span>当前节拍 {{ selectedTask?.tick_ms || selectedTask?.params?.tick_ms || DEFAULT_TASK_TICK_MS }} ms/步</span>
                 </div>
               </section>
             </div>
@@ -406,6 +406,7 @@ const TEMPLATE_MAP_OPTIONS = [
 
 const ACTIVE_STATUSES = new Set(["PREPARING", "READY", "RUNNING", "PAUSED"]);
 const FINAL_STATUSES = new Set(["COMPLETED", "FAILED", "STOPPED", "REJECTED"]);
+const DEFAULT_TASK_TICK_MS = 600;
 
 const props = defineProps({
   role: {
@@ -487,7 +488,7 @@ const assignForm = reactive({
   map_name: "warehouse-grid-v1",
   num_agents: 16,
   max_frames: 64,
-  tick_ms: 320,
+  tick_ms: DEFAULT_TASK_TICK_MS,
   scheduled_start_input: buildDefaultScheduleInput(),
   review_note: "",
 });
@@ -888,7 +889,7 @@ async function loadTaskDetail(taskId, withStatusText) {
     selectedSnapshot.value = detail.snapshot || null;
     selectedAlerts.value = alerts.alerts || [];
     selectedFeedback.value = feedback.feedback || [];
-    pilotSpeedInput.value = Number(detail.task?.tick_ms || detail.task?.params?.tick_ms || 320);
+    pilotSpeedInput.value = Number(detail.task?.tick_ms || detail.task?.params?.tick_ms || DEFAULT_TASK_TICK_MS);
     if (isAdmin.value && adminSection.value === "create" && selectedTask.value?.status === "PENDING_REVIEW") {
       syncReviewFormFromTask(selectedTask.value);
     }
@@ -1138,7 +1139,7 @@ function syncReviewFormFromTask(task) {
   assignForm.map_name = String(params.map_name || params.requested_location || "warehouse-grid-v1");
   assignForm.num_agents = Number(params.num_agents || 16);
   assignForm.max_frames = Number(params.max_frames || 64);
-  assignForm.tick_ms = Number(task?.tick_ms || 320);
+  assignForm.tick_ms = Number(task?.tick_ms || DEFAULT_TASK_TICK_MS);
   assignForm.scheduled_start_input = buildDateTimeLocalInput(params.scheduled_start_at) || buildDefaultScheduleInput();
   assignForm.review_note = String(params.review_note || "");
 }

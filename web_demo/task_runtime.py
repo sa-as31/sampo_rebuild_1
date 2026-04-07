@@ -16,6 +16,7 @@ ALLOWED_SOURCES = {"sample", "model"}
 FINAL_STATUSES = {"COMPLETED", "FAILED", "STOPPED"}
 RESTORABLE_STATUSES = {"PREPARING", "READY", "RUNNING", "PAUSED"}
 REVIEW_STATUSES = {"PENDING_REVIEW", "REJECTED"}
+DEFAULT_TASK_TICK_MS = 600
 
 ROLE_PRIORITY = {"admin": 0, "requester": 1, "executor": 2}
 
@@ -242,7 +243,7 @@ class LiveTask:
     base_metrics: Dict[str, Any] = field(default_factory=dict)
     runtime_metrics: Dict[str, Any] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
-    tick_ms: int = 320
+    tick_ms: int = DEFAULT_TASK_TICK_MS
     cumulative_conflicts: int = 0
     alert_count: int = 0
     stall_steps: Dict[int, int] = field(default_factory=dict)
@@ -311,7 +312,7 @@ class TaskRuntime:
             source = "sample"
 
         mission_name = str(payload.get("mission_name") or f"{template}_mission")
-        tick_ms = clamp_int(payload.get("tick_ms"), 320, 120, 2000)
+        tick_ms = clamp_int(payload.get("tick_ms"), DEFAULT_TASK_TICK_MS, 120, 2000)
 
         params = normalize_task_payload(payload, template=template)
         task_id = uuid.uuid4().hex[:12]
@@ -386,7 +387,7 @@ class TaskRuntime:
             "template": category_config["template"],
             "source": "sample",
             "status": "PENDING_REVIEW",
-            "tick_ms": clamp_int(payload.get("tick_ms"), 320, 120, 2000),
+            "tick_ms": clamp_int(payload.get("tick_ms"), DEFAULT_TASK_TICK_MS, 120, 2000),
             "params": params,
             "metrics": {},
             "error": None,
@@ -640,7 +641,7 @@ class TaskRuntime:
                 source=stored["source"],
                 status="REJECTED",
                 params=params,
-                tick_ms=int(stored.get("tick_ms") or 320),
+                tick_ms=int(stored.get("tick_ms") or DEFAULT_TASK_TICK_MS),
                 updated_at=now_ts(),
             )
             return {"task": updated, "review_action": "rejected"}
@@ -660,7 +661,7 @@ class TaskRuntime:
                 "source": payload.get("source") or stored.get("source") or "sample",
                 "num_agents": payload.get("num_agents") or params.get("num_agents"),
                 "max_frames": payload.get("max_frames") or params.get("max_frames"),
-                "tick_ms": payload.get("tick_ms") or stored.get("tick_ms") or 320,
+                "tick_ms": payload.get("tick_ms") or stored.get("tick_ms") or DEFAULT_TASK_TICK_MS,
                 "scheduled_start_at": payload.get("scheduled_start_at") if payload.get("scheduled_start_at") is not None else params.get("scheduled_start_at"),
                 "scheduled_start_label": payload.get("scheduled_start_label") or params.get("scheduled_start_label"),
             },
@@ -669,7 +670,7 @@ class TaskRuntime:
         source = str(payload.get("source") or stored.get("source") or "sample").lower()
         if source not in ALLOWED_SOURCES:
             source = "sample"
-        tick_ms = clamp_int(payload.get("tick_ms") or stored.get("tick_ms"), 320, 120, 2000)
+        tick_ms = clamp_int(payload.get("tick_ms") or stored.get("tick_ms"), DEFAULT_TASK_TICK_MS, 120, 2000)
         updated = self.db.update_task_definition(
             task_id=task_id,
             mission_name=stored["mission_name"],
@@ -1168,7 +1169,7 @@ class TaskRuntime:
                 started_at=float(stored["started_at"]) if stored.get("started_at") is not None else None,
                 ended_at=float(stored["ended_at"]) if stored.get("ended_at") is not None else None,
                 error=stored.get("error"),
-                tick_ms=int(stored.get("tick_ms") or 320),
+                tick_ms=int(stored.get("tick_ms") or DEFAULT_TASK_TICK_MS),
             )
             live.environment = environment
             live.frames = frames
@@ -1923,7 +1924,7 @@ def normalize_task_payload(payload: Dict[str, Any], template: str) -> Dict[str, 
     merged["max_episode_steps"] = clamp_int(merged.get("max_episode_steps"), 64, 8, 2048)
     merged["device"] = "gpu" if str(merged.get("device", "cpu")).lower() == "gpu" else "cpu"
     merged["continuous_patrol"] = bool(merged.get("continuous_patrol", False))
-    merged["tick_ms"] = clamp_int(merged.get("tick_ms"), 320, 120, 2400)
+    merged["tick_ms"] = clamp_int(merged.get("tick_ms"), DEFAULT_TASK_TICK_MS, 120, 2400)
     try:
         merged["scheduled_start_at"] = float(merged["scheduled_start_at"]) if merged.get("scheduled_start_at") else None
     except (TypeError, ValueError):

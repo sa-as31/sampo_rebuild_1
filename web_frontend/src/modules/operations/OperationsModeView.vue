@@ -200,11 +200,12 @@ const sidebarCollapsed = ref(false);
 const cameraMode = ref("orbit");
 const zoomScale = ref(1.0);
 const orbitSpeed = ref(0.12);
+const DEFAULT_TASK_TICK_MS = 600;
 
 const taskConfig = reactive({
   num_agents: 16,
   max_frames: 64,
-  tick_ms: 320,
+  tick_ms: DEFAULT_TASK_TICK_MS,
   device: "cpu",
 });
 

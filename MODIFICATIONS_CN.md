@@ -353,3 +353,18 @@
   - 修复申请人“我的申请”列表点击记录无跳转的问题
   - 将这两处点击行为从组件内 `selectTask` 改回路由跳转到 `/task/:id`
   - 跳转时保留角色和来源分页参数，确保详情页上下文正确
+
+## 19. 默认任务节拍统一调整为 600 ms
+
+- 文件：
+  - `web_demo/task_runtime.py`
+  - `web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+  - `web_frontend/src/modules/taskcenter/TaskDetailView.vue`
+  - `web_frontend/src/modules/operations/OperationsModeView.vue`
+  - `web_frontend/src/modules/shared/templateStore.js`
+- 主要修改：
+  - 将系统默认任务节拍从 `320 ms/步` 统一调整为 `600 ms/步`
+  - 前端管理员创建/审核表单默认节拍改为 `600`
+  - 联合运行视图中新建任务默认节拍改为 `600`
+  - 模板读取与保存的默认节拍兜底改为 `600`
+  - 后端任务创建、申请创建、任务恢复与参数归一化的默认节拍兜底统一改为 `600`
