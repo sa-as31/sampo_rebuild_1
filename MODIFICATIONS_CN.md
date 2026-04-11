@@ -258,6 +258,35 @@
 
 - 文件：
   - `web_frontend/src/modules/taskcenter/TaskCenterView.vue`
+
+## 14. 新增毕业论文概念ER图素材
+
+本轮围绕“无人机动态路径规划系统”的论文表达需求，新增了一张 Chen 陈式概念 ER 图，用于在系统分析或系统设计章节中展示业务实体、属性与联系，而不是直接展示底层数据库物理结构。
+
+### 14.1 新增 ER 图源文件与导出文件
+
+- 文件：
+  - `thesis_assets/diagrams/system_er_diagram.drawio`
+  - `thesis_assets/diagrams/system_er_diagram.png`
+  - `thesis_assets/diagrams/system_er_diagram.svg`
+  - `thesis_assets/diagrams/system_er_diagram.pdf`
+  - `thesis_assets/diagrams/system_er_diagram_notes.md`
+- 主要内容：
+  - 使用 Chen 陈式画法完成论文概念 ER 图
+  - 以 `执行任务` 作为中心实体，向外关联 `用户`、`任务申请`、`地图环境`、`无人机`、`规划路径`、`运行告警`、`评估结果`
+  - 对所有核心联系补充了 `1` / `N` 基数标注
+  - 对所有主键属性添加了下划线标识
+  - 图面采用低饱和蓝灰色系，兼顾论文可读性与页面观感
+
+### 14.2 同步补充 ER 图设计依据与答疑记录
+
+- 文件：
+  - `解疑.md`
+  - `thesis_assets/diagrams/system_er_diagram_notes.md`
+- 主要内容：
+  - 记录了为什么本项目优先使用“论文概念 ER 图”而非物理库表 ER 图
+  - 记录了 8 个核心实体、7 条核心联系及其基数
+  - 明确说明未纳入图中的实现层对象及原因，便于后续论文撰写时保持口径一致
   - `web_frontend/src/styles.css`
 - 主要修改：
   - 管理员首页改成“审核 / 执行 / 归档”三类运营队列视图，移除教程式小字说明
