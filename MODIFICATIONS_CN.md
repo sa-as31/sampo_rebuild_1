@@ -566,3 +566,42 @@
 - 结果：
   - 当前文档比上一版更适合 agent 直接照着执行；
   - 能明显降低因状态误判、ID 不稳定、导出前未检查等问题导致的失败概率。
+
+## 23. 新增毕业论文规范化数据库ER图素材
+
+本轮继续围绕论文数据库设计章节补充了一张“规范化数据库 ER 图”，重点不是复刻当前 SQLite 的物理实现，而是基于现有系统业务链路整理出更适合论文表达的关系型数据库设计方案。
+
+### 23.1 新增数据库 ER 图源文件与导出文件
+
+- 文件：
+  - `thesis_assets/diagrams/system_database_er_diagram.drawio`
+  - `thesis_assets/diagrams/system_database_er_diagram.png`
+  - `thesis_assets/diagrams/system_database_er_diagram.svg`
+  - `thesis_assets/diagrams/system_database_er_diagram.pdf`
+  - `thesis_assets/diagrams/system_database_er_diagram_notes.md`
+- 主要内容：
+  - 使用数据库 ER 图风格绘制任务管理主链路
+  - 以 `execution_tasks` 为中心表，关联 `task_requests`、`task_assignments`、`uavs`、`maps`、`planned_paths`、`task_alerts`、`task_feedback`、`task_results`
+  - 通过 `PK` / `FK` 标识突出主外键关系
+  - 用 `1:1`、`1:N`、`1:0..1` 标签表达主要基数
+
+### 23.2 对真实 SQLite 结构做规范化重组
+
+- 当前真实实现中的 `tasks + params_json` 被提升为论文中的规范化表设计：
+  - `tasks` 拆分为 `task_requests` 与 `execution_tasks`
+  - 新增 `task_assignments` 作为任务与无人机之间的分配中间表
+  - 将申请人、地图、分配人、计划时间等信息改为结构化字段或显式外键
+- 同时明确不把以下对象纳入主图核心版面：
+  - `task_events`
+  - `app_state`
+  - 训练实验记录、模型权重、回放文件
+
+### 23.3 同步补充论文说明与答疑记录
+
+- 文件：
+  - `解疑.md`
+  - `thesis_assets/diagrams/system_database_er_diagram_notes.md`
+- 主要内容：
+  - 解释为什么数据库 ER 图不能直接照搬真实 SQLite 表
+  - 给出从当前运行库到论文规范化设计的映射关系
+  - 补充可直接用于论文的图名、正文引用语句、图注说明和表关系摘要

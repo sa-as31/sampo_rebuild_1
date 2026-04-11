@@ -1,0 +1,86 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="cli-anything" agent="cli-anything-drawio/1.0.0" version="24.0.0">
+  <diagram id="diagram_1775899920438938" name="Page-1">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2850" pageHeight="1800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title_main" value="无人机动态路径规划系统数据库ER图" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fillColor=none;strokeColor=none;fontSize=28;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="790.0" y="28.0" width="1280.0" height="42.0" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_users" value="user_accounts&#10;-------------------------&#10;PK  user_id&#10;    username (UNIQUE)&#10;    display_name&#10;    role&#10;    department&#10;    status&#10;    created_at" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fbfdff;strokeColor=#334155;strokeWidth=2;fontSize=15;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="80.0" y="180.0" width="470.0" height="265.0" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_auth" value="auth_credentials&#10;-------------------------&#10;PK/FK  user_id&#10;       password_hash&#10;       updated_at" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fbfdff;strokeColor=#334155;strokeWidth=2;fontSize=15;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="80.0" y="560.0" width="470.0" height="170.0" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_feedback" value="task_feedback&#10;-------------------------&#10;PK  feedback_id&#10;FK  task_id&#10;FK  user_id&#10;    category&#10;    message&#10;    created_at" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fbfdff;strokeColor=#334155;strokeWidth=2;fontSize=15;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="80.0" y="990.0" width="470.0" height="255.0" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_requests" value="task_requests&#10;-------------------------&#10;PK  request_id&#10;FK  requester_user_id&#10;    request_name&#10;    task_category&#10;    requested_location&#10;    scheduled_start_at&#10;    review_status&#10;    created_at" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fbfdff;strokeColor=#334155;strokeWidth=2;fontSize=15;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="690.0" y="150.0" width="500.0" height="300.0" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_tasks" value="execution_tasks&#10;-------------------------&#10;PK  task_id&#10;FK  request_id&#10;FK  map_id&#10;    task_name&#10;    source&#10;    status&#10;    tick_ms&#10;    planned_start_at" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fbfdff;strokeColor=#334155;strokeWidth=2;fontSize=15;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="690.0" y="560.0" width="500.0" height="300.0" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_results" value="task_results&#10;-------------------------&#10;PK  result_id&#10;FK  task_id (UNIQUE)&#10;    throughput&#10;    avg_latency&#10;    conflict_count&#10;    completed_at" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fbfdff;strokeColor=#334155;strokeWidth=2;fontSize=15;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="690.0" y="1070.0" width="500.0" height="235.0" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_paths" value="planned_paths&#10;-------------------------&#10;PK  path_id&#10;FK  task_id&#10;    planning_method&#10;    path_sequence&#10;    generated_at&#10;    path_status" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fbfdff;strokeColor=#334155;strokeWidth=2;fontSize=15;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="1360.0" y="150.0" width="470.0" height="235.0" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_assign" value="task_assignments&#10;-------------------------&#10;PK  assignment_id&#10;FK  task_id&#10;FK  uav_id&#10;FK  assigned_by_user_id&#10;    assigned_at&#10;    assignment_status&#10;    dispatch_note" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fbfdff;strokeColor=#334155;strokeWidth=2;fontSize=15;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="1360.0" y="560.0" width="470.0" height="285.0" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_alerts" value="task_alerts&#10;-------------------------&#10;PK  alert_id&#10;FK  task_id&#10;    alert_level&#10;    alert_code&#10;    message&#10;    frame_step&#10;    created_at" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fbfdff;strokeColor=#334155;strokeWidth=2;fontSize=15;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="1360.0" y="1040.0" width="470.0" height="255.0" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_uavs" value="uavs&#10;-------------------------&#10;PK  uav_id&#10;    uav_code&#10;    model_name&#10;    fleet_group&#10;    current_status&#10;    home_base" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fbfdff;strokeColor=#334155;strokeWidth=2;fontSize=15;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="2040.0" y="250.0" width="480.0" height="255.0" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_maps" value="maps&#10;-------------------------&#10;PK  map_id&#10;    map_name&#10;    scene_type&#10;    obstacle_profile&#10;    map_version&#10;    updated_at" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fbfdff;strokeColor=#334155;strokeWidth=2;fontSize=15;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="2040.0" y="850.0" width="480.0" height="235.0" as="geometry" />
+        </mxCell>
+        <mxCell id="note_scope" value="说明&#10;本图为论文规范化数据库设计。&#10;未纳入主图：task_events、app_state、训练实验记录、模型权重、回放文件。&#10;当前真实 SQLite 中的 tasks + params_json 在此图中被拆分为 task_requests、execution_tasks、task_assignments 等结构化表。" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#fefce8;strokeColor=#a16207;strokeWidth=1.5;fontSize=14;fontColor=#713f12;" vertex="1" parent="1">
+          <mxGeometry x="2020.0" y="1180.0" width="520.0" height="220.0" as="geometry" />
+        </mxCell>
+        <mxCell id="e_1775899923458747" value="1 : 1" style="edgeStyle=entityRelationEdgeStyle;" edge="1" parent="1" source="tbl_users" target="tbl_auth">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_1775899923497743" value="1 : N" style="edgeStyle=entityRelationEdgeStyle;" edge="1" parent="1" source="tbl_users" target="tbl_requests">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_1775899923537940" value="1 : 0..1" style="edgeStyle=entityRelationEdgeStyle;" edge="1" parent="1" source="tbl_requests" target="tbl_tasks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_1775899923576698" value="1 : 1" style="edgeStyle=entityRelationEdgeStyle;" edge="1" parent="1" source="tbl_tasks" target="tbl_results">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_1775899923616186" value="1 : N" style="edgeStyle=entityRelationEdgeStyle;" edge="1" parent="1" source="tbl_tasks" target="tbl_paths">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_1775899923656283" value="1 : N" style="edgeStyle=entityRelationEdgeStyle;" edge="1" parent="1" source="tbl_tasks" target="tbl_assign">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_1775899923694768" value="1 : N" style="edgeStyle=entityRelationEdgeStyle;" edge="1" parent="1" source="tbl_users" target="tbl_assign">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_1775899923734727" value="1 : N" style="edgeStyle=entityRelationEdgeStyle;" edge="1" parent="1" source="tbl_uavs" target="tbl_assign">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_1775899923773483" value="1 : N" style="edgeStyle=entityRelationEdgeStyle;" edge="1" parent="1" source="tbl_maps" target="tbl_tasks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_1775899923811850" value="1 : N" style="edgeStyle=entityRelationEdgeStyle;" edge="1" parent="1" source="tbl_tasks" target="tbl_feedback">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_1775899923851987" value="1 : N" style="edgeStyle=entityRelationEdgeStyle;" edge="1" parent="1" source="tbl_users" target="tbl_feedback">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_1775899923889964" value="1 : N" style="edgeStyle=entityRelationEdgeStyle;" edge="1" parent="1" source="tbl_tasks" target="tbl_alerts">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
