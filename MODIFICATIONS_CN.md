@@ -658,3 +658,15 @@
   - 解释为什么“调度”需要实体化
   - 解释为什么不再使用“审核分配”这个混合词
   - 解释为什么无人机不再直接挂当前位置和目标位置
+
+### 24.5 概念 ER 图连线样式修正
+
+- 文件：
+  - `thesis_assets/diagrams/system_er_diagram.drawio`
+  - `thesis_assets/diagrams/system_er_diagram.png`
+  - `thesis_assets/diagrams/system_er_diagram.svg`
+  - `thesis_assets/diagrams/system_er_diagram.pdf`
+- 主要修改：
+  - 将概念 ER 图中的全部实体连线、属性连线和联系连线统一改为无箭头线条
+  - 保持 Chen 概念模型的图面表达，不再使用带方向性的箭头视觉
+  - 同步重新导出 PNG、SVG、PDF 版本，保证论文插图与源文件一致

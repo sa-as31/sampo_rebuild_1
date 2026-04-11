@@ -47,34 +47,34 @@
         <mxCell id="rel_produce" value="产生" style="rhombus;whiteSpace=wrap;html=1;fillColor=#e2e8f0;strokeColor=#475569;strokeWidth=2;fontSize=17;fontColor=#0f172a;" vertex="1" parent="1">
           <mxGeometry x="1570.0" y="950.0" width="120.0" height="80.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899304124799" value="" style="edgeStyle=none;" edge="1" parent="1" source="entity_user" target="rel_submit">
+        <mxCell id="e_1775899304124799" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="entity_user" target="rel_submit">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899304161075" value="" style="edgeStyle=none;" edge="1" parent="1" source="rel_submit" target="entity_request">
+        <mxCell id="e_1775899304161075" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="rel_submit" target="entity_request">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899304269851" value="" style="edgeStyle=none;" edge="1" parent="1" source="entity_exec" target="rel_use_map">
+        <mxCell id="e_1775899304269851" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="entity_exec" target="rel_use_map">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899304305405" value="" style="edgeStyle=none;" edge="1" parent="1" source="rel_use_map" target="entity_map">
+        <mxCell id="e_1775899304305405" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="rel_use_map" target="entity_map">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899304415819" value="" style="edgeStyle=none;" edge="1" parent="1" source="entity_exec" target="rel_generate">
+        <mxCell id="e_1775899304415819" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="entity_exec" target="rel_generate">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899304452134" value="" style="edgeStyle=none;" edge="1" parent="1" source="rel_generate" target="entity_path">
+        <mxCell id="e_1775899304452134" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="rel_generate" target="entity_path">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899304488595" value="" style="edgeStyle=none;" edge="1" parent="1" source="entity_exec" target="rel_trigger">
+        <mxCell id="e_1775899304488595" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="entity_exec" target="rel_trigger">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899304525627" value="" style="edgeStyle=none;" edge="1" parent="1" source="rel_trigger" target="entity_alert">
+        <mxCell id="e_1775899304525627" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="rel_trigger" target="entity_alert">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899304561640" value="" style="edgeStyle=none;" edge="1" parent="1" source="entity_exec" target="rel_produce">
+        <mxCell id="e_1775899304561640" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="entity_exec" target="rel_produce">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899304597578" value="" style="edgeStyle=none;" edge="1" parent="1" source="rel_produce" target="entity_result">
+        <mxCell id="e_1775899304597578" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="rel_produce" target="entity_result">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="card_submit_user" value="1" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fillColor=none;strokeColor=none;fontColor=#475569;fontSize=18;" vertex="1" parent="1">
@@ -110,208 +110,208 @@
         <mxCell id="attr_user_id" value="用户编号" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;fontStyle=4;" vertex="1" parent="1">
           <mxGeometry x="80.0" y="120.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899307470625" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_user_id" target="entity_user">
+        <mxCell id="e_1775899307470625" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_user_id" target="entity_user">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_username" value="用户名" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="240.0" y="120.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899307729987" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_username" target="entity_user">
+        <mxCell id="e_1775899307729987" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_username" target="entity_user">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_role" value="角色" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="10.0" y="360.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899307990195" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_role" target="entity_user">
+        <mxCell id="e_1775899307990195" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_role" target="entity_user">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_department" value="所属部门" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="220.0" y="360.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899308250779" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_department" target="entity_user">
+        <mxCell id="e_1775899308250779" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_department" target="entity_user">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_request_id" value="申请编号" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;fontStyle=4;" vertex="1" parent="1">
           <mxGeometry x="500.0" y="120.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899308553838" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_request_id" target="entity_request">
+        <mxCell id="e_1775899308553838" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_request_id" target="entity_request">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_request_name" value="任务名称" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="660.0" y="120.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899308820176" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_request_name" target="entity_request">
+        <mxCell id="e_1775899308820176" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_request_name" target="entity_request">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_request_category" value="任务类别" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="400.0" y="360.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899309098529" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_request_category" target="entity_request">
+        <mxCell id="e_1775899309098529" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_request_category" target="entity_request">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_request_place" value="申请地点" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="640.0" y="360.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899309361547" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_request_place" target="entity_request">
+        <mxCell id="e_1775899309361547" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_request_place" target="entity_request">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_request_time" value="申请时间" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="500.0" y="430.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899309623673" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_request_time" target="entity_request">
+        <mxCell id="e_1775899309623673" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_request_time" target="entity_request">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_request_status" value="申请状态" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="800.0" y="430.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899309885244" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_request_status" target="entity_request">
+        <mxCell id="e_1775899309885244" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_request_status" target="entity_request">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_exec_id" value="任务编号" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;fontStyle=4;" vertex="1" parent="1">
           <mxGeometry x="960.0" y="390.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899310187262" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_exec_id" target="entity_exec">
+        <mxCell id="e_1775899310187262" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_exec_id" target="entity_exec">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_exec_name" value="任务名称" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="1190.0" y="390.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899310452278" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_exec_name" target="entity_exec">
+        <mxCell id="e_1775899310452278" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_exec_name" target="entity_exec">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_exec_status" value="执行状态" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="915.0" y="710.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899310714154" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_exec_status" target="entity_exec">
+        <mxCell id="e_1775899310714154" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_exec_status" target="entity_exec">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_exec_start" value="计划开始时间" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="1195.0" y="710.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899310978424" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_exec_start" target="entity_exec">
+        <mxCell id="e_1775899310978424" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_exec_start" target="entity_exec">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_exec_source" value="数据源" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="1040.0" y="830.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899311242180" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_exec_source" target="entity_exec">
+        <mxCell id="e_1775899311242180" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_exec_source" target="entity_exec">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_map_id" value="地图编号" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;fontStyle=4;" vertex="1" parent="1">
           <mxGeometry x="1970.0" y="110.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899311543723" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_map_id" target="entity_map">
+        <mxCell id="e_1775899311543723" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_map_id" target="entity_map">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_map_name" value="地图名称" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="2150.0" y="110.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899311805631" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_map_name" target="entity_map">
+        <mxCell id="e_1775899311805631" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_map_name" target="entity_map">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_map_scene" value="场景类型" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="1920.0" y="390.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899312072523" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_map_scene" target="entity_map">
+        <mxCell id="e_1775899312072523" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_map_scene" target="entity_map">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_map_obstacle" value="障碍物分布" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="2160.0" y="390.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899312334830" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_map_obstacle" target="entity_map">
+        <mxCell id="e_1775899312334830" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_map_obstacle" target="entity_map">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_uav_id" value="无人机编号" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;fontStyle=4;" vertex="1" parent="1">
           <mxGeometry x="2000.0" y="560.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899312648929" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_uav_id" target="entity_uav">
+        <mxCell id="e_1775899312648929" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_uav_id" target="entity_uav">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_path_id" value="路径编号" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;fontStyle=4;" vertex="1" parent="1">
           <mxGeometry x="500.0" y="970.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899313743866" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_path_id" target="entity_path">
+        <mxCell id="e_1775899313743866" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_path_id" target="entity_path">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_path_seq" value="路径序列" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="710.0" y="970.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899314004045" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_path_seq" target="entity_path">
+        <mxCell id="e_1775899314004045" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_path_seq" target="entity_path">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_path_method" value="规划方式" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="420.0" y="1255.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899314272450" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_path_method" target="entity_path">
+        <mxCell id="e_1775899314272450" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_path_method" target="entity_path">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_path_time" value="生成时间" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="700.0" y="1255.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899314536110" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_path_time" target="entity_path">
+        <mxCell id="e_1775899314536110" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_path_time" target="entity_path">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_alert_id" value="告警编号" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;fontStyle=4;" vertex="1" parent="1">
           <mxGeometry x="1110.0" y="1130.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899314834968" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_alert_id" target="entity_alert">
+        <mxCell id="e_1775899314834968" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_alert_id" target="entity_alert">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_alert_level" value="告警级别" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="1320.0" y="1130.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899315100057" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_alert_level" target="entity_alert">
+        <mxCell id="e_1775899315100057" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_alert_level" target="entity_alert">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_alert_type" value="告警类型" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="1050.0" y="1415.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899315362120" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_alert_type" target="entity_alert">
+        <mxCell id="e_1775899315362120" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_alert_type" target="entity_alert">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_alert_time" value="触发时间" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="1325.0" y="1415.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899315628286" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_alert_time" target="entity_alert">
+        <mxCell id="e_1775899315628286" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_alert_time" target="entity_alert">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_result_id" value="评估编号" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;fontStyle=4;" vertex="1" parent="1">
           <mxGeometry x="1830.0" y="960.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899315935065" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_result_id" target="entity_result">
+        <mxCell id="e_1775899315935065" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_result_id" target="entity_result">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_result_tp" value="吞吐量" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="2040.0" y="960.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899316199817" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_result_tp" target="entity_result">
+        <mxCell id="e_1775899316199817" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_result_tp" target="entity_result">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_result_latency" value="平均时延" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="1760.0" y="1255.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899316466458" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_result_latency" target="entity_result">
+        <mxCell id="e_1775899316466458" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_result_latency" target="entity_result">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_result_conflicts" value="冲突次数" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="2040.0" y="1255.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899316743245" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_result_conflicts" target="entity_result">
+        <mxCell id="e_1775899316743245" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_result_conflicts" target="entity_result">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_result_finish" value="完成时间" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="1890.0" y="1415.0" width="142.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775899317008224" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_result_finish" target="entity_result">
+        <mxCell id="e_1775899317008224" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_result_finish" target="entity_result">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="rel_review" value="审批" style="rhombus;whiteSpace=wrap;html=1;fillColor=#e2e8f0;strokeColor=#475569;strokeWidth=2;fontSize=17;fontColor=#0f172a;" vertex="1" parent="1">
           <mxGeometry x="690.0" y="470.0" width="120.0" height="82.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775901178443755" value="" style="edgeStyle=none;" edge="1" parent="1" source="entity_request" target="rel_review">
+        <mxCell id="e_1775901178443755" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="entity_request" target="rel_review">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775901178482104" value="" style="edgeStyle=none;" edge="1" parent="1" source="rel_review" target="entity_exec">
+        <mxCell id="e_1775901178482104" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="rel_review" target="entity_exec">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="card_review_req" value="1" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fillColor=none;strokeColor=none;fontColor=#475569;fontSize=18;" vertex="1" parent="1">
@@ -323,10 +323,10 @@
         <mxCell id="entity_dispatch" value="任务调度" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#334155;strokeWidth=2;fontSize=18;fontColor=#0f172a;" vertex="1" parent="1">
           <mxGeometry x="1540.0" y="690.0" width="210.0" height="76.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775901179148106" value="" style="edgeStyle=none;" edge="1" parent="1" source="entity_exec" target="entity_dispatch">
+        <mxCell id="e_1775901179148106" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="entity_exec" target="entity_dispatch">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775901179185511" value="" style="edgeStyle=none;" edge="1" parent="1" source="entity_uav" target="entity_dispatch">
+        <mxCell id="e_1775901179185511" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="entity_uav" target="entity_dispatch">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="card_dispatch_task_new" value="1" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fillColor=none;strokeColor=none;fontColor=#475569;fontSize=18;" vertex="1" parent="1">
@@ -338,49 +338,49 @@
         <mxCell id="attr_dispatch_id" value="调度编号" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;fontStyle=4;" vertex="1" parent="1">
           <mxGeometry x="1470.0" y="580.0" width="150.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775901179929728" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_dispatch_id" target="entity_dispatch">
+        <mxCell id="e_1775901179929728" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_dispatch_id" target="entity_dispatch">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_dispatch_time" value="调度时间" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="1690.0" y="580.0" width="150.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775901180209924" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_dispatch_time" target="entity_dispatch">
+        <mxCell id="e_1775901180209924" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_dispatch_time" target="entity_dispatch">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_dispatch_status" value="分配状态" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="1460.0" y="810.0" width="150.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775901180486713" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_dispatch_status" target="entity_dispatch">
+        <mxCell id="e_1775901180486713" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_dispatch_status" target="entity_dispatch">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_dispatch_role" value="分配角色" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="1690.0" y="810.0" width="150.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775901180758308" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_dispatch_role" target="entity_dispatch">
+        <mxCell id="e_1775901180758308" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_dispatch_role" target="entity_dispatch">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_uav_model" value="无人机型号" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="2200.0" y="560.0" width="150.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775901181105784" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_uav_model" target="entity_uav">
+        <mxCell id="e_1775901181105784" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_uav_model" target="entity_uav">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_uav_payload" value="最大载重" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="1980.0" y="900.0" width="150.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775901182313978" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_uav_payload" target="entity_uav">
+        <mxCell id="e_1775901182313978" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_uav_payload" target="entity_uav">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_uav_range" value="最大续航" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="2200.0" y="900.0" width="150.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775901182639278" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_uav_range" target="entity_uav">
+        <mxCell id="e_1775901182639278" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_uav_range" target="entity_uav">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr_uav_device_status" value="设备状态" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=15;fontColor=#1e293b;" vertex="1" parent="1">
           <mxGeometry x="2090.0" y="1015.0" width="150.0" height="52.0" as="geometry" />
         </mxCell>
-        <mxCell id="e_1775901182982487" value="" style="edgeStyle=none;" edge="1" parent="1" source="attr_uav_device_status" target="entity_uav">
+        <mxCell id="e_1775901182982487" value="" style="edgeStyle=none;startArrow=none;endArrow=none;strokeColor=#475569;strokeWidth=1.4;" edge="1" parent="1" source="attr_uav_device_status" target="entity_uav">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>
