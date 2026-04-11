@@ -1,0 +1,89 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="cli-anything" agent="cli-anything-drawio/1.0.0" version="24.0.0">
+  <diagram id="diagram_1775898271289088" name="Page-1">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="start" value="开始" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e5e7eb;strokeColor=#111827;fontColor=#111827;fontSize=15;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="288.0" y="40.0" width="250.0" height="52.0" as="geometry" />
+        </mxCell>
+        <mxCell id="login" value="用户登录系统" style="shape=rectangle;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#f8fafc;strokeColor=#374151;fontColor=#111827;fontSize=14;strokeWidth=1.4;rounded=0;perimeter=rectanglePerimeter;" vertex="1" parent="1">
+          <mxGeometry x="258.0" y="120.0" width="310.0" height="58.0" as="geometry" />
+        </mxCell>
+        <mxCell id="submit" value="提交任务申请" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;fontColor=#111827;fontSize=14;strokeWidth=1.4;" vertex="1" parent="1">
+          <mxGeometry x="170.0" y="210.0" width="330.0" height="60.0" as="geometry" />
+        </mxCell>
+        <mxCell id="review" value="管理员审核任务" style="shape=rectangle;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#f8fafc;strokeColor=#374151;fontColor=#111827;fontSize=14;strokeWidth=1.4;rounded=0;perimeter=rectanglePerimeter;" vertex="1" parent="1">
+          <mxGeometry x="258.0" y="300.0" width="310.0" height="58.0" as="geometry" />
+        </mxCell>
+        <mxCell id="decision" value="审核是否通过" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#111827;fontColor=#111827;fontSize=14;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="298.0" y="388.0" width="230.0" height="108.0" as="geometry" />
+        </mxCell>
+        <mxCell id="assign" value="任务分配与地图配置" style="shape=rectangle;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#f8fafc;strokeColor=#374151;fontColor=#111827;fontSize=14;strokeWidth=1.4;rounded=0;perimeter=rectanglePerimeter;" vertex="1" parent="1">
+          <mxGeometry x="228.0" y="540.0" width="370.0" height="60.0" as="geometry" />
+        </mxCell>
+        <mxCell id="generate" value="生成执行任务" style="shape=rectangle;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#f8fafc;strokeColor=#374151;fontColor=#111827;fontSize=14;strokeWidth=1.4;rounded=0;perimeter=rectanglePerimeter;" vertex="1" parent="1">
+          <mxGeometry x="258.0" y="632.0" width="310.0" height="58.0" as="geometry" />
+        </mxCell>
+        <mxCell id="execute" value="多无人机联合运行" style="shape=rectangle;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#f8fafc;strokeColor=#374151;fontColor=#111827;fontSize=14;strokeWidth=1.4;rounded=0;perimeter=rectanglePerimeter;" vertex="1" parent="1">
+          <mxGeometry x="258.0" y="722.0" width="310.0" height="58.0" as="geometry" />
+        </mxCell>
+        <mxCell id="monitor" value="实时监控与告警反馈" style="shape=rectangle;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#f8fafc;strokeColor=#374151;fontColor=#111827;fontSize=14;strokeWidth=1.4;rounded=0;perimeter=rectanglePerimeter;" vertex="1" parent="1">
+          <mxGeometry x="238.0" y="812.0" width="350.0" height="60.0" as="geometry" />
+        </mxCell>
+        <mxCell id="replay" value="任务回放与结果评估" style="shape=rectangle;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#f8fafc;strokeColor=#374151;fontColor=#111827;fontSize=14;strokeWidth=1.4;rounded=0;perimeter=rectanglePerimeter;" vertex="1" parent="1">
+          <mxGeometry x="238.0" y="904.0" width="350.0" height="60.0" as="geometry" />
+        </mxCell>
+        <mxCell id="archive" value="任务归档" style="shape=document;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=0.27;fillColor=#ffffff;strokeColor=#374151;fontColor=#111827;fontSize=14;strokeWidth=1.4;" vertex="1" parent="1">
+          <mxGeometry x="288.0" y="998.0" width="250.0" height="62.0" as="geometry" />
+        </mxCell>
+        <mxCell id="end" value="结束" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e5e7eb;strokeColor=#111827;fontColor=#111827;fontSize=15;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="288.0" y="1088.0" width="250.0" height="52.0" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#4b5563;fontColor=#111827;strokeWidth=1.3;" edge="1" parent="1" source="start" target="login">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#4b5563;fontColor=#111827;strokeWidth=1.3;" edge="1" parent="1" source="login" target="submit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#4b5563;fontColor=#111827;strokeWidth=1.3;" edge="1" parent="1" source="submit" target="review">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#4b5563;fontColor=#111827;strokeWidth=1.3;" edge="1" parent="1" source="review" target="decision">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="是" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#4b5563;fontColor=#111827;strokeWidth=1.3;" edge="1" parent="1" source="decision" target="assign">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#4b5563;fontColor=#111827;strokeWidth=1.3;" edge="1" parent="1" source="assign" target="generate">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#4b5563;fontColor=#111827;strokeWidth=1.3;" edge="1" parent="1" source="generate" target="execute">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#4b5563;fontColor=#111827;strokeWidth=1.3;" edge="1" parent="1" source="execute" target="monitor">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#4b5563;fontColor=#111827;strokeWidth=1.3;" edge="1" parent="1" source="monitor" target="replay">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#4b5563;fontColor=#111827;strokeWidth=1.3;" edge="1" parent="1" source="replay" target="archive">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#4b5563;fontColor=#111827;strokeWidth=1.3;" edge="1" parent="1" source="archive" target="end">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="reject" value="退回修改" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4b5563;fontColor=#111827;fontSize=13;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="10.0" y="428.0" width="150.0" height="52.0" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="否" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#4b5563;fontColor=#111827;strokeWidth=1.3;" edge="1" parent="1" source="decision" target="reject">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#4b5563;fontColor=#111827;strokeWidth=1.3;" edge="1" parent="1" source="reject" target="submit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

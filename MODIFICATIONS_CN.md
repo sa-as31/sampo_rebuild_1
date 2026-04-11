@@ -218,6 +218,34 @@
 
 - 文件：
   - `web_frontend/src/views/LoginView.vue`
+
+## 13. 新增毕业论文系统业务流程图素材
+
+本轮为论文正文补充了一张可直接引用的“系统业务流程图”，重点表达当前项目在业务层面的完整执行链路，而不是底层算法训练细节。
+
+### 13.1 新增流程图源文件与导出文件
+
+- 文件：
+  - `thesis_assets/diagrams/system_business_flow_diagram.drawio`
+  - `thesis_assets/diagrams/system_business_flow_diagram.svg`
+  - `thesis_assets/diagrams/system_business_flow_diagram.pdf`
+  - `thesis_assets/diagrams/system_business_flow_diagram.png`
+  - `thesis_assets/diagrams/system_business_flow_diagram_notes.md`
+- 主要内容：
+  - 使用论文常见流程图规范绘制业务主流程
+  - 主干包含：登录、申请、审核、分配、执行、监控、回放评估、归档
+  - 审核未通过时通过“退回修改”节点回到申请阶段
+  - 图面统一为黑白灰低饱和风格，适合论文正文插图
+
+### 13.2 补充论文可直接使用的图注与引用语句
+
+- 文件：
+  - `thesis_assets/diagrams/system_business_flow_diagram_notes.md`
+  - `解疑.md`
+- 主要内容：
+  - 补充了建议图名：`图X 系统业务流程图`
+  - 补充了正文引用语句
+  - 补充了为什么本项目更适合绘制业务流程图的说明
   - `web_frontend/src/views/AppShell.vue`
   - `web_frontend/src/styles.css`
 - 主要修改：
