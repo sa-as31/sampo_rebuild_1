@@ -30,9 +30,9 @@ onMounted(async () => {
   await authStore.bootstrapAuth();
   
   // 简单的全局导航守卫逻辑（由于没在 router 层面配置 beforeEach，可以放这里处理初始加载跳转）
-  if (!authStore.state.loggedIn && route.path !== '/login') {
+  if (!authStore.state.loggedIn && !['/login', '/register'].includes(route.path)) {
     router.push('/login');
-  } else if (authStore.state.loggedIn && route.path === '/login') {
+  } else if (authStore.state.loggedIn && ['/login', '/register'].includes(route.path)) {
     const role = authStore.state.currentUser?.role;
     if (role === 'admin') router.push('/admin');
     else if (role === 'requester') router.push('/requester');
@@ -42,7 +42,7 @@ onMounted(async () => {
 
 // 监听登录状态变化，防止手动输入 URL
 watch(() => authStore.state.loggedIn, (loggedIn) => {
-  if (!loggedIn && route.path !== '/login') {
+  if (!loggedIn && !['/login', '/register'].includes(route.path)) {
     router.push('/login');
   }
 });

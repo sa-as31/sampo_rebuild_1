@@ -284,6 +284,9 @@ class TaskRuntime:
     def login(self, role: str, username: str, password: str) -> Optional[Dict[str, Any]]:
         return self.db.login(role=role, username=username, password=password)
 
+    def register_user(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        return self.db.register_user(payload)
+
     def logout(self) -> Dict[str, Any]:
         return self.db.logout()
 
@@ -1402,14 +1405,6 @@ class TaskDB:
                 (user_id, hash_password(str(account.get("password") or "")), now),
             )
 
-        # Legacy demo account cleanup: keep only default active accounts.
-        if default_ids:
-            placeholders = ",".join("?" for _ in default_ids)
-            conn.execute(
-                f"UPDATE user_accounts SET status = 'inactive', updated_at = ? WHERE user_id NOT IN ({placeholders})",
-                (now, *sorted(default_ids)),
-            )
-
         self._ensure_app_state(conn, "auth_logged_in", "0", now)
 
         active_row = conn.execute("SELECT value FROM app_state WHERE key = 'active_user_id'").fetchone()
@@ -1512,6 +1507,72 @@ class TaskDB:
             users = self._load_users(conn)
             current = self._pick_current_user(users, user_id)
             return {"logged_in": True, "current_user": current}
+
+    def register_user(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        role = normalize_role(payload.get("role"))
+        username = normalize_username(payload.get("username"))
+        password = str(payload.get("password") or "")
+        confirm_password = str(payload.get("confirm_password") or password)
+        display_name = str(payload.get("display_name") or "").strip()
+        department = str(payload.get("department") or "").strip()
+        title = str(payload.get("title") or "").strip()
+
+        if not username:
+            return {"error": "请输入账号"}
+        if len(username) < 3 or len(username) > 32:
+            return {"error": "账号长度需要在 3 到 32 个字符之间"}
+        if not username.replace("_", "").replace("-", "").isalnum():
+            return {"error": "账号只能包含字母、数字、下划线或短横线"}
+        if len(password) < 6:
+            return {"error": "密码至少需要 6 位"}
+        if password != confirm_password:
+            return {"error": "两次输入的密码不一致"}
+
+        if not display_name:
+            display_name = username
+        if not department:
+            department = "新注册用户组"
+        if not title:
+            title = {"admin": "系统管理员", "requester": "任务申请员", "executor": "无人机飞手"}[role]
+
+        now = now_ts()
+        user_id = f"u_{role}_{uuid.uuid4().hex[:10]}"
+        password_hash = hash_password(password)
+
+        with self._connect() as conn:
+            existing = conn.execute(
+                "SELECT user_id FROM user_accounts WHERE lower(username) = ? LIMIT 1",
+                (username,),
+            ).fetchone()
+            if existing is not None:
+                return {"error": "该账号已存在"}
+
+            conn.execute(
+                """
+                INSERT INTO user_accounts(
+                    user_id, username, display_name, role, department, title, status, last_login_at, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
+                """,
+                (user_id, username, display_name, role, department, title, now, now, now),
+            )
+            conn.execute(
+                "INSERT INTO auth_credentials(user_id, password_hash, updated_at) VALUES (?, ?, ?)",
+                (user_id, password_hash, now),
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO app_state(key, value, updated_at) VALUES ('active_user_id', ?, ?)",
+                (user_id, now),
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO app_state(key, value, updated_at) VALUES ('auth_logged_in', '1', ?)",
+                (now,),
+            )
+            conn.commit()
+
+            users = self._load_users(conn)
+            current = self._pick_current_user(users, user_id)
+            return {"logged_in": True, "current_user": current, "users": users}
 
     def logout(self) -> Dict[str, Any]:
         now = now_ts()

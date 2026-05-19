@@ -13,6 +13,11 @@ const routes = [
     component: LoginView,
   },
   {
+    path: '/register',
+    name: 'Register',
+    component: LoginView,
+  },
+  {
     path: '/',
     name: 'AppShell',
     component: AppShell,

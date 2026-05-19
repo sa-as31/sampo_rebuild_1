@@ -30,6 +30,15 @@ export async function loginWithPassword(payload) {
   return parseJsonOrThrow(response);
 }
 
+export async function registerAccount(payload) {
+  const response = await fetch("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response);
+}
+
 export async function logoutCurrentUser() {
   const response = await fetch("/api/auth/logout", {
     method: "POST",

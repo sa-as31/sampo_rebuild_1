@@ -1,5 +1,5 @@
 import { reactive, readonly } from 'vue';
-import { fetchAuthOptions, fetchAuthState, fetchIdentity, loginWithPassword, logoutCurrentUser } from '../services/api';
+import { fetchAuthOptions, fetchAuthState, fetchIdentity, loginWithPassword, logoutCurrentUser, registerAccount } from '../services/api';
 
 const state = reactive({
   authBooting: true,
@@ -71,6 +71,25 @@ async function login(role, username, password) {
   }
 }
 
+async function register(payload) {
+  state.authBusy = true;
+  state.authError = "";
+  try {
+    const result = await registerAccount(payload);
+    state.loggedIn = !!result?.logged_in;
+    state.currentUser = normalizeUser(result?.current_user);
+    await loadAuthOptions();
+    await loadIdentity();
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    state.authError = `注册失败：${message}`;
+    return false;
+  } finally {
+    state.authBusy = false;
+  }
+}
+
 async function logout() {
   state.authBusy = true;
   state.authError = "";
@@ -93,6 +112,7 @@ export const useAuthStore = () => {
     state: readonly(state),
     bootstrapAuth,
     login,
+    register,
     logout,
     loadAuthOptions
   };

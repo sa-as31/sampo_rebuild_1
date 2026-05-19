@@ -118,6 +118,18 @@ def auth_options_view(_request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+def auth_register_view(request):
+    payload = read_json_body(request)
+    if payload is None:
+        return json_error("Invalid JSON payload", status=400)
+    result = TASK_RUNTIME.register_user(payload)
+    if result.get("error"):
+        return json_error(result["error"], status=400)
+    return json_ok(result, status=201)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
 def auth_login_view(request):
     payload = read_json_body(request)
     if payload is None:

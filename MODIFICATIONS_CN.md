@@ -918,3 +918,164 @@
   - `PP = Primordial Planning`，即“初始规划阶段”
   - `DR = Decision Refinement`，即“决策精炼阶段”
   - 两个阶段在项目中的职责分工，以及适合答辩时直接复述的一句话解释
+
+## 34. 新增系统注册功能
+
+本轮为现有 Django + Vue 认证链路补充了注册能力，注册成功后自动登录并进入对应角色工作台。
+
+### 34.1 后端注册接口
+
+- 文件：
+  - `backend_django/urls.py`
+  - `backend_django/views.py`
+  - `web_demo/task_runtime.py`
+- 主要修改：
+  - 新增 `/api/auth/register` 接口；
+  - 在 `TaskRuntime` / `TaskDB` 中新增注册用户方法；
+  - 注册时写入 `user_accounts` 与 `auth_credentials`；
+  - 增加账号唯一性、账号格式、密码长度和确认密码校验；
+  - 注册成功后写入当前登录态，返回 `logged_in` 与 `current_user`。
+
+### 34.2 修复注册用户重启后失效问题
+
+- 文件：
+  - `web_demo/task_runtime.py`
+- 主要修改：
+  - 移除启动时将非默认账号标记为 `inactive` 的旧清理逻辑；
+  - 避免新注册用户在后端重启后被自动禁用。
+
+### 34.3 前端注册界面
+
+- 文件：
+  - `web_frontend/src/services/api.js`
+  - `web_frontend/src/stores/auth.js`
+  - `web_frontend/src/views/LoginView.vue`
+  - `web_frontend/src/styles.css`
+- 主要修改：
+  - 在登录卡片中新增“登录 / 注册”切换；
+  - 注册表单支持姓名、账号、部门、密码、确认密码和角色选择；
+  - 注册成功后自动根据角色跳转到管理员、申请人或飞手工作台；
+  - 增加注册切换控件样式，保持登录页整体视觉一致。
+
+### 34.4 验证
+
+- 已执行 `python manage.py check`，Django 检查通过；
+- 已执行 `npm run build`，前端生产构建通过；
+- 已通过浏览器流程验证注册页面可见、可填写、注册成功后可跳转到申请人工作台；
+- 浏览器控制台仅存在原有 `favicon.ico` 404，不影响注册功能。
+
+## 35. 调整注册入口为独立页面跳转
+
+本轮根据用户反馈，将登录页中的“登录 / 注册”直接切换改为路由跳转式注册入口。
+
+### 35.1 登录页入口调整
+
+- 文件：
+  - `web_frontend/src/views/LoginView.vue`
+  - `web_frontend/src/styles.css`
+- 主要修改：
+  - 移除原来的“登录 / 注册”双按钮切换；
+  - 在“进入系统”标题右侧新增小号“注册”文字链接；
+  - 点击“注册”后跳转到 `/register`；
+  - 注册页标题右侧提供小号“登录”文字链接，可返回 `/login`。
+
+### 35.2 路由与守卫调整
+
+- 文件：
+  - `web_frontend/src/router/index.js`
+  - `web_frontend/src/App.vue`
+- 主要修改：
+  - 新增 `/register` 路由，复用登录注册视图；
+  - 路由守卫允许未登录用户访问 `/register`；
+  - 已登录用户访问 `/login` 或 `/register` 时仍会跳转回对应角色工作台。
+
+### 35.3 验证
+
+- 已执行 `npm run build`，前端生产构建通过；
+- 已执行 `python manage.py check`，Django 检查通过；
+- 已通过浏览器验证 `/login` 显示小号“注册”链接，点击后进入 `/register` 注册页面。
+
+## 36. 移除登录页示例账号提示
+
+本轮根据用户反馈，清理登录页中不够正式的示例账号和默认密码提示。
+
+### 36.1 登录表单清理
+
+- 文件：
+  - `web_frontend/src/views/LoginView.vue`
+  - `web_frontend/src/styles.css`
+- 主要修改：
+  - 删除“申请人示例：requester01”等示例账号提示；
+  - 删除“默认密码 1”提示；
+  - 取消登录页根据角色自动填充账号的逻辑；
+  - 删除不再使用的提示胶囊样式。
+
+### 36.2 验证
+
+- 已执行 `npm run build`，前端生产构建通过；
+- 已搜索确认前端登录页不再包含“示例”“默认密码”等文案；
+- 已通过浏览器验证登录页只保留账号、密码和角色选择控件。
+
+## 37. 登录页主标题改为系统名称
+
+本轮将登录页左侧的大标题从说明性文案改为系统名称，使首屏识别更加明确。
+
+### 37.1 标题调整
+
+- 文件：
+  - `web_frontend/src/views/LoginView.vue`
+- 主要修改：
+  - 将登录页主标题改为 `无人机协同调度系统`；
+  - 与进入系统后的顶部系统名称保持一致。
+
+### 37.2 验证
+
+- 已执行 `npm run build`，前端生产构建通过；
+- 已通过浏览器快照确认登录页主标题显示为 `无人机协同调度系统`。
+
+## 38. 新增前后端快速启动脚本
+
+本轮新增一个本地开发快速启动脚本，方便一次性启动 Django 后端和 Vue/Vite 前端。
+
+### 38.1 新增脚本
+
+- 文件：
+  - `scripts/start_dev.sh`
+- 主要内容：
+  - 默认启动后端：`http://127.0.0.1:8080`；
+  - 默认启动前端：`http://127.0.0.1:5173`；
+  - 启动前检查 `8080` 和 `5173` 端口是否已被占用；
+  - 支持通过环境变量覆盖 `BACKEND_HOST`、`BACKEND_PORT`、`FRONTEND_HOST`、`FRONTEND_PORT`、`PYTHON_BIN`；
+  - 使用 `Ctrl+C` 时会同时停止前端和后端子进程。
+
+### 38.2 使用方式
+
+```bash
+bash scripts/start_dev.sh
+```
+
+或直接执行：
+
+```bash
+./scripts/start_dev.sh
+```
+
+### 38.3 验证
+
+- 已执行 `bash -n scripts/start_dev.sh`，脚本语法检查通过；
+- 已为脚本添加可执行权限。
+
+## 39. 将快速启动命令写入 AGENTS.md
+
+本轮根据用户要求，将前后端快速启动命令补充到项目代理指令文件中。
+
+### 39.1 指令补充
+
+- 文件：
+  - `AGENTS.md`
+- 主要修改：
+  - 新增约定：启动前后端时优先使用 `bash scripts/start_dev.sh`。
+
+### 39.2 说明
+
+- 这样后续需要启动本项目服务时，可以直接按 `AGENTS.md` 约定使用统一脚本，不再分别手动启动 Django 和 Vite。

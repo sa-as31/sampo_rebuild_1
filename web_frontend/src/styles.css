@@ -151,6 +151,35 @@ body {
   line-height: 1.6;
 }
 
+.login-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.login-title-row h2 {
+  margin: 0;
+}
+
+.auth-side-link {
+  color: var(--editorial-muted);
+  font-size: 13px;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 1px solid rgba(23, 23, 23, 0.22);
+  transition:
+    color 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.auth-side-link:hover {
+  color: var(--editorial-text);
+  border-color: rgba(23, 23, 23, 0.52);
+}
+
 .login-role-row {
   display: grid;
   gap: 10px;
@@ -180,25 +209,6 @@ body {
   color: #f6f2ea;
   background: var(--editorial-black);
   transform: translateY(-1px);
-}
-
-.login-access-strip {
-  margin-top: 14px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.login-access-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 34px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid var(--editorial-border);
-  background: rgba(255, 255, 255, 0.62);
-  color: var(--editorial-subtle);
-  font-size: 13px;
 }
 
 .login-account-list {
