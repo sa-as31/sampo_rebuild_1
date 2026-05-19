@@ -83,15 +83,28 @@ python main_gpu.py \
 
 说明：`main_gpu.py` 默认将 `global_settings.device` 设为 `gpu`。若机器无 CUDA，会在日志中提示并自动切换 CPU。
 
-## 4. Docker 指南
+## 4. Web 前后端快速启动
 
-### 4.1 CPU 镜像构建
+本地开发时可以使用统一脚本同时启动 Django 后端和 Vue/Vite 前端：
+
+```bash
+bash scripts/start_dev.sh
+```
+
+默认地址：
+
+- 前端：`http://127.0.0.1:5173`
+- 后端：`http://127.0.0.1:8080`
+
+## 5. Docker 指南
+
+### 5.1 CPU 镜像构建
 
 ```bash
 docker build -t smapo:local .
 ```
 
-### 4.2 在 Docker 中运行 CPU 训练
+### 5.2 在 Docker 中运行 CPU 训练
 
 ```bash
 docker run --rm smapo:local sh -lc "python main.py \
@@ -104,7 +117,7 @@ docker run --rm smapo:local sh -lc "python main.py \
   --use_wandb=False"
 ```
 
-### 4.2.1 在 Docker 中验证 PyOctoMap 原生 3D 地图后端
+### 5.2.1 在 Docker 中验证 PyOctoMap 原生 3D 地图后端
 
 ```bash
 docker build -t smapo:pyoctomap-test .
@@ -115,13 +128,13 @@ docker run --rm smapo:pyoctomap-test python scripts/smoke_pyoctomap_env.py
 - 该 smoke 测试会启用 `height_levels=4`、`native_3d_obstacles=True`、`obstacle_backend=pyoctomap`；
 - 生成的全局障碍是原生 `4 x 16 x 16` 三维体素障碍图，不再是二维障碍按层复制。
 
-### 4.3 手动构建 GPU 镜像
+### 5.3 手动构建 GPU 镜像
 
 ```bash
 docker build -f Dockerfile.gpu -t smapo:gpu .
 ```
 
-### 4.4 在 Docker 中运行 GPU 训练
+### 5.4 在 Docker 中运行 GPU 训练
 
 ```bash
 docker run --rm --gpus all --ipc=host smapo:gpu bash -lc "python scripts/verify_gpu.py && python main_gpu.py \
@@ -134,19 +147,28 @@ docker run --rm --gpus all --ipc=host smapo:gpu bash -lc "python scripts/verify_
   --use_wandb=False"
 ```
 
-### 4.5 使用 docker compose（GPU）
+### 5.5 使用 docker compose（GPU）
 
 ```bash
 docker compose -f docker-compose.gpu.yml up --build
 ```
 
-### 4.6 使用 docker compose（CPU）
+### 5.6 使用 docker compose（CPU）
 
 ```bash
 docker compose up --build
 ```
 
-## 5. 常见问题
+## 6. 文档目录
+
+论文、答辩、工程说明和中间提取材料已整理到 `docs/`：
+
+- `docs/project/`：工程运行、训练、前端和评估说明。
+- `docs/thesis/`：论文、任务书、开题报告、文献综述和答辩材料。
+- `docs/extracted/`：MinerU 等工具生成的提取材料。
+- `docs/paper/`：论文补充材料。
+
+## 7. 常见问题
 
 1. 日志出现 Gym 弃用警告
 - 这是上游依赖提示，不影响本项目当前训练流程。

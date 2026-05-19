@@ -1079,3 +1079,45 @@ bash scripts/start_dev.sh
 ### 39.2 说明
 
 - 这样后续需要启动本项目服务时，可以直接按 `AGENTS.md` 约定使用统一脚本，不再分别手动启动 Django 和 Vite。
+
+## 40. 保存当前项目状态并整理顶层文件
+
+本轮根据用户要求，先将当前项目状态提交并推送到 GitHub，再对项目顶层散落文件进行目录整理。
+
+### 40.1 保存当前状态
+
+- 已提交当前源码、文档、图表和论文材料快照；
+- 提交信息：`Save current project state`；
+- 未将 `results/`、`wandb/`、`web_frontend/node_modules/` 等运行产物和依赖目录纳入保存提交。
+
+### 40.2 顶层文件整理
+
+- 新增目录：
+  - `docs/project/`：工程运行、训练、评估、前端和阶段性修复说明；
+  - `docs/thesis/`：论文、任务书、开题报告、文献综述、答辩材料和论文配图；
+  - `docs/extracted/`：MinerU 提取出的 HTML / Markdown 中间文件；
+  - `docs/paper/`：论文补充材料。
+- 新增 `docs/README.md`，说明文档目录用途和根目录保留原则。
+
+### 40.3 忽略规则整理
+
+- 更新 `.gitignore`：
+  - 忽略 `results/`；
+  - 忽略 `wandb/`；
+  - 忽略 `node_modules/`；
+  - 忽略 Office 临时备份文件 `.$*`；
+  - 忽略前端 Vite 缓存目录。
+
+### 40.4 根目录保留原则
+
+- 根目录保留运行入口、部署配置和核心协作文档：
+  - `README.md`
+  - `AGENTS.md`
+  - `MODIFICATIONS_CN.md`
+  - `解疑.md`
+  - `main.py`
+  - `main_gpu.py`
+  - `manage.py`
+  - `Dockerfile*`
+  - `docker-compose*.yml`
+  - `requirements.txt`

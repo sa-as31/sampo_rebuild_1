@@ -178,6 +178,18 @@ temp/
 *.bak
 *.backup
 *~
+.$*
+
+# Runtime outputs and generated experiment artifacts
+results/
+wandb/
+
+# Frontend dependencies and build cache
+node_modules/
+web_frontend/node_modules/
+web_frontend_ge/node_modules/
+web_frontend/.vite/
+web_frontend_ge/.vite/
 
 # PDF and other documents (uncomment if you don't want to include them)
 #*.pdf
